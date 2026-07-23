@@ -1,7 +1,7 @@
 from __future__ import annotations
 import csv,io,json,logging,os
 from functools import wraps
-from flask import Flask,Response,jsonify,render_template,request
+from flask import Flask,Response,abort,jsonify,make_response,render_template,request
 from config import load_settings
 from database import FlowDatabase
 from ha_client import HomeAssistantClient
@@ -12,6 +12,51 @@ app=Flask(__name__);app.config['MAX_CONTENT_LENGTH']=settings.webhook_max_body_m
 db=FlowDatabase(os.path.join(settings.config_dir,'seiden_flow.db'),settings.organization_id,settings.organization_name,settings.site_id,settings.site_name)
 ha=HomeAssistantClient();service=FlowService(db,ha,settings.publish_summary_to_home_assistant,settings);service.publish_summary();service.start_cleanup(settings.retention_days,settings.cleanup_interval_hours)
 if settings.subscribe_home_assistant_events:ha.start_event_listener([settings.bridge_presence_event,settings.bridge_online_event,settings.bridge_offline_event],lambda t,d:service.ingest(d,transport='home_assistant_event',ha_event_type=t),service.publish_connection)
+
+def _portal_payload(hours: int):
+ hours=max(1,min(720,hours))
+ summary=db.hea_summary(hours,settings.human_experience_minimum_samples)
+ sources=db.hea_sources(hours) if settings.hea_portal_show_sources else []
+ history=db.hea_history(hours,limit=500)
+ # Explicit allow-list: no people, images, event IDs, biometrics or technical HA entities.
+ safe_summary={k:summary.get(k) for k in (
+  'available','experience_index','sample_count','dominant_expression',
+  'average_confidence','distribution','period_hours','minimum_samples'
+ ) if k in summary}
+ safe_sources=[]
+ for item in sources:
+  safe_sources.append({k:item.get(k) for k in (
+   'source_id','source_name','location_name','experience_index','sample_count',
+   'dominant_expression','average_confidence','distribution'
+  ) if k in item})
+ safe_history=[]
+ for item in history:
+  safe_history.append({k:item.get(k) for k in (
+   'window_start','window_end','experience_index','sample_count',
+   'dominant_expression','average_confidence','distribution','source_id'
+  ) if k in item})
+ return {
+  'title':settings.hea_portal_title,
+  'subtitle':settings.hea_portal_subtitle,
+  'privacy_notice':settings.hea_portal_privacy_notice,
+  'hours':hours,
+  'summary':safe_summary,
+  'sources':safe_sources,
+  'history':safe_history,
+  'updated_at':__import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),
+  'version':VERSION
+ }
+
+@app.after_request
+def portal_cors(response):
+ origin=request.headers.get('Origin')
+ if origin and origin in settings.hea_portal_allowed_origins and request.path.startswith('/api/v1/public/hea'):
+  response.headers['Access-Control-Allow-Origin']=origin
+  response.headers['Vary']='Origin'
+  response.headers['Access-Control-Allow-Methods']='GET, OPTIONS'
+  response.headers['Access-Control-Allow-Headers']='Content-Type'
+ return response
+
 def require_api_key(fn):
  @wraps(fn)
  def wrapped(*a,**kw):
@@ -20,6 +65,27 @@ def require_api_key(fn):
  return wrapped
 @app.get('/')
 def dashboard():return render_template('dashboard.html',version=VERSION,summary=db.summary(),events=db.list_events(limit=20),people=db.people_inside(),sources=db.sources_state(),ha_status=ha.connection_status,hea=db.hea_summary(24,settings.human_experience_minimum_samples),hea_sources=db.hea_sources(24),hea_history=db.hea_history(24,limit=96),hea_config={'minimum_samples':settings.human_experience_minimum_samples,'window_minutes':settings.human_experience_aggregation_window_minutes,'minimum_confidence':settings.human_experience_minimum_confidence})
+
+@app.get('/hea')
+def hea_portal():
+ if not settings.hea_portal_enabled: abort(404)
+ return render_template(
+  'hea_portal.html',
+  title=settings.hea_portal_title,
+  subtitle=settings.hea_portal_subtitle,
+  privacy_notice=settings.hea_portal_privacy_notice,
+  default_hours=settings.hea_portal_default_hours,
+  refresh_seconds=settings.hea_portal_refresh_seconds,
+  show_sources=settings.hea_portal_show_sources,
+  version=VERSION
+ )
+
+@app.route('/api/v1/public/hea/dashboard',methods=['GET','OPTIONS'])
+def public_hea_dashboard():
+ if not settings.hea_portal_enabled: abort(404)
+ if request.method=='OPTIONS': return make_response('',204)
+ return jsonify(_portal_payload(int(request.args.get('hours',settings.hea_portal_default_hours))))
+
 @app.get('/health')
 @app.get('/api/v1/health')
 def health():return jsonify({'status':'ok','service':'seiden_flow','version':VERSION,'schema_version':SCHEMA_VERSION,'database_schema_version':DATABASE_SCHEMA_VERSION,'home_assistant_connection':ha.connection_status})

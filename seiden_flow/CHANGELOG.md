@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0
+
+- Portal web externo do Human Experience Analytics em `/hea`.
+- API pública sanitizada em `/api/v1/public/hea/dashboard`.
+- Visual responsivo para desktop, tablet e celular.
+- Atualização automática e seleção de período.
+- Cards, distribuição, histórico e visão por fonte.
+- Nenhum dado pessoal, imagem, biometria ou evento individual é exposto pelo portal.
+- CORS opcional por lista explícita de origens.
+- Preparado para publicação atrás de Cloudflare Tunnel e Cloudflare Access.
+
 ## 0.3.2
 
 - Unifica fontes do Vision com o leitor operacional, evitando entidades `sensor.*` como fonte.

@@ -72,3 +72,12 @@ Além de Organization, Site, Location, Source, Person, Event e Presence, entram:
 
 - **Observation**: observação anônima temporária;
 - **ObservationAggregate**: indicador agregado permanente.
+
+
+## Portal web HEA (0.4.0)
+
+A página externa está disponível em `http://HOST:8100/hea`. Para publicação remota, aponte um hostname do Cloudflare Tunnel para `http://IP_DO_HOME_ASSISTANT:8100` e proteja-o com Cloudflare Access.
+
+O endpoint utilizado pela página é `GET /api/v1/public/hea/dashboard`. Ele usa uma lista explícita de campos e não expõe nomes de pessoas, imagens, biometria, identificadores de autenticação ou eventos individuais.
+
+Opções principais: `hea_portal_enabled`, `hea_portal_title`, `hea_portal_subtitle`, `hea_portal_default_hours`, `hea_portal_refresh_seconds`, `hea_portal_show_sources`, `hea_portal_privacy_notice` e `hea_portal_allowed_origins`.

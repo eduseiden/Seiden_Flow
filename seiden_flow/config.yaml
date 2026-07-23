@@ -1,5 +1,5 @@
 name: Seiden FLOW
-version: "0.3.2"
+version: "0.4.0"
 slug: seiden_flow
 description: Camada de dados operacional da Seiden Tech para ingestão, correlação, estado e disponibilização de eventos
 url: https://github.com/eduseiden/Seiden-HA
@@ -54,6 +54,14 @@ options:
   human_experience_positive_weight: 1.0
   human_experience_neutral_weight: 0.0
   human_experience_negative_weight: -1.0
+  hea_portal_enabled: true
+  hea_portal_title: Human Experience Analytics
+  hea_portal_subtitle: Indicadores agregados de experiência
+  hea_portal_default_hours: 24
+  hea_portal_refresh_seconds: 10
+  hea_portal_show_sources: true
+  hea_portal_privacy_notice: Dados agregados e anônimos. Nenhuma identificação pessoal é exibida.
+  hea_portal_allowed_origins: []
 
 schema:
   log_level: list(debug|info|warning|error|critical)
@@ -82,3 +90,12 @@ schema:
   human_experience_positive_weight: float(-10,10)
   human_experience_neutral_weight: float(-10,10)
   human_experience_negative_weight: float(-10,10)
+  hea_portal_enabled: bool
+  hea_portal_title: str
+  hea_portal_subtitle: str
+  hea_portal_default_hours: int(1,720)
+  hea_portal_refresh_seconds: int(5,3600)
+  hea_portal_show_sources: bool
+  hea_portal_privacy_notice: str
+  hea_portal_allowed_origins:
+    - str

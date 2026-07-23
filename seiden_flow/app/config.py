@@ -30,6 +30,14 @@ class Settings:
     human_experience_positive_weight: float = 1.0
     human_experience_neutral_weight: float = 0.0
     human_experience_negative_weight: float = -1.0
+    hea_portal_enabled: bool = True
+    hea_portal_title: str = "Human Experience Analytics"
+    hea_portal_subtitle: str = "Indicadores agregados de experiência"
+    hea_portal_default_hours: int = 24
+    hea_portal_refresh_seconds: int = 10
+    hea_portal_show_sources: bool = True
+    hea_portal_privacy_notice: str = "Dados agregados e anônimos. Nenhuma identificação pessoal é exibida."
+    hea_portal_allowed_origins: tuple[str, ...] = ()
     config_dir: str = "/config"
 
 def _bool(v, default):
@@ -38,6 +46,11 @@ def _bool(v, default):
     return default
 
 def _sources(v):
+    if isinstance(v, list): return tuple(str(x).strip() for x in v if str(x).strip())
+    if isinstance(v, str): return tuple(x.strip() for x in v.split(',') if x.strip())
+    return ()
+
+def _strings(v):
     if isinstance(v, list): return tuple(str(x).strip() for x in v if str(x).strip())
     if isinstance(v, str): return tuple(x.strip() for x in v.split(',') if x.strip())
     return ()
@@ -66,4 +79,12 @@ def load_settings() -> Settings:
         human_experience_positive_weight=float(raw.get("human_experience_positive_weight",1.0)),
         human_experience_neutral_weight=float(raw.get("human_experience_neutral_weight",0.0)),
         human_experience_negative_weight=float(raw.get("human_experience_negative_weight",-1.0)),
+        hea_portal_enabled=_bool(raw.get("hea_portal_enabled"),True),
+        hea_portal_title=str(raw.get("hea_portal_title","Human Experience Analytics")),
+        hea_portal_subtitle=str(raw.get("hea_portal_subtitle","Indicadores agregados de experiência")),
+        hea_portal_default_hours=max(1,min(720,int(raw.get("hea_portal_default_hours",24)))),
+        hea_portal_refresh_seconds=max(5,min(3600,int(raw.get("hea_portal_refresh_seconds",10)))),
+        hea_portal_show_sources=_bool(raw.get("hea_portal_show_sources"),True),
+        hea_portal_privacy_notice=str(raw.get("hea_portal_privacy_notice","Dados agregados e anônimos. Nenhuma identificação pessoal é exibida.")),
+        hea_portal_allowed_origins=_strings(raw.get("hea_portal_allowed_origins",[])),
         config_dir=os.getenv("FLOW_CONFIG_DIR","/config"))
