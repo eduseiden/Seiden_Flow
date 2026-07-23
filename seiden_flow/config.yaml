@@ -1,0 +1,55 @@
+name: Seiden FLOW
+version: "0.1.0"
+slug: seiden_flow
+description: Camada de dados operacional da Seiden Tech para ingestão, correlação, estado e disponibilização de eventos
+url: https://github.com/eduseiden/Seiden-HA
+stage: experimental
+startup: application
+boot: auto
+init: false
+arch:
+  - amd64
+  - aarch64
+
+homeassistant_api: true
+hassio_api: true
+
+ingress: true
+ingress_port: 8100
+ingress_panel: true
+ports:
+  8100/tcp: 8100
+ports_description:
+  8100/tcp: API e dashboard do Seiden FLOW
+panel_icon: mdi:database-cog
+panel_title: Seiden FLOW
+
+map:
+  - type: addon_config
+    read_only: false
+
+options:
+  log_level: info
+  api_key: ""
+  timezone: America/Sao_Paulo
+  retention_days: 365
+  subscribe_home_assistant_events: true
+  bridge_presence_event: seiden_presence
+  bridge_online_event: seiden_reader_online
+  bridge_offline_event: seiden_reader_offline
+  publish_summary_to_home_assistant: true
+  cleanup_interval_hours: 12
+  webhook_max_body_mb: 5
+
+schema:
+  log_level: list(debug|info|warning|error|critical)
+  api_key: password?
+  timezone: str
+  retention_days: int(1,3650)
+  subscribe_home_assistant_events: bool
+  bridge_presence_event: str
+  bridge_online_event: str
+  bridge_offline_event: str
+  publish_summary_to_home_assistant: bool
+  cleanup_interval_hours: int(1,168)
+  webhook_max_body_mb: int(1,20)

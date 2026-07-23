@@ -1,0 +1,7 @@
+configuration:
+  api_key:
+    name: API key
+    description: Optional Bearer token required by ingestion endpoints.
+  subscribe_home_assistant_events:
+    name: Subscribe to Home Assistant events
+    description: Receives Seiden Bridge events directly from the Home Assistant event bus.

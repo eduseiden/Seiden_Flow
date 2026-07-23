@@ -1,0 +1,7 @@
+configuration:
+  api_key:
+    name: Chave da API
+    description: Token Bearer opcional exigido pelos endpoints de ingestão.
+  subscribe_home_assistant_events:
+    name: Assinar eventos do Home Assistant
+    description: Recebe eventos do Seiden Bridge diretamente pelo barramento do Home Assistant.
