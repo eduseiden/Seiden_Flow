@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.2
+
+- Unifica fontes do Vision com o leitor operacional, evitando entidades `sensor.*` como fonte.
+- Associa automaticamente observações HEA ao local do leitor.
+- Remove identidade pessoal dos eventos técnicos `vision.analysis_completed` persistidos.
+- Exibe a confiança HEA com duas casas decimais.
+- Migra e reconcilia fontes técnicas criadas pela versão anterior.
+- Mantém compatibilidade com Seiden Bridge 0.6.3 e Seiden Vision 0.4.0.
+
+
 ## 0.3.1
 - Corrigida a correlação de leitores nos eventos online/offline.
 - Adicionado fallback compatível por `reader_name` e `reader_ip` para eventos de versões anteriores do Bridge.

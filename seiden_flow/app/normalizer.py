@@ -62,6 +62,14 @@ def normalize_event(payload: dict[str, Any], transport: str = "api", ha_event_ty
     # porque gera o mesmo slug estável usado pelos eventos de presença.
     if not reader_id:
         reader_id = reader_name or reader_ip
+    # Eventos do Vision podem trazer a entidade auxiliar do Home Assistant
+    # (ex.: sensor.seiden_last_person) como source_id. Essa entidade não é
+    # a identidade operacional do leitor; quando houver nome legível, usamos
+    # um identificador canônico estável derivado dele.
+    if source == "seiden_vision" and reader_name and str(reader_id or "").startswith(("sensor.", "binary_sensor.", "event.")):
+        import re, unicodedata
+        canonical = unicodedata.normalize("NFKD", str(reader_name)).encode("ascii", "ignore").decode().lower()
+        reader_id = re.sub(r"[^a-z0-9]+", "_", canonical).strip("_") or reader_id
     location_id = _pick(nested_reader, "location_id", default=_pick(payload, "location_id"))
     person_id = _pick(nested_person, "id", "person_id", default=_pick(payload, "person_id", "user_id"))
     person_name = _pick(nested_person, "name", "person_name", default=_pick(payload, "person_name", "user_name", "name"))

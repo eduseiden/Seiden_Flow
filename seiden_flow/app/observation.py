@@ -42,6 +42,12 @@ def extract_vision_observation(payload: dict[str, Any]) -> dict[str, Any] | None
         return None
     source_id = origin.get("source_id") or origin.get("device_id") or payload.get("source_id")
     source_name = origin.get("source_name") or payload.get("source_name") or source_id
+    # A entidade auxiliar do HA não deve virar uma fonte operacional no FLOW.
+    # Canonicalizamos pelo nome do leitor quando o Vision envia sensor.*.
+    if source_name and str(source_id or "").startswith(("sensor.", "binary_sensor.", "event.")):
+        import re, unicodedata
+        canonical = unicodedata.normalize("NFKD", str(source_name)).encode("ascii", "ignore").decode().lower()
+        source_id = re.sub(r"[^a-z0-9]+", "_", canonical).strip("_") or source_id
     location_id = origin.get("location_id") or payload.get("location_id")
     confidence = _as_float(analysis.get("confidence"), 0.0)
     occurred_at = payload.get("timestamp") or payload.get("occurred_at") or datetime.now(timezone.utc).isoformat()
@@ -75,6 +81,13 @@ def sanitize_vision_event(payload: dict[str, Any]) -> dict[str, Any]:
     if str(payload.get("event_type") or "") != "vision.analysis_completed":
         return payload
     clean = dict(payload)
+    # O evento técnico persistido não mantém identidade pessoal. A identidade
+    # não é necessária para operação do HEA e permanece apenas no fluxo original
+    # entre Bridge e Vision.
+    clean.pop("person", None)
+    clean.pop("subject", None)
+    for key in ("person_id", "person_name", "user_id", "user_name", "name"):
+        clean.pop(key, None)
     analysis = dict(clean.get("analysis") or {})
     analysis.pop("dominant_emotion", None)
     analysis.pop("observed_expression", None)

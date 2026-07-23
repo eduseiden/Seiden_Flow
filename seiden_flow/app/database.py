@@ -9,7 +9,7 @@ from version import DATABASE_SCHEMA_VERSION
 class FlowDatabase:
     def __init__(self,path:str,organization_id="default_organization",organization_name="Organização padrão",site_id="default_site",site_name="Site padrão"):
         self.path=path;self.organization_id=organization_id;self.site_id=site_id;self._lock=threading.RLock();Path(path).parent.mkdir(parents=True,exist_ok=True)
-        self._init_schema(organization_name,site_name);self._migrate_legacy()
+        self._init_schema(organization_name,site_name);self._migrate_legacy();self._reconcile_vision_sources()
     @contextmanager
     def connect(self)->Iterator[sqlite3.Connection]:
         c=sqlite3.connect(self.path,timeout=30);c.row_factory=sqlite3.Row;c.execute("PRAGMA foreign_keys=ON")
@@ -97,6 +97,28 @@ class FlowDatabase:
             for p in c.execute("SELECT * FROM persons_state").fetchall():
                 pid=self._person_id(p['person_id'],p['person_name']);self._ensure_person(c,pid,p['person_id'],p['person_name'],p['updated_at'])
                 c.execute("INSERT INTO presences(person_id,site_id,presence_status,current_location_id,entered_at,last_event_id,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(person_id,site_id) DO UPDATE SET presence_status=excluded.presence_status,current_location_id=excluded.current_location_id,entered_at=excluded.entered_at,last_event_id=excluded.last_event_id,updated_at=excluded.updated_at",(pid,self.site_id,p['presence_status'],p['current_location_id'],p['entered_at'],p['last_event_id'],p['updated_at']))
+
+    def _reconcile_vision_sources(self):
+        """Unifica fontes antigas do Vision com o leitor operacional correspondente."""
+        with self._lock,self.connect() as c:
+            rows=c.execute("SELECT DISTINCT source_id,source_name FROM observations WHERE source_id LIKE 'sensor.%' OR source_id LIKE 'binary_sensor.%' OR source_id LIKE 'event.%'").fetchall()
+            for r in rows:
+                name=r['source_name'] or r['source_id'];canonical=self._slug(name)
+                match=c.execute("SELECT id,location_id,name FROM sources WHERE source_type='reader' AND lower(name)=lower(?) ORDER BY CASE WHEN provider='seiden_bridge' THEN 0 ELSE 1 END LIMIT 1",(name,)).fetchone()
+                location=match['location_id'] if match else None
+                c.execute("UPDATE observations SET source_id=?,source_name=?,location_id=COALESCE(location_id,?) WHERE source_id=?",(canonical,name,location,r['source_id']))
+                c.execute("UPDATE observation_aggregates SET source_id=?,source_name=?,location_id=COALESCE(location_id,?) WHERE source_id=?",(canonical,name,location,r['source_id']))
+            # Remove fontes técnicas criadas a partir de entidades sensor.* quando
+            # já existe um leitor operacional de mesmo nome.
+            technical=c.execute("SELECT id,name,location_id FROM sources WHERE id LIKE 'reader_sensor_%' OR id LIKE 'reader_binary_sensor_%' OR id LIKE 'reader_event_%'").fetchall()
+            for r in technical:
+                exists=c.execute("SELECT 1 FROM sources WHERE id<>? AND source_type='reader' AND lower(name)=lower(?) LIMIT 1",(r['id'],r['name'])).fetchone()
+                if exists:
+                    c.execute("DELETE FROM sources WHERE id=?",(r['id'],))
+                    if r['location_id']:
+                        used=c.execute("SELECT 1 FROM sources WHERE location_id=? UNION SELECT 1 FROM presences WHERE current_location_id=? LIMIT 1",(r['location_id'],r['location_id'])).fetchone()
+                        if not used:c.execute("DELETE FROM locations WHERE id=?",(r['location_id'],))
+
     def _person_id(self,external,name): return f"person_{self._slug(external or name)}"
     def _ensure_person(self,c,pid,external,name,ts):
         c.execute("INSERT INTO persons(id,organization_id,external_id,display_name,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET external_id=COALESCE(excluded.external_id,persons.external_id),display_name=excluded.display_name,updated_at=excluded.updated_at",(pid,self.organization_id,str(external) if external else None,name or pid,ts,ts))
@@ -159,8 +181,13 @@ class FlowDatabase:
     def insert_observation(self, observation):
         with self._lock,self.connect() as c:
             try:
+                location_id=observation.get('location_id')
+                if not location_id and observation.get('source_name'):
+                    match=c.execute("SELECT location_id FROM sources WHERE source_type='reader' AND lower(name)=lower(?) ORDER BY CASE WHEN provider='seiden_bridge' THEN 0 ELSE 1 END LIMIT 1",(observation.get('source_name'),)).fetchone()
+                    if match:location_id=match['location_id']
+                observation['location_id']=location_id
                 c.execute("""INSERT INTO observations(observation_id,metric_type,provider,organization_id,site_id,source_id,source_name,location_id,occurred_at,value,raw_value,confidence,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                          (observation['observation_id'],observation['metric_type'],observation.get('provider','external'),self.organization_id,self.site_id,observation['source_id'],observation.get('source_name'),observation.get('location_id'),observation['occurred_at'],observation['value'],observation.get('raw_value'),float(observation.get('confidence',0)),datetime.now(timezone.utc).isoformat()))
+                          (observation['observation_id'],observation['metric_type'],observation.get('provider','external'),self.organization_id,self.site_id,observation['source_id'],observation.get('source_name'),location_id,observation['occurred_at'],observation['value'],observation.get('raw_value'),float(observation.get('confidence',0)),datetime.now(timezone.utc).isoformat()))
                 return True
             except sqlite3.IntegrityError:
                 return False

@@ -141,7 +141,7 @@
       <div class="card">Experience Index<div id="hea-index" class="hea-index">{{ hea.experience_index if hea.experience_index is not none else '—' }}</div><div id="hea-status" class="status-box">{{ 'Disponível' if hea.status == 'available' else 'Dados insuficientes' }}</div></div>
       <div class="card">Amostras válidas<div id="hea-samples" class="value">{{ hea.sample_count }}</div><div class="status-box">mínimo: <span id="hea-minimum">{{ hea_config.minimum_samples }}</span></div></div>
       <div class="card">Expressão predominante<div id="hea-dominant" class="value">{{ hea.dominant_expression or '—' }}</div></div>
-      <div class="card">Confiança média<div id="hea-confidence" class="value">{{ ('%.0f' % (hea.average_confidence * 100)) if hea.average_confidence is not none else '—' }}{% if hea.average_confidence is not none %}%{% endif %}</div></div>
+      <div class="card">Confiança média<div id="hea-confidence" class="value">{{ ('%.2f' % (hea.average_confidence * 100)) if hea.average_confidence is not none else '—' }}{% if hea.average_confidence is not none %}%{% endif %}</div></div>
     </div>
     <div class="card">
       <strong>Distribuição — últimas 24 horas</strong>
@@ -152,7 +152,7 @@
       <table>
         <thead><tr><th>Fonte</th><th>Local</th><th>Experience Index</th><th>Amostras</th><th>Predominante</th><th>Confiança</th></tr></thead>
         <tbody id="hea-sources-table">
-        {% for x in hea_sources %}<tr><td>{{ x.source_name }}</td><td>{{ x.location_id or '-' }}</td><td>{{ x.experience_index }}</td><td>{{ x.sample_count }}</td><td>{{ x.dominant_expression }}</td><td>{{ ('%.0f' % (x.average_confidence * 100)) }}%</td></tr>
+        {% for x in hea_sources %}<tr><td>{{ x.source_name }}</td><td>{{ x.location_id or '-' }}</td><td>{{ x.experience_index }}</td><td>{{ x.sample_count }}</td><td>{{ x.dominant_expression }}</td><td>{{ ('%.2f' % (x.average_confidence * 100)) }}%</td></tr>
         {% else %}<tr><td colspan="6">Ainda não há volume suficiente para análise.</td></tr>{% endfor %}
         </tbody>
       </table>
@@ -305,7 +305,7 @@
       document.getElementById('hea-samples').textContent = Number(summary.sample_count || 0).toLocaleString('pt-BR');
       document.getElementById('hea-minimum').textContent = hea?.config?.minimum_samples ?? '-';
       document.getElementById('hea-dominant').textContent = available ? text(summary.dominant_expression) : '—';
-      document.getElementById('hea-confidence').textContent = available && summary.average_confidence !== null ? `${Math.round(summary.average_confidence * 100)}%` : '—';
+      document.getElementById('hea-confidence').textContent = available && summary.average_confidence !== null ? `${(summary.average_confidence * 100).toFixed(2)}%` : '—';
       const dist = summary.distribution || {};
       const total = (dist.positive || 0) + (dist.neutral || 0) + (dist.negative || 0) + (dist.uncertain || 0);
       const labels = [['positive','Positiva'],['neutral','Neutra'],['negative','Negativa'],['uncertain','Incerta']];
@@ -316,7 +316,7 @@
       }
       const body=document.getElementById('hea-sources-table');body.replaceChildren();const sources=hea?.sources || [];
       if (!sources.length) { const row=document.createElement('tr'); const cell=createCell('Ainda não há volume suficiente para análise.');cell.colSpan=6;row.appendChild(cell);body.appendChild(row); }
-      else for (const x of sources) { const row=document.createElement('tr');row.append(createCell(x.source_name),createCell(x.location_id),createCell(`${x.experience_index > 0 ? '+' : ''}${x.experience_index}`),createCell(x.sample_count),createCell(x.dominant_expression),createCell(`${Math.round((x.average_confidence || 0)*100)}%`));body.appendChild(row); }
+      else for (const x of sources) { const row=document.createElement('tr');row.append(createCell(x.source_name),createCell(x.location_id),createCell(`${x.experience_index > 0 ? '+' : ''}${x.experience_index}`),createCell(x.sample_count),createCell(x.dominant_expression),createCell(`${((x.average_confidence || 0)*100).toFixed(2)}%`));body.appendChild(row); }
     }
 
     function render(data) {
