@@ -128,9 +128,11 @@ class FlowDatabase:
                 c.execute("INSERT INTO presences(person_id,site_id,presence_status,current_location_id,entered_at,last_event_id,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(person_id,site_id) DO UPDATE SET presence_status=excluded.presence_status,current_location_id=excluded.current_location_id,entered_at=excluded.entered_at,last_event_id=excluded.last_event_id,updated_at=excluded.updated_at",(pid,self.site_id,'inside' if inside else 'outside',f.get('location_id'),event['timestamp'] if inside else None,event['event_id'],now))
             et=event['event_type']
             if et in {'reader.online','reader.offline'} or et.endswith('reader_online') or et.endswith('reader_offline'):
-                rid=f.get('reader_id') or 'unknown';status='online' if 'online' in et and 'offline' not in et else 'offline';sid=f"reader_{self._slug(rid)}"
-                c.execute("INSERT INTO sources_state(source_key,source_type,source_id,source_name,status,last_event_id,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(source_key) DO UPDATE SET source_name=excluded.source_name,status=excluded.status,last_event_id=excluded.last_event_id,updated_at=excluded.updated_at",(f"reader:{rid}",'reader',rid,f.get('reader_name'),status,event['event_id'],now))
-                c.execute("UPDATE sources SET status=?,last_event_id=?,last_seen_at=?,updated_at=? WHERE id=?",(status,event['event_id'],event['timestamp'],now,sid))
+                rid=f.get('reader_id') or f.get('reader_name') or 'unknown';status='online' if 'online' in et and 'offline' not in et else 'offline';sid=f"reader_{self._slug(rid)}"
+                c.execute("INSERT INTO sources_state(source_key,source_type,source_id,source_name,status,last_event_id,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(source_key) DO UPDATE SET source_id=excluded.source_id,source_name=excluded.source_name,status=excluded.status,last_event_id=excluded.last_event_id,updated_at=excluded.updated_at",(f"reader:{self._slug(rid)}",'reader',rid,f.get('reader_name'),status,event['event_id'],now))
+                updated=c.execute("UPDATE sources SET status=?,last_event_id=?,last_seen_at=?,updated_at=? WHERE id=?",(status,event['event_id'],event['timestamp'],now,sid)).rowcount
+                if not updated and f.get('reader_name'):
+                    c.execute("UPDATE sources SET status=?,last_event_id=?,last_seen_at=?,updated_at=? WHERE source_type='reader' AND lower(name)=lower(?)",(status,event['event_id'],event['timestamp'],now,f.get('reader_name')))
     def _rows(self,sql,p=()):
         with self.connect() as c:return [dict(r) for r in c.execute(sql,p).fetchall()]
     def list_events(self,limit=100,event_type=None,person=None):

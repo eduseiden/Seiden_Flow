@@ -49,8 +49,19 @@ def normalize_event(payload: dict[str, Any], transport: str = "api", ha_event_ty
     if not event_id:
         event_id = _stable_id({"transport": transport, "ha_event_type": ha_event_type, "payload": original}) if ha_event_type else str(uuid.uuid4())
 
-    reader_id = _pick(nested_reader, "id", "source_id", "device_id", default=_pick(payload, "reader_id", "device_id"))
     reader_name = _pick(nested_reader, "name", default=_pick(payload, "reader_name", "source_name"))
+    reader_ip = _pick(nested_reader, "ip", default=_pick(payload, "reader_ip", "ip_address"))
+    reader_id = _pick(
+        nested_reader,
+        "id",
+        "source_id",
+        "device_id",
+        default=_pick(payload, "reader_id", "device_id", "source_id"),
+    )
+    # Compatibilidade com Bridges anteriores à 0.6.3: o nome é preferido ao IP
+    # porque gera o mesmo slug estável usado pelos eventos de presença.
+    if not reader_id:
+        reader_id = reader_name or reader_ip
     location_id = _pick(nested_reader, "location_id", default=_pick(payload, "location_id"))
     person_id = _pick(nested_person, "id", "person_id", default=_pick(payload, "person_id", "user_id"))
     person_name = _pick(nested_person, "name", "person_name", default=_pick(payload, "person_name", "user_name", "name"))
@@ -65,7 +76,7 @@ def normalize_event(payload: dict[str, Any], transport: str = "api", ha_event_ty
         "received_at": _now(),
         "transport": transport,
         "correlation": payload.get("correlation") or {"source_event_id": payload.get("source_event_id")},
-        "reader": {"id": reader_id, "name": reader_name, "location_id": location_id, "driver": nested_reader.get("driver")},
+        "reader": {"id": reader_id, "name": reader_name, "ip": reader_ip, "location_id": location_id, "driver": nested_reader.get("driver") or payload.get("driver")},
         "person": {"id": person_id, "name": person_name, "authorized": nested_person.get("authorized")},
         "operation": {"action": action, "people_inside_count": nested_operation.get("people_inside_count") or payload.get("people_inside_count")},
         "payload": original,

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1
+- Corrigida a correlação de leitores nos eventos online/offline.
+- Adicionado fallback compatível por `reader_name` e `reader_ip` para eventos de versões anteriores do Bridge.
+- Sincronizado o estado operacional nas tabelas `sources_state` e `sources`.
+- Mantida compatibilidade com o identificador canônico `reader_id` do Seiden Bridge 0.6.3.
+
+
 ## 0.3.0
 - Novo módulo Human Experience Analytics (HEA).
 - Novo Observation Engine genérico.

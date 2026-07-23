@@ -1,10 +1,10 @@
-# Seiden FLOW 0.3.0
+# Seiden FLOW 0.3.1
 
 Camada de dados e inteligência operacional da plataforma Seiden.
 
 ## Human Experience Analytics (HEA)
 
-A versão 0.3.0 recebe do Seiden Vision observações de expressões faciais e produz indicadores agregados por fonte e intervalo de tempo.
+A versão 0.3.1 recebe do Seiden Vision observações de expressões faciais e produz indicadores agregados por fonte e intervalo de tempo.
 
 Princípios:
 
