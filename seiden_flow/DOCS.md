@@ -1,66 +1,32 @@
-# Seiden FLOW 0.1.0
+# Seiden FLOW 0.2.0
 
-## Objetivo
+Camada de dados operacional da plataforma Seiden.
 
-O FLOW é a camada de dados operacional da Seiden Tech. Ele recebe eventos, preserva o evento original, normaliza os campos principais, mantém estado operacional e disponibiliza os dados por API e exportação.
+## Modelo de domínio
 
-## Fontes suportadas
+- **Organization**: organização proprietária dos dados.
+- **Site**: instalação física pertencente à organização.
+- **Location**: local hierárquico ou ponto de acesso.
+- **Source**: produtor do dado, como leitor, câmera ou sistema.
+- **Person**: identidade operacional independente do nome exibido.
+- **Event**: fato imutável recebido pelo FLOW.
+- **Presence**: estado atual derivado dos eventos.
 
-### Seiden Bridge
+Na primeira inicialização, a versão 0.2.0 migra automaticamente o banco criado pela 0.1.0.
 
-Por padrão, o FLOW assina automaticamente estes eventos do Home Assistant:
+## Entrada canônica
 
-- `seiden_presence`
-- `seiden_reader_online`
-- `seiden_reader_offline`
+`POST /api/v1/events`
 
-Não é necessário alterar o Bridge 0.6.1.
+## APIs de domínio
 
-### Seiden Vision
+- `GET /api/v1/domain/organizations`
+- `GET /api/v1/domain/sites`
+- `GET /api/v1/domain/locations`
+- `GET /api/v1/domain/sources`
+- `GET /api/v1/domain/persons`
+- `GET /api/v1/domain/presences`
 
-No Vision 0.4.0, configure:
+## Compatibilidade
 
-```yaml
-webhook_enabled: true
-webhook_url: http://SEU_HOME_ASSISTANT:8100/api/v1/events
-webhook_api_key: ""
-```
-
-Quando o add-on é acessado apenas por Ingress, a porta pode não estar exposta na rede. Para o primeiro teste, pode-se enviar o evento pela API interna ou acrescentar mapeamento de porta em uma versão posterior. O endpoint oficial é `/api/v1/events`.
-
-## API
-
-### Ingerir evento
-
-```http
-POST /api/v1/events
-Content-Type: application/json
-Authorization: Bearer TOKEN
-```
-
-A chave só é exigida quando `api_key` está preenchido.
-
-### Consultas
-
-- `GET /api/v1/health`
-- `GET /api/v1/summary`
-- `GET /api/v1/events`
-- `GET /api/v1/state/people`
-- `GET /api/v1/state/people/inside`
-- `GET /api/v1/state/sources`
-- `GET /api/v1/export/events.json`
-- `GET /api/v1/export/events.csv`
-
-## Entidades no Home Assistant
-
-- `sensor.seiden_flow_people_inside`
-- `sensor.seiden_flow_events_today`
-- `sensor.seiden_flow_sources_offline`
-
-## Persistência
-
-Banco SQLite em `/config/seiden_flow.db`, dentro do armazenamento persistente do add-on.
-
-## Observação arquitetural
-
-O serviço não usa entidades do Home Assistant como banco. O HA é uma fonte e um consumidor. O contrato principal do FLOW é sua API e seu banco operacional.
+As APIs `/api/v1/events`, `/api/v1/state/*`, `/api/v1/summary` e as exportações JSON/CSV continuam disponíveis.

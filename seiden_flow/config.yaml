@@ -1,5 +1,5 @@
 name: Seiden FLOW
-version: "0.1.0"
+version: "0.2.0"
 slug: seiden_flow
 description: Camada de dados operacional da Seiden Tech para ingestão, correlação, estado e disponibilização de eventos
 url: https://github.com/eduseiden/Seiden-HA
@@ -40,6 +40,10 @@ options:
   publish_summary_to_home_assistant: true
   cleanup_interval_hours: 12
   webhook_max_body_mb: 5
+  organization_id: default_organization
+  organization_name: Organização padrão
+  site_id: default_site
+  site_name: Site padrão
 
 schema:
   log_level: list(debug|info|warning|error|critical)
@@ -53,3 +57,7 @@ schema:
   publish_summary_to_home_assistant: bool
   cleanup_interval_hours: int(1,168)
   webhook_max_body_mb: int(1,20)
+  organization_id: str
+  organization_name: str
+  site_id: str
+  site_name: str
