@@ -1,4 +1,4 @@
-# Seiden FLOW 0.2.0
+# Seiden FLOW 0.2.1
 
 Camada de dados operacional da plataforma Seiden.
 
@@ -30,3 +30,12 @@ Na primeira inicialização, a versão 0.2.0 migra automaticamente o banco criad
 ## Compatibilidade
 
 As APIs `/api/v1/events`, `/api/v1/state/*`, `/api/v1/summary` e as exportações JSON/CSV continuam disponíveis.
+
+
+## Dashboard 0.2.1
+
+- Atualização automática a cada 5 segundos sem recarregar a página.
+- Botão de atualização manual e indicador da última sincronização.
+- Polling pausado quando a aba fica em segundo plano.
+- Temas Escuro, Claro e Automático, com preferência salva no navegador.
+- Endpoint consolidado: `GET /api/v1/dashboard-data`.

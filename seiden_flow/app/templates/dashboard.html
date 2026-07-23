@@ -1,9 +1,323 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Seiden FLOW</title><style>
-:root{font-family:Inter,system-ui,sans-serif;color:#e9eef1;background:#10171b}body{margin:0;padding:24px}.wrap{max-width:1250px;margin:auto}h1{margin:0}small{color:#9fb0b9}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin:24px 0}.card{background:#182329;border:1px solid #2d414b;border-radius:12px;padding:18px}.value{font-size:30px;font-weight:700;margin-top:8px}table{width:100%;border-collapse:collapse;background:#182329;border-radius:12px;overflow:hidden}th,td{text-align:left;padding:11px;border-bottom:1px solid #2d414b;font-size:14px}th{color:#a9bbc4}a{color:#8fd4f4}.pill{padding:3px 8px;border-radius:999px;background:#29404b}.ok{color:#78d49b}.warn{color:#f0ba72}section{margin:28px 0}code{color:#bfe6f8}</style></head><body><div class="wrap">
-<h1>Seiden FLOW</h1><small>Operational Data Layer · versão {{ version }} · HA: <span class="{{ 'ok' if ha_status == 'connected' else 'warn' }}">{{ ha_status }}</span></small>
-<div class="grid"><div class="card">Eventos totais<div class="value">{{ summary.events_total }}</div></div><div class="card">Eventos hoje<div class="value">{{ summary.events_today }}</div></div><div class="card">Pessoas dentro<div class="value">{{ summary.people_inside }}</div></div><div class="card">Fontes offline<div class="value">{{ summary.sources_offline }}</div></div></div>
-<h2>Modelo de domínio</h2><div class="grid"><div class="card">Organizações<div class="value">{{ summary.organizations }}</div></div><div class="card">Sites<div class="value">{{ summary.sites }}</div></div><div class="card">Locais<div class="value">{{ summary.locations }}</div></div><div class="card">Fontes<div class="value">{{ summary.sources }}</div></div><div class="card">Pessoas<div class="value">{{ summary.persons }}</div></div></div>
-<section><h2>Pessoas presentes</h2><table><tr><th>Nome</th><th>Entrada</th><th>Local</th><th>Leitor</th></tr>{% for p in people %}<tr><td>{{ p.person_name }}</td><td>{{ p.entered_at }}</td><td>{{ p.current_location_id or '-' }}</td><td>{{ p.current_reader_id or '-' }}</td></tr>{% else %}<tr><td colspan="4">Nenhuma pessoa marcada como presente.</td></tr>{% endfor %}</table></section>
-<section><h2>Últimos eventos</h2><table><tr><th>Data</th><th>Tipo</th><th>Origem</th><th>Pessoa</th><th>Leitor</th></tr>{% for e in events %}<tr><td>{{ e.timestamp }}</td><td><span class="pill">{{ e.event_type }}</span></td><td>{{ e.source }}</td><td>{{ e.person.name or '-' }}</td><td>{{ e.reader.name or e.reader.id or '-' }}</td></tr>{% else %}<tr><td colspan="5">Ainda não há eventos.</td></tr>{% endfor %}</table></section>
-<section><h2>Integração</h2><p>Entrada canônica: <code>POST /api/v1/events</code></p><p><a href="api/v1/domain/persons">Pessoas</a> · <a href="api/v1/domain/sources">Fontes</a> · <a href="api/v1/domain/locations">Locais</a> · <a href="api/v1/domain/presences">Presenças</a></p><p><a href="api/v1/export/events.json">Exportar JSON</a> · <a href="api/v1/export/events.csv">Exportar CSV</a> · <a href="api/v1/health">Health</a></p></section>
-</div></body></html>
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>Seiden FLOW</title>
+  <style>
+    :root {
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --accent: #4e92b5;
+      --accent-soft: rgba(78, 146, 181, .16);
+      --success: #23875a;
+      --warning: #b66e17;
+      --danger: #b74242;
+      --radius: 12px;
+    }
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --background: #10171b;
+      --surface: #182329;
+      --surface-secondary: #1d2b32;
+      --text: #e9eef1;
+      --muted: #9fb0b9;
+      --border: #2d414b;
+      --link: #8fd4f4;
+      --shadow: rgba(0, 0, 0, .18);
+      --table-hover: #1c2a31;
+    }
+    html[data-theme="light"] {
+      color-scheme: light;
+      --background: #f3f6f8;
+      --surface: #ffffff;
+      --surface-secondary: #edf2f5;
+      --text: #18242a;
+      --muted: #60727b;
+      --border: #d5e0e5;
+      --link: #176b96;
+      --shadow: rgba(30, 55, 67, .09);
+      --table-hover: #f5f8fa;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px; color: var(--text); background: var(--background); transition: background .2s ease, color .2s ease; }
+    .wrap { max-width: 1250px; margin: auto; }
+    .header { display: flex; gap: 18px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+    h1 { margin: 0; letter-spacing: -.02em; }
+    h2 { margin-top: 0; }
+    small, .muted { color: var(--muted); }
+    .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    button, .theme-select {
+      appearance: none; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+      border-radius: 9px; min-height: 38px; padding: 8px 12px; font: inherit; cursor: pointer;
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+    button:hover, .theme-select:hover { border-color: var(--accent); }
+    button:focus-visible, .theme-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    button[disabled] { cursor: wait; opacity: .65; }
+    .refresh-status { min-width: 188px; text-align: right; font-size: 12px; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin: 24px 0; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; box-shadow: 0 3px 14px var(--shadow); }
+    .value { font-size: 30px; font-weight: 700; margin-top: 8px; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 3px 14px var(--shadow); }
+    table { width: 100%; border-collapse: collapse; background: var(--surface); }
+    th, td { text-align: left; padding: 11px; border-bottom: 1px solid var(--border); font-size: 14px; white-space: nowrap; }
+    tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: var(--table-hover); }
+    th { color: var(--muted); background: var(--surface-secondary); }
+    a { color: var(--link); }
+    .pill { display: inline-block; padding: 3px 8px; border-radius: 999px; background: var(--accent-soft); }
+    .ok { color: var(--success); }
+    .warn { color: var(--warning); }
+    .error { color: var(--danger); }
+    section { margin: 28px 0; }
+    code { color: var(--link); }
+    .connection-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; background: currentColor; }
+    @media (max-width: 650px) {
+      body { padding: 16px; }
+      .toolbar { width: 100%; }
+      .refresh-status { width: 100%; text-align: left; min-width: 0; }
+    }
+  </style>
+  <script>
+    (() => {
+      const saved = localStorage.getItem('seiden-flow-theme') || 'auto';
+      const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.dataset.theme = saved === 'auto' ? (systemDark ? 'dark' : 'light') : saved;
+    })();
+  </script>
+</head>
+<body>
+<div class="wrap">
+  <header class="header">
+    <div>
+      <h1>Seiden FLOW</h1>
+      <small>Operational Data Layer · versão {{ version }} · HA:
+        <span id="ha-status" class="{{ 'ok' if ha_status == 'connected' else 'warn' }}"><span class="connection-dot"></span>{{ ha_status }}</span>
+      </small>
+    </div>
+    <div class="toolbar">
+      <label class="muted" for="theme-select">Tema</label>
+      <select id="theme-select" class="theme-select" aria-label="Tema do dashboard">
+        <option value="auto">◐ Automático</option>
+        <option value="dark">🌙 Escuro</option>
+        <option value="light">☀️ Claro</option>
+      </select>
+      <button id="refresh-button" type="button">↻ Atualizar</button>
+      <div id="refresh-status" class="refresh-status" aria-live="polite">Carregado agora</div>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="card">Eventos totais<div id="events-total" class="value">{{ summary.events_total }}</div></div>
+    <div class="card">Eventos hoje<div id="events-today" class="value">{{ summary.events_today }}</div></div>
+    <div class="card">Pessoas dentro<div id="people-inside" class="value">{{ summary.people_inside }}</div></div>
+    <div class="card">Fontes offline<div id="sources-offline" class="value">{{ summary.sources_offline }}</div></div>
+  </div>
+
+  <h2>Modelo de domínio</h2>
+  <div class="grid">
+    <div class="card">Organizações<div id="organizations" class="value">{{ summary.organizations }}</div></div>
+    <div class="card">Sites<div id="sites" class="value">{{ summary.sites }}</div></div>
+    <div class="card">Locais<div id="locations" class="value">{{ summary.locations }}</div></div>
+    <div class="card">Fontes<div id="sources" class="value">{{ summary.sources }}</div></div>
+    <div class="card">Pessoas<div id="persons" class="value">{{ summary.persons }}</div></div>
+  </div>
+
+  <section>
+    <h2>Pessoas presentes</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Nome</th><th>Entrada</th><th>Local</th><th>Leitor</th></tr></thead>
+        <tbody id="people-table">
+        {% for p in people %}<tr><td>{{ p.person_name }}</td><td>{{ p.entered_at }}</td><td>{{ p.current_location_id or '-' }}</td><td>{{ p.current_reader_id or '-' }}</td></tr>
+        {% else %}<tr><td colspan="4">Nenhuma pessoa marcada como presente.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Últimos eventos</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Data</th><th>Tipo</th><th>Origem</th><th>Pessoa</th><th>Leitor</th></tr></thead>
+        <tbody id="events-table">
+        {% for e in events %}<tr><td>{{ e.timestamp }}</td><td><span class="pill">{{ e.event_type }}</span></td><td>{{ e.source }}</td><td>{{ e.person.name or '-' }}</td><td>{{ e.reader.name or e.reader.id or '-' }}</td></tr>
+        {% else %}<tr><td colspan="5">Ainda não há eventos.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Integração</h2>
+    <p>Entrada canônica: <code>POST /api/v1/events</code></p>
+    <p><a href="api/v1/domain/persons">Pessoas</a> · <a href="api/v1/domain/sources">Fontes</a> · <a href="api/v1/domain/locations">Locais</a> · <a href="api/v1/domain/presences">Presenças</a></p>
+    <p><a href="api/v1/export/events.json">Exportar JSON</a> · <a href="api/v1/export/events.csv">Exportar CSV</a> · <a href="api/v1/health">Health</a></p>
+  </section>
+</div>
+
+<script>
+  (() => {
+    const POLL_INTERVAL_MS = 5000;
+    const root = document.documentElement;
+    const themeSelect = document.getElementById('theme-select');
+    const refreshButton = document.getElementById('refresh-button');
+    const refreshStatus = document.getElementById('refresh-status');
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
+    let selectedTheme = localStorage.getItem('seiden-flow-theme') || 'auto';
+    let lastUpdatedAt = new Date();
+    let refreshInProgress = false;
+    let pollingTimer = null;
+
+    const dashboardPath = `${window.location.pathname.replace(/\/?$/, '/') }api/v1/dashboard-data`;
+
+    function applyTheme(theme) {
+      selectedTheme = theme;
+      const effective = theme === 'auto' ? (systemTheme.matches ? 'dark' : 'light') : theme;
+      root.dataset.theme = effective;
+      themeSelect.value = theme;
+      localStorage.setItem('seiden-flow-theme', theme);
+    }
+
+    function text(value, fallback = '-') {
+      return value === null || value === undefined || value === '' ? fallback : String(value);
+    }
+
+    function createCell(value, className = '') {
+      const td = document.createElement('td');
+      td.textContent = text(value);
+      if (className) td.className = className;
+      return td;
+    }
+
+    function setMetric(id, value) {
+      document.getElementById(id).textContent = Number(value || 0).toLocaleString('pt-BR');
+    }
+
+    function renderPeople(items) {
+      const body = document.getElementById('people-table');
+      body.replaceChildren();
+      if (!items.length) {
+        const row = document.createElement('tr');
+        const cell = createCell('Nenhuma pessoa marcada como presente.');
+        cell.colSpan = 4;
+        row.appendChild(cell);
+        body.appendChild(row);
+        return;
+      }
+      for (const person of items) {
+        const row = document.createElement('tr');
+        row.append(
+          createCell(person.person_name),
+          createCell(person.entered_at),
+          createCell(person.current_location_id),
+          createCell(person.current_reader_id)
+        );
+        body.appendChild(row);
+      }
+    }
+
+    function renderEvents(items) {
+      const body = document.getElementById('events-table');
+      body.replaceChildren();
+      if (!items.length) {
+        const row = document.createElement('tr');
+        const cell = createCell('Ainda não há eventos.');
+        cell.colSpan = 5;
+        row.appendChild(cell);
+        body.appendChild(row);
+        return;
+      }
+      for (const event of items) {
+        const row = document.createElement('tr');
+        const typeCell = document.createElement('td');
+        const pill = document.createElement('span');
+        pill.className = 'pill';
+        pill.textContent = text(event.event_type);
+        typeCell.appendChild(pill);
+        row.append(
+          createCell(event.timestamp),
+          typeCell,
+          createCell(event.source),
+          createCell(event.person?.name),
+          createCell(event.reader?.name || event.reader?.id)
+        );
+        body.appendChild(row);
+      }
+    }
+
+    function renderConnection(status) {
+      const target = document.getElementById('ha-status');
+      target.className = status === 'connected' ? 'ok' : (status === 'disabled' ? 'muted' : 'warn');
+      target.replaceChildren();
+      const dot = document.createElement('span');
+      dot.className = 'connection-dot';
+      target.append(dot, document.createTextNode(text(status)));
+    }
+
+    function render(data) {
+      const summary = data.summary || {};
+      setMetric('events-total', summary.events_total);
+      setMetric('events-today', summary.events_today);
+      setMetric('people-inside', summary.people_inside);
+      setMetric('sources-offline', summary.sources_offline);
+      setMetric('organizations', summary.organizations);
+      setMetric('sites', summary.sites);
+      setMetric('locations', summary.locations);
+      setMetric('sources', summary.sources);
+      setMetric('persons', summary.persons);
+      renderPeople(data.people || []);
+      renderEvents(data.events || []);
+      renderConnection(data.home_assistant_connection);
+    }
+
+    function updateRelativeStatus() {
+      if (!lastUpdatedAt) return;
+      const seconds = Math.max(0, Math.floor((Date.now() - lastUpdatedAt.getTime()) / 1000));
+      refreshStatus.textContent = seconds < 2 ? 'Atualizado agora' : `Atualizado há ${seconds} s`;
+    }
+
+    async function refreshDashboard(manual = false) {
+      if (refreshInProgress || document.hidden) return;
+      refreshInProgress = true;
+      refreshButton.disabled = true;
+      refreshStatus.textContent = manual ? 'Atualizando…' : 'Sincronizando…';
+      try {
+        const response = await fetch(dashboardPath, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        render(await response.json());
+        lastUpdatedAt = new Date();
+        updateRelativeStatus();
+      } catch (error) {
+        refreshStatus.textContent = 'Não foi possível atualizar';
+        refreshStatus.classList.add('error');
+        console.error('Seiden FLOW dashboard refresh failed:', error);
+      } finally {
+        refreshStatus.classList.toggle('error', refreshStatus.textContent === 'Não foi possível atualizar');
+        refreshButton.disabled = false;
+        refreshInProgress = false;
+      }
+    }
+
+    function startPolling() {
+      clearInterval(pollingTimer);
+      if (!document.hidden) pollingTimer = setInterval(() => refreshDashboard(false), POLL_INTERVAL_MS);
+    }
+
+    themeSelect.addEventListener('change', () => applyTheme(themeSelect.value));
+    systemTheme.addEventListener('change', () => { if (selectedTheme === 'auto') applyTheme('auto'); });
+    refreshButton.addEventListener('click', () => refreshDashboard(true));
+    document.addEventListener('visibilitychange', () => {
+      startPolling();
+      if (!document.hidden) refreshDashboard(false);
+    });
+
+    applyTheme(selectedTheme);
+    setInterval(updateRelativeStatus, 1000);
+    startPolling();
+  })();
+</script>
+</body>
+</html>

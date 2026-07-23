@@ -39,6 +39,9 @@ def people_inside():
 def sources_state():return jsonify({'items':db.sources_state()})
 @app.get('/api/v1/summary')
 def summary():return jsonify(db.summary())
+@app.get('/api/v1/dashboard-data')
+def dashboard_data():
+ return jsonify({'summary':db.summary(),'events':db.list_events(limit=20),'people':db.people_inside(),'home_assistant_connection':ha.connection_status,'version':VERSION})
 @app.get('/api/v1/domain/organizations')
 def organizations():return jsonify({'items':db.organizations()})
 @app.get('/api/v1/domain/sites')
