@@ -20,12 +20,27 @@ class Settings:
     organization_name: str = "Organização padrão"
     site_id: str = "default_site"
     site_name: str = "Site padrão"
+    observation_engine_enabled: bool = True
+    observation_retain_raw_minutes: int = 30
+    human_experience_enabled: bool = True
+    human_experience_minimum_samples: int = 10
+    human_experience_aggregation_window_minutes: int = 15
+    human_experience_minimum_confidence: float = 0.75
+    human_experience_enabled_sources: tuple[str, ...] = ()
+    human_experience_positive_weight: float = 1.0
+    human_experience_neutral_weight: float = 0.0
+    human_experience_negative_weight: float = -1.0
     config_dir: str = "/config"
 
 def _bool(v, default):
     if isinstance(v, bool): return v
     if isinstance(v, str): return v.lower() in {"1","true","yes","on"}
     return default
+
+def _sources(v):
+    if isinstance(v, list): return tuple(str(x).strip() for x in v if str(x).strip())
+    if isinstance(v, str): return tuple(x.strip() for x in v.split(',') if x.strip())
+    return ()
 
 def load_settings() -> Settings:
     p=Path(os.getenv("OPTIONS_PATH","/data/options.json")); raw={}
@@ -41,4 +56,14 @@ def load_settings() -> Settings:
         cleanup_interval_hours=int(raw.get("cleanup_interval_hours",12)), webhook_max_body_mb=int(raw.get("webhook_max_body_mb",5)),
         organization_id=str(raw.get("organization_id","default_organization")), organization_name=str(raw.get("organization_name","Organização padrão")),
         site_id=str(raw.get("site_id","default_site")), site_name=str(raw.get("site_name","Site padrão")),
+        observation_engine_enabled=_bool(raw.get("observation_engine_enabled"),True),
+        observation_retain_raw_minutes=max(1,int(raw.get("observation_retain_raw_minutes",30))),
+        human_experience_enabled=_bool(raw.get("human_experience_enabled"),True),
+        human_experience_minimum_samples=max(1,int(raw.get("human_experience_minimum_samples",10))),
+        human_experience_aggregation_window_minutes=max(1,int(raw.get("human_experience_aggregation_window_minutes",15))),
+        human_experience_minimum_confidence=max(0.0,min(1.0,float(raw.get("human_experience_minimum_confidence",0.75)))),
+        human_experience_enabled_sources=_sources(raw.get("human_experience_enabled_sources",[])),
+        human_experience_positive_weight=float(raw.get("human_experience_positive_weight",1.0)),
+        human_experience_neutral_weight=float(raw.get("human_experience_neutral_weight",0.0)),
+        human_experience_negative_weight=float(raw.get("human_experience_negative_weight",-1.0)),
         config_dir=os.getenv("FLOW_CONFIG_DIR","/config"))

@@ -1,5 +1,5 @@
 name: Seiden FLOW
-version: "0.2.1"
+version: "0.3.0"
 slug: seiden_flow
 description: Camada de dados operacional da Seiden Tech para ingestão, correlação, estado e disponibilização de eventos
 url: https://github.com/eduseiden/Seiden-HA
@@ -44,6 +44,16 @@ options:
   organization_name: Organização padrão
   site_id: default_site
   site_name: Site padrão
+  observation_engine_enabled: true
+  observation_retain_raw_minutes: 30
+  human_experience_enabled: true
+  human_experience_minimum_samples: 10
+  human_experience_aggregation_window_minutes: 15
+  human_experience_minimum_confidence: 0.75
+  human_experience_enabled_sources: []
+  human_experience_positive_weight: 1.0
+  human_experience_neutral_weight: 0.0
+  human_experience_negative_weight: -1.0
 
 schema:
   log_level: list(debug|info|warning|error|critical)
@@ -61,3 +71,14 @@ schema:
   organization_name: str
   site_id: str
   site_name: str
+  observation_engine_enabled: bool
+  observation_retain_raw_minutes: int(1,1440)
+  human_experience_enabled: bool
+  human_experience_minimum_samples: int(1,1000)
+  human_experience_aggregation_window_minutes: int(1,1440)
+  human_experience_minimum_confidence: float(0,1)
+  human_experience_enabled_sources:
+    - str
+  human_experience_positive_weight: float(-10,10)
+  human_experience_neutral_weight: float(-10,10)
+  human_experience_negative_weight: float(-10,10)

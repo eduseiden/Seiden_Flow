@@ -1,9 +1,7 @@
 # Seiden FLOW
 
-Operational Data Layer da Seiden Tech.
+Operational Intelligence Layer da Seiden Tech.
 
-O Seiden FLOW recebe eventos do Seiden Bridge, Seiden Vision e sistemas externos, normaliza, correlaciona e disponibiliza os dados por API, dashboard e exportação.
-
-A versão 0.2.1 é instalável como add-on do Home Assistant OS, mas desenvolvida como serviço independente.
+A versão 0.3.0 introduz o **Human Experience Analytics (HEA)**, com observações anônimas temporárias, agregação por fonte, volume mínimo configurável e Experience Index.
 
 Consulte `seiden_flow/DOCS.md`.

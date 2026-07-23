@@ -5,3 +5,18 @@ configuration:
   subscribe_home_assistant_events:
     name: Assinar eventos do Home Assistant
     description: Recebe eventos do Seiden Bridge diretamente pelo barramento do Home Assistant.
+  human_experience_minimum_samples:
+    name: Mínimo de passagens para HEA
+    description: Quantidade mínima de observações válidas na janela antes de publicar a análise.
+  human_experience_aggregation_window_minutes:
+    name: Janela de agregação HEA
+    description: Duração, em minutos, de cada período analisado.
+  human_experience_minimum_confidence:
+    name: Confiança mínima HEA
+    description: Observações abaixo deste nível são descartadas.
+  observation_retain_raw_minutes:
+    name: Retenção das observações brutas
+    description: Minutos antes de eliminar definitivamente as observações individuais anônimas.
+  human_experience_enabled_sources:
+    name: Fontes habilitadas no HEA
+    description: Lista de source_id. Lista vazia habilita todas as fontes.

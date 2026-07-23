@@ -30,6 +30,49 @@ class FlowDatabase:
             CREATE TABLE IF NOT EXISTS persons(id TEXT PRIMARY KEY,organization_id TEXT NOT NULL,external_id TEXT,display_name TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'active',created_at TEXT NOT NULL,updated_at TEXT NOT NULL,FOREIGN KEY(organization_id) REFERENCES organizations(id));
             CREATE UNIQUE INDEX IF NOT EXISTS idx_person_external ON persons(organization_id,external_id) WHERE external_id IS NOT NULL;
             CREATE TABLE IF NOT EXISTS presences(person_id TEXT NOT NULL,site_id TEXT NOT NULL,presence_status TEXT NOT NULL,current_location_id TEXT,entered_at TEXT,last_event_id TEXT NOT NULL,updated_at TEXT NOT NULL,PRIMARY KEY(person_id,site_id),FOREIGN KEY(person_id) REFERENCES persons(id),FOREIGN KEY(site_id) REFERENCES sites(id));
+            CREATE TABLE IF NOT EXISTS observations(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                observation_id TEXT NOT NULL UNIQUE,
+                metric_type TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                organization_id TEXT NOT NULL,
+                site_id TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                source_name TEXT,
+                location_id TEXT,
+                occurred_at TEXT NOT NULL,
+                value TEXT NOT NULL,
+                raw_value TEXT,
+                confidence REAL NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_observations_metric_time ON observations(metric_type,occurred_at);
+            CREATE INDEX IF NOT EXISTS idx_observations_source_time ON observations(source_id,occurred_at);
+            CREATE TABLE IF NOT EXISTS observation_aggregates(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                aggregate_key TEXT NOT NULL UNIQUE,
+                metric_type TEXT NOT NULL,
+                organization_id TEXT NOT NULL,
+                site_id TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                source_name TEXT,
+                location_id TEXT,
+                period_start TEXT NOT NULL,
+                period_end TEXT NOT NULL,
+                window_minutes INTEGER NOT NULL,
+                sample_count INTEGER NOT NULL,
+                positive_count INTEGER NOT NULL DEFAULT 0,
+                neutral_count INTEGER NOT NULL DEFAULT 0,
+                negative_count INTEGER NOT NULL DEFAULT 0,
+                uncertain_count INTEGER NOT NULL DEFAULT 0,
+                average_confidence REAL NOT NULL,
+                dominant_value TEXT,
+                experience_index REAL,
+                status TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_aggregates_metric_period ON observation_aggregates(metric_type,period_start DESC);
+            CREATE INDEX IF NOT EXISTS idx_aggregates_source_period ON observation_aggregates(source_id,period_start DESC);
             CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,value TEXT NOT NULL);
             """)
             cols={r['name'] for r in c.execute("PRAGMA table_info(events)")}
@@ -110,6 +153,81 @@ class FlowDatabase:
         with self.connect() as c:
             q=lambda s:c.execute(s).fetchone()['c'];last=c.execute("SELECT occurred_at,event_type,person_name,reader_name FROM events ORDER BY occurred_at DESC LIMIT 1").fetchone()
             return {'events_total':q('SELECT COUNT(*) c FROM events'),'events_today':q("SELECT COUNT(*) c FROM events WHERE occurred_at >= date('now')"),'people_inside':q("SELECT COUNT(*) c FROM presences WHERE presence_status='inside'"),'sources_offline':q("SELECT COUNT(*) c FROM sources WHERE status='offline'"),'organizations':q('SELECT COUNT(*) c FROM organizations'),'sites':q('SELECT COUNT(*) c FROM sites'),'locations':q('SELECT COUNT(*) c FROM locations'),'sources':q('SELECT COUNT(*) c FROM sources'),'persons':q('SELECT COUNT(*) c FROM persons'),'last_event':dict(last) if last else None}
+
+    def insert_observation(self, observation):
+        with self._lock,self.connect() as c:
+            try:
+                c.execute("""INSERT INTO observations(observation_id,metric_type,provider,organization_id,site_id,source_id,source_name,location_id,occurred_at,value,raw_value,confidence,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                          (observation['observation_id'],observation['metric_type'],observation.get('provider','external'),self.organization_id,self.site_id,observation['source_id'],observation.get('source_name'),observation.get('location_id'),observation['occurred_at'],observation['value'],observation.get('raw_value'),float(observation.get('confidence',0)),datetime.now(timezone.utc).isoformat()))
+                return True
+            except sqlite3.IntegrityError:
+                return False
+
+    @staticmethod
+    def _parse_dt(value):
+        text=str(value).replace('Z','+00:00')
+        dt=datetime.fromisoformat(text)
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+    def aggregate_observation_window(self, observation, window_minutes, minimum_samples, weights):
+        occurred=self._parse_dt(observation['occurred_at']).astimezone(timezone.utc)
+        minute=(occurred.minute // window_minutes) * window_minutes
+        start=occurred.replace(minute=minute,second=0,microsecond=0)
+        end=start+timedelta(minutes=window_minutes)
+        start_iso=start.isoformat(); end_iso=end.isoformat(); source_id=observation['source_id']
+        with self._lock,self.connect() as c:
+            rows=c.execute("""SELECT value,confidence,source_name,location_id FROM observations WHERE metric_type='facial_expression' AND source_id=? AND occurred_at>=? AND occurred_at<? ORDER BY occurred_at""",(source_id,start_iso,end_iso)).fetchall()
+            count=len(rows)
+            key=f"facial_expression:{self.site_id}:{source_id}:{start_iso}:{window_minutes}"
+            if count < minimum_samples:
+                c.execute("DELETE FROM observation_aggregates WHERE aggregate_key=?",(key,))
+                return {'status':'insufficient_data','sample_count':count,'minimum_samples':minimum_samples,'period_start':start_iso,'period_end':end_iso,'source_id':source_id}
+            counts={'positive':0,'neutral':0,'negative':0,'uncertain':0}
+            for r in rows: counts[r['value'] if r['value'] in counts else 'uncertain'] += 1
+            avg=sum(float(r['confidence']) for r in rows)/count
+            scored=counts['positive']*weights['positive']+counts['neutral']*weights['neutral']+counts['negative']*weights['negative']
+            denominator=max(1,counts['positive']+counts['neutral']+counts['negative'])
+            index=max(-100.0,min(100.0,100.0*scored/denominator))
+            dominant=max(('positive','neutral','negative'),key=lambda k:counts[k])
+            source_name=rows[-1]['source_name']; location_id=rows[-1]['location_id']; now=datetime.now(timezone.utc).isoformat()
+            c.execute("""INSERT INTO observation_aggregates(aggregate_key,metric_type,organization_id,site_id,source_id,source_name,location_id,period_start,period_end,window_minutes,sample_count,positive_count,neutral_count,negative_count,uncertain_count,average_confidence,dominant_value,experience_index,status,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(aggregate_key) DO UPDATE SET source_name=excluded.source_name,location_id=excluded.location_id,sample_count=excluded.sample_count,positive_count=excluded.positive_count,neutral_count=excluded.neutral_count,negative_count=excluded.negative_count,uncertain_count=excluded.uncertain_count,average_confidence=excluded.average_confidence,dominant_value=excluded.dominant_value,experience_index=excluded.experience_index,status=excluded.status,updated_at=excluded.updated_at""",
+                      (key,'facial_expression',self.organization_id,self.site_id,source_id,source_name,location_id,start_iso,end_iso,window_minutes,count,counts['positive'],counts['neutral'],counts['negative'],counts['uncertain'],avg,dominant,index,'available',now))
+            return {'status':'available','sample_count':count,'minimum_samples':minimum_samples,'period_start':start_iso,'period_end':end_iso,'source_id':source_id,'experience_index':round(index,1),'dominant_value':dominant,'distribution':counts,'average_confidence':round(avg,4)}
+
+    def cleanup_raw_observations(self, minutes):
+        cutoff=(datetime.now(timezone.utc)-timedelta(minutes=minutes)).isoformat()
+        with self._lock,self.connect() as c:
+            return c.execute('DELETE FROM observations WHERE occurred_at < ?',(cutoff,)).rowcount
+
+    def observation_count(self):
+        with self.connect() as c:return c.execute('SELECT COUNT(*) c FROM observations').fetchone()['c']
+
+    def hea_history(self, hours=24, source_id=None, limit=500):
+        cutoff=(datetime.now(timezone.utc)-timedelta(hours=max(1,hours))).isoformat(); clauses=["metric_type='facial_expression'","period_start>=?","status='available'"]; params=[cutoff]
+        if source_id: clauses.append('source_id=?');params.append(source_id)
+        params.append(min(limit,5000))
+        return self._rows(f"SELECT * FROM observation_aggregates WHERE {' AND '.join(clauses)} ORDER BY period_start DESC LIMIT ?",tuple(params))
+
+    def hea_summary(self, hours=24, minimum_samples=10):
+        rows=self.hea_history(hours=hours,limit=5000)
+        if not rows:
+            return {'status':'insufficient_data','minimum_samples':minimum_samples,'sample_count':0,'experience_index':None,'dominant_expression':None,'distribution':{'positive':0,'neutral':0,'negative':0,'uncertain':0},'average_confidence':None,'sources':0,'period_hours':hours}
+        dist={'positive':sum(r['positive_count'] for r in rows),'neutral':sum(r['neutral_count'] for r in rows),'negative':sum(r['negative_count'] for r in rows),'uncertain':sum(r['uncertain_count'] for r in rows)}
+        n=sum(r['sample_count'] for r in rows); weighted=sum(float(r['experience_index'])*r['sample_count'] for r in rows)/max(1,n); conf=sum(float(r['average_confidence'])*r['sample_count'] for r in rows)/max(1,n)
+        dominant=max(('positive','neutral','negative'),key=lambda k:dist[k])
+        return {'status':'available','minimum_samples':minimum_samples,'sample_count':n,'experience_index':round(weighted,1),'dominant_expression':dominant,'distribution':dist,'average_confidence':round(conf,4),'sources':len({r['source_id'] for r in rows}),'period_hours':hours}
+
+    def hea_sources(self, hours=24):
+        rows=self.hea_history(hours=hours,limit=5000); grouped={}
+        for r in rows:
+            g=grouped.setdefault(r['source_id'],{'source_id':r['source_id'],'source_name':r['source_name'] or r['source_id'],'location_id':r['location_id'],'sample_count':0,'weighted_index':0.0,'confidence':0.0,'positive':0,'neutral':0,'negative':0,'uncertain':0})
+            n=r['sample_count'];g['sample_count']+=n;g['weighted_index']+=float(r['experience_index'])*n;g['confidence']+=float(r['average_confidence'])*n
+            for k in ('positive','neutral','negative','uncertain'):g[k]+=r[f'{k}_count']
+        result=[]
+        for g in grouped.values():
+            n=max(1,g['sample_count']);g['experience_index']=round(g.pop('weighted_index')/n,1);g['average_confidence']=round(g.pop('confidence')/n,4);g['dominant_expression']=max(('positive','neutral','negative'),key=lambda k:g[k]);result.append(g)
+        return sorted(result,key=lambda x:x['experience_index'],reverse=True)
+
     def cleanup(self,days):
         cutoff=(datetime.now(timezone.utc)-timedelta(days=days)).isoformat()
         with self._lock,self.connect() as c:return c.execute('DELETE FROM events WHERE occurred_at < ?',(cutoff,)).rowcount

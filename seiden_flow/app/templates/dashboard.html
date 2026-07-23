@@ -73,6 +73,16 @@
     section { margin: 28px 0; }
     code { color: var(--link); }
     .connection-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; background: currentColor; }
+    .hea-index { font-size: 42px; font-weight: 800; letter-spacing: -.03em; }
+    .hea-positive { color: var(--success); }
+    .hea-negative { color: var(--danger); }
+    .hea-neutral { color: var(--warning); }
+    .distribution { display: grid; gap: 9px; margin-top: 12px; }
+    .distribution-row { display: grid; grid-template-columns: 90px 1fr 54px; gap: 10px; align-items: center; }
+    .bar { height: 10px; background: var(--surface-secondary); border-radius: 999px; overflow: hidden; }
+    .bar > span { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
+    .privacy-note { border-left: 4px solid var(--accent); padding: 12px 14px; background: var(--accent-soft); border-radius: 8px; }
+    .status-box { font-size: 13px; margin-top: 8px; color: var(--muted); }
     @media (max-width: 650px) {
       body { padding: 16px; }
       .toolbar { width: 100%; }
@@ -124,6 +134,31 @@
     <div class="card">Pessoas<div id="persons" class="value">{{ summary.persons }}</div></div>
   </div>
 
+  <section id="human-experience">
+    <h2>Human Experience Analytics <span class="pill">HEA</span></h2>
+    <p class="privacy-note">Indicadores agregados de expressões faciais observadas. O FLOW não relaciona a expressão à identidade da pessoa e só publica resultados quando o volume mínimo configurado é atingido.</p>
+    <div class="grid">
+      <div class="card">Experience Index<div id="hea-index" class="hea-index">{{ hea.experience_index if hea.experience_index is not none else '—' }}</div><div id="hea-status" class="status-box">{{ 'Disponível' if hea.status == 'available' else 'Dados insuficientes' }}</div></div>
+      <div class="card">Amostras válidas<div id="hea-samples" class="value">{{ hea.sample_count }}</div><div class="status-box">mínimo: <span id="hea-minimum">{{ hea_config.minimum_samples }}</span></div></div>
+      <div class="card">Expressão predominante<div id="hea-dominant" class="value">{{ hea.dominant_expression or '—' }}</div></div>
+      <div class="card">Confiança média<div id="hea-confidence" class="value">{{ ('%.0f' % (hea.average_confidence * 100)) if hea.average_confidence is not none else '—' }}{% if hea.average_confidence is not none %}%{% endif %}</div></div>
+    </div>
+    <div class="card">
+      <strong>Distribuição — últimas 24 horas</strong>
+      <div id="hea-distribution" class="distribution"></div>
+    </div>
+    <div style="height:14px"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Fonte</th><th>Local</th><th>Experience Index</th><th>Amostras</th><th>Predominante</th><th>Confiança</th></tr></thead>
+        <tbody id="hea-sources-table">
+        {% for x in hea_sources %}<tr><td>{{ x.source_name }}</td><td>{{ x.location_id or '-' }}</td><td>{{ x.experience_index }}</td><td>{{ x.sample_count }}</td><td>{{ x.dominant_expression }}</td><td>{{ ('%.0f' % (x.average_confidence * 100)) }}%</td></tr>
+        {% else %}<tr><td colspan="6">Ainda não há volume suficiente para análise.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
   <section>
     <h2>Pessoas presentes</h2>
     <div class="table-wrap">
@@ -153,7 +188,7 @@
   <section>
     <h2>Integração</h2>
     <p>Entrada canônica: <code>POST /api/v1/events</code></p>
-    <p><a href="api/v1/domain/persons">Pessoas</a> · <a href="api/v1/domain/sources">Fontes</a> · <a href="api/v1/domain/locations">Locais</a> · <a href="api/v1/domain/presences">Presenças</a></p>
+    <p><a href="api/v1/hea/dashboard">HEA</a> · <a href="api/v1/hea/history">Histórico HEA</a> · <a href="api/v1/domain/persons">Pessoas</a> · <a href="api/v1/domain/sources">Fontes</a> · <a href="api/v1/domain/locations">Locais</a> · <a href="api/v1/domain/presences">Presenças</a></p>
     <p><a href="api/v1/export/events.json">Exportar JSON</a> · <a href="api/v1/export/events.csv">Exportar CSV</a> · <a href="api/v1/health">Health</a></p>
   </section>
 </div>
@@ -257,6 +292,33 @@
       target.append(dot, document.createTextNode(text(status)));
     }
 
+    function percent(part, total) { return total ? Math.round((part / total) * 100) : 0; }
+
+    function renderHEA(hea) {
+      const summary = hea?.summary || {};
+      const available = summary.status === 'available';
+      const index = summary.experience_index;
+      const indexEl = document.getElementById('hea-index');
+      indexEl.textContent = available && index !== null && index !== undefined ? `${index > 0 ? '+' : ''}${index}` : '—';
+      indexEl.className = `hea-index ${index > 10 ? 'hea-positive' : index < -10 ? 'hea-negative' : 'hea-neutral'}`;
+      document.getElementById('hea-status').textContent = available ? 'Disponível' : 'Dados insuficientes';
+      document.getElementById('hea-samples').textContent = Number(summary.sample_count || 0).toLocaleString('pt-BR');
+      document.getElementById('hea-minimum').textContent = hea?.config?.minimum_samples ?? '-';
+      document.getElementById('hea-dominant').textContent = available ? text(summary.dominant_expression) : '—';
+      document.getElementById('hea-confidence').textContent = available && summary.average_confidence !== null ? `${Math.round(summary.average_confidence * 100)}%` : '—';
+      const dist = summary.distribution || {};
+      const total = (dist.positive || 0) + (dist.neutral || 0) + (dist.negative || 0) + (dist.uncertain || 0);
+      const labels = [['positive','Positiva'],['neutral','Neutra'],['negative','Negativa'],['uncertain','Incerta']];
+      const wrap = document.getElementById('hea-distribution'); wrap.replaceChildren();
+      for (const [key,label] of labels) {
+        const value = percent(dist[key] || 0,total); const row=document.createElement('div'); row.className='distribution-row';
+        const name=document.createElement('span');name.textContent=label;const bar=document.createElement('div');bar.className='bar';const fill=document.createElement('span');fill.style.width=`${value}%`;bar.appendChild(fill);const pct=document.createElement('strong');pct.textContent=`${value}%`;row.append(name,bar,pct);wrap.appendChild(row);
+      }
+      const body=document.getElementById('hea-sources-table');body.replaceChildren();const sources=hea?.sources || [];
+      if (!sources.length) { const row=document.createElement('tr'); const cell=createCell('Ainda não há volume suficiente para análise.');cell.colSpan=6;row.appendChild(cell);body.appendChild(row); }
+      else for (const x of sources) { const row=document.createElement('tr');row.append(createCell(x.source_name),createCell(x.location_id),createCell(`${x.experience_index > 0 ? '+' : ''}${x.experience_index}`),createCell(x.sample_count),createCell(x.dominant_expression),createCell(`${Math.round((x.average_confidence || 0)*100)}%`));body.appendChild(row); }
+    }
+
     function render(data) {
       const summary = data.summary || {};
       setMetric('events-total', summary.events_total);
@@ -271,6 +333,7 @@
       renderPeople(data.people || []);
       renderEvents(data.events || []);
       renderConnection(data.home_assistant_connection);
+      renderHEA(data.human_experience || {});
     }
 
     function updateRelativeStatus() {
@@ -315,6 +378,7 @@
     });
 
     applyTheme(selectedTheme);
+    renderHEA({summary: {{ hea|tojson }}, sources: {{ hea_sources|tojson }}, config: {{ hea_config|tojson }}});
     setInterval(updateRelativeStatus, 1000);
     startPolling();
   })();

@@ -5,3 +5,18 @@ configuration:
   subscribe_home_assistant_events:
     name: Subscribe to Home Assistant events
     description: Receives Seiden Bridge events directly from the Home Assistant event bus.
+  human_experience_minimum_samples:
+    name: Minimum HEA samples
+    description: Minimum valid observations in a window before publishing analytics.
+  human_experience_aggregation_window_minutes:
+    name: HEA aggregation window
+    description: Duration in minutes of each analytics window.
+  human_experience_minimum_confidence:
+    name: Minimum HEA confidence
+    description: Observations below this threshold are discarded.
+  observation_retain_raw_minutes:
+    name: Raw observation retention
+    description: Minutes before anonymous individual observations are permanently deleted.
+  human_experience_enabled_sources:
+    name: HEA enabled sources
+    description: List of source_id values. An empty list enables all sources.
