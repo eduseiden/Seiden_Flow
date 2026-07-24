@@ -113,7 +113,7 @@ O portal `/hea` calcula o HEA diretamente das observações anônimas armazenada
 A retenção é definida por `hea_observation_retention_days` (padrão 365). Dados já removidos por versões anteriores não podem ser reconstruídos; a nova retenção passa a valer após a atualização.
 
 
-## Experience Index 2.0 — versão 0.5.1
+## Experience Index 2.0 — versão 0.5.2
 
 O índice é calculado pelo motor analítico em `app/experience.py`, sem cálculos na interface. Cada emoção possui peso próprio entre -100 e +100, ponderado pela confiança da análise.
 
@@ -133,3 +133,10 @@ GET /api/v2/experience
 ```
 
 Filtros aceitos: `hours`, `start`, `end`, `source_id` e `location_id`. A variação percentual é omitida quando o índice anterior está próximo de zero, evitando uma leitura matematicamente enganosa.
+
+
+## Dashboard Analytics — Epic 2
+
+A versão 0.5.2 adiciona uma evolução temporal adaptativa ao portal HEA. O gráfico requer pelo menos três intervalos com o número mínimo configurado de amostras. Melhor e pior período somente são exibidos quando existem ao menos dois intervalos válidos.
+
+A categoria predominante representa a maior frequência de observações, enquanto a classificação do Experience Index representa o saldo emocional ponderado por emoção e confiança. A interface apresenta uma frase interpretativa para explicitar essa diferença.

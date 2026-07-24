@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.2 — Epic 2: Dashboard Analytics
+
+- Novo gráfico de evolução temporal do Experience Index.
+- Agregação automática dos pontos conforme período e volume de observações.
+- O gráfico só é exibido com pelo menos três intervalos analíticos válidos.
+- Mensagens específicas para amostragem insuficiente, apenas um intervalo ou poucos períodos.
+- Melhor e pior período exigem pelo menos dois intervalos válidos, evitando resultados idênticos sem significado analítico.
+- Card “Predominância” renomeado para “Categoria predominante”, com percentual explícito.
+- Nova interpretação textual distingue frequência predominante de saldo emocional ponderado.
+- Metadados analíticos adicionados ao resumo: `history_points`, `trend_chart_available`, `trend_chart_status` e `aggregation_seconds`.
+
 ## 0.5.1 — Epic 1: Experience Index 2.0
 
 - Novo motor analítico independente da interface.

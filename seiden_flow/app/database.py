@@ -281,8 +281,21 @@ class FlowDatabase:
             bstart=start+timedelta(seconds=idx*bucket_seconds);bend=min(end,bstart+timedelta(seconds=bucket_seconds));stats=self._hea_stats(brows,minimum_samples,weights)
             history.append({'window_start':bstart.isoformat(),'window_end':bend.isoformat(),**stats})
         available_windows=[item for item in history if item.get('experience_index') is not None]
-        summary['best_period']=max(available_windows,key=lambda item:item['experience_index']) if available_windows else None
-        summary['worst_period']=min(available_windows,key=lambda item:item['experience_index']) if available_windows else None
+        # A single analytical window cannot establish a meaningful best/worst period or trend.
+        # Require at least two valid windows for highlights and three for a trend chart.
+        summary['best_period']=max(available_windows,key=lambda item:item['experience_index']) if len(available_windows)>=2 else None
+        summary['worst_period']=min(available_windows,key=lambda item:item['experience_index']) if len(available_windows)>=2 else None
+        summary['history_points']=len(available_windows)
+        summary['trend_chart_available']=len(available_windows)>=3
+        if len(available_windows)>=3:
+            summary['trend_chart_status']='available'
+        elif len(rows)<minimum_samples:
+            summary['trend_chart_status']='insufficient_samples'
+        elif len(available_windows)<2:
+            summary['trend_chart_status']='single_period'
+        else:
+            summary['trend_chart_status']='insufficient_periods'
+        summary['aggregation_seconds']=bucket_seconds
 
         options_sources=[];options_locations=[]
         with self.connect() as c:
