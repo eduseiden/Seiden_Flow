@@ -1,76 +1,21 @@
 # Changelog
 
-## 0.4.2
+## 0.5.1 — Epic 1: Experience Index 2.0
 
-- HEA calculado sob demanda diretamente das observações anônimas do período selecionado.
-- Recupera observações históricas ainda existentes no banco, sem depender de janelas agregadas fechadas.
-- Filtros rápidos de 1h, 6h, 24h, 7 dias e 30 dias.
-- Intervalo personalizado por data e hora.
-- Filtros por fonte e local.
-- O mínimo configurado em `human_experience_minimum_samples` é obrigatório para o resultado geral, por fonte e para cada ponto do histórico.
-- Retenção configurável das observações anônimas por `hea_observation_retention_days` (padrão: 365 dias).
-- Novas observações passam a incrementar imediatamente o contador do período.
+- Novo motor analítico independente da interface.
+- Cálculo por emoção com pesos próprios e ponderação pela confiança da análise.
+- Escala normalizada de -100 a +100.
+- Classificação textual do índice.
+- Comparação automática com período anterior equivalente.
+- Tendência: melhorando, estável ou piorando.
+- Variação absoluta e percentual.
+- Confiança média e número de observações.
+- Distribuição por categoria e por emoção original.
+- Melhor e pior intervalo do período selecionado.
+- Novo contrato interno `GET /api/v2/experience`.
+- Portal HEA atualizado para exibir o Experience Index 2.0.
+- Sensor do Home Assistant enriquecido com os novos atributos analíticos.
 
-## 0.4.1
+### Observação
 
-- Restrição opcional por hostname para publicação segura do portal HEA.
-- Redirecionamento da raiz `/` para `/hea` no hostname público configurado.
-- No hostname público, somente `/hea` e `/api/v1/public/hea/dashboard` são expostos.
-- Rotas operacionais, administrativas, de eventos, exportação e domínio retornam `404` externamente.
-- O acesso local pelo IP ou por outros hostnames permanece completo.
-- Compatível com Cloudflare Tunnel sem rewrite de caminho.
-
-## 0.4.0
-
-- Portal web externo do Human Experience Analytics em `/hea`.
-- API pública sanitizada em `/api/v1/public/hea/dashboard`.
-- Visual responsivo para desktop, tablet e celular.
-- Atualização automática e seleção de período.
-- Cards, distribuição, histórico e visão por fonte.
-- Nenhum dado pessoal, imagem, biometria ou evento individual é exposto pelo portal.
-- CORS opcional por lista explícita de origens.
-- Preparado para publicação atrás de Cloudflare Tunnel e Cloudflare Access.
-
-## 0.3.2
-
-- Unifica fontes do Vision com o leitor operacional, evitando entidades `sensor.*` como fonte.
-- Associa automaticamente observações HEA ao local do leitor.
-- Remove identidade pessoal dos eventos técnicos `vision.analysis_completed` persistidos.
-- Exibe a confiança HEA com duas casas decimais.
-- Migra e reconcilia fontes técnicas criadas pela versão anterior.
-- Mantém compatibilidade com Seiden Bridge 0.6.3 e Seiden Vision 0.4.0.
-
-
-## 0.3.1
-- Corrigida a correlação de leitores nos eventos online/offline.
-- Adicionado fallback compatível por `reader_name` e `reader_ip` para eventos de versões anteriores do Bridge.
-- Sincronizado o estado operacional nas tabelas `sources_state` e `sources`.
-- Mantida compatibilidade com o identificador canônico `reader_id` do Seiden Bridge 0.6.3.
-
-
-## 0.3.0
-- Novo módulo Human Experience Analytics (HEA).
-- Novo Observation Engine genérico.
-- Novas entidades `Observation` e `ObservationAggregate`.
-- Consumo automático de `vision.analysis_completed`.
-- Separação entre expressão observada e identidade da pessoa.
-- Remoção da emoção do evento técnico persistente do Vision.
-- Retenção curta e limpeza automática das observações brutas.
-- Agregação configurável por janela de tempo e fonte.
-- Quantidade mínima de amostras configurável; abaixo do limite, o dashboard mostra dados insuficientes.
-- Confiança mínima configurável.
-- Experience Index de -100 a +100.
-- Dashboard HEA com índice, distribuição, confiança, amostras e ranking por fonte.
-- Novas APIs `/api/v1/hea/*` e `/api/v1/observations`.
-- Nova entidade `sensor.seiden_flow_experience_index` no Home Assistant.
-- Migração automática e não destrutiva do banco para o schema 3.
-
-## 0.2.1
-- Dashboard atualizado automaticamente a cada 5 segundos.
-- Temas Escuro, Claro e Automático.
-
-## 0.2.0
-- Modelo de domínio e migração automática do banco.
-
-## 0.1.0
-- Primeira versão da camada de dados operacional.
+A variação percentual não é exibida quando o índice anterior está entre -1 e +1, pois a divisão próxima de zero produz resultados matematicamente instáveis e potencialmente enganosos.

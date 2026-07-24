@@ -5,12 +5,13 @@ from database import FlowDatabase
 from ha_client import HomeAssistantClient
 from normalizer import normalize_event
 from observation import extract_vision_observation, sanitize_vision_event
+from experience import DEFAULT_EMOTION_WEIGHTS
 LOGGER=logging.getLogger(__name__)
 
 class FlowService:
     def __init__(self,db:FlowDatabase,ha:HomeAssistantClient,publish_to_ha:bool,settings):
         self.db=db;self.ha=ha;self.publish_to_ha=publish_to_ha;self.settings=settings;self._lock=threading.RLock()
-        self.weights={'positive':settings.human_experience_positive_weight,'neutral':settings.human_experience_neutral_weight,'negative':settings.human_experience_negative_weight}
+        self.weights=dict(DEFAULT_EMOTION_WEIGHTS)
 
     def _source_enabled(self,source_id):
         enabled=self.settings.human_experience_enabled_sources
@@ -66,7 +67,7 @@ class FlowService:
         self.ha.publish_sensor('sensor.seiden_flow_events_today',s['events_today'],{**common,'unit_of_measurement':'eventos'})
         self.ha.publish_sensor('sensor.seiden_flow_sources_offline',s['sources_offline'],{**common,'unit_of_measurement':'fontes'})
         hea=self.db.hea_summary(24,self.settings.human_experience_minimum_samples)
-        self.ha.publish_sensor('sensor.seiden_flow_experience_index',hea.get('experience_index') if hea.get('experience_index') is not None else 'unknown',{'friendly_name':'Seiden FLOW — Experience Index','icon':'mdi:emoticon-outline','status':hea.get('status'),'sample_count':hea.get('sample_count'),'dominant_expression':hea.get('dominant_expression'),'distribution':hea.get('distribution')})
+        self.ha.publish_sensor('sensor.seiden_flow_experience_index',hea.get('experience_index') if hea.get('experience_index') is not None else 'unknown',{'friendly_name':'Seiden FLOW — Experience Index','icon':'mdi:emoticon-outline','status':hea.get('status'),'classification':hea.get('classification'),'trend':hea.get('trend'),'delta':hea.get('delta'),'delta_percentage':hea.get('delta_percentage'),'previous_experience_index':hea.get('previous_experience_index'),'sample_count':hea.get('sample_count'),'average_confidence':hea.get('average_confidence'),'dominant_expression':hea.get('dominant_expression'),'distribution':hea.get('distribution'),'best_period':hea.get('best_period'),'worst_period':hea.get('worst_period')})
         self.publish_connection(self.ha.connection_status)
     def start_cleanup(self,days,hours):
         def event_loop():

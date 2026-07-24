@@ -5,6 +5,7 @@ from datetime import datetime,timedelta,timezone
 from pathlib import Path
 from typing import Any,Iterator
 from version import DATABASE_SCHEMA_VERSION
+from experience import calculate_stats, compare_periods
 
 class FlowDatabase:
     def __init__(self,path:str,organization_id="default_organization",organization_name="Organização padrão",site_id="default_site",site_name="Site padrão"):
@@ -211,13 +212,11 @@ class FlowDatabase:
             if count < minimum_samples:
                 c.execute("DELETE FROM observation_aggregates WHERE aggregate_key=?",(key,))
                 return {'status':'insufficient_data','sample_count':count,'minimum_samples':minimum_samples,'period_start':start_iso,'period_end':end_iso,'source_id':source_id}
-            counts={'positive':0,'neutral':0,'negative':0,'uncertain':0}
-            for r in rows: counts[r['value'] if r['value'] in counts else 'uncertain'] += 1
-            avg=sum(float(r['confidence']) for r in rows)/count
-            scored=counts['positive']*weights['positive']+counts['neutral']*weights['neutral']+counts['negative']*weights['negative']
-            denominator=max(1,counts['positive']+counts['neutral']+counts['negative'])
-            index=max(-100.0,min(100.0,100.0*scored/denominator))
-            dominant=max(('positive','neutral','negative'),key=lambda k:counts[k])
+            stats=calculate_stats(rows,minimum_samples,weights)
+            counts=stats['distribution']
+            avg=stats['average_confidence']
+            index=stats['experience_index']
+            dominant=stats['dominant_expression']
             source_name=rows[-1]['source_name']; location_id=rows[-1]['location_id']; now=datetime.now(timezone.utc).isoformat()
             c.execute("""INSERT INTO observation_aggregates(aggregate_key,metric_type,organization_id,site_id,source_id,source_name,location_id,period_start,period_end,window_minutes,sample_count,positive_count,neutral_count,negative_count,uncertain_count,average_confidence,dominant_value,experience_index,status,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(aggregate_key) DO UPDATE SET source_name=excluded.source_name,location_id=excluded.location_id,sample_count=excluded.sample_count,positive_count=excluded.positive_count,neutral_count=excluded.neutral_count,negative_count=excluded.negative_count,uncertain_count=excluded.uncertain_count,average_confidence=excluded.average_confidence,dominant_value=excluded.dominant_value,experience_index=excluded.experience_index,status=excluded.status,updated_at=excluded.updated_at""",
                       (key,'facial_expression',self.organization_id,self.site_id,source_id,source_name,location_id,start_iso,end_iso,window_minutes,count,counts['positive'],counts['neutral'],counts['negative'],counts['uncertain'],avg,dominant,index,'available',now))
@@ -232,21 +231,8 @@ class FlowDatabase:
         with self.connect() as c:return c.execute('SELECT COUNT(*) c FROM observations').fetchone()['c']
 
     @staticmethod
-    def _hea_stats(rows, minimum_samples, weights):
-        counts={'positive':0,'neutral':0,'negative':0,'uncertain':0}
-        for r in rows:
-            value=r['value'] if r['value'] in counts else 'uncertain'
-            counts[value]+=1
-        count=len(rows)
-        base={'available':count>=minimum_samples,'status':'available' if count>=minimum_samples else 'insufficient_data','minimum_samples':minimum_samples,'sample_count':count,'distribution':counts}
-        if count < minimum_samples:
-            return {**base,'experience_index':None,'dominant_expression':None,'average_confidence':None}
-        avg=sum(float(r['confidence']) for r in rows)/count
-        scored=counts['positive']*weights['positive']+counts['neutral']*weights['neutral']+counts['negative']*weights['negative']
-        denominator=max(1,counts['positive']+counts['neutral']+counts['negative'])
-        index=max(-100.0,min(100.0,100.0*scored/denominator))
-        dominant=max(('positive','neutral','negative'),key=lambda k:counts[k])
-        return {**base,'experience_index':round(index,1),'dominant_expression':dominant,'average_confidence':round(avg,4)}
+    def _hea_stats(rows, minimum_samples, weights=None):
+        return calculate_stats(rows, minimum_samples, weights)
 
     def _hea_observations(self,start_at,end_at,source_id=None,location_id=None):
         clauses=["o.metric_type='facial_expression'","o.occurred_at>=?","o.occurred_at<=?"]
@@ -260,10 +246,20 @@ class FlowDatabase:
         with self.connect() as c:return c.execute(sql,tuple(params)).fetchall()
 
     def hea_query(self,start_at,end_at,minimum_samples=10,weights=None,source_id=None,location_id=None,max_history_points=96):
-        weights=weights or {'positive':1.0,'neutral':0.0,'negative':-1.0}
         rows=self._hea_observations(start_at,end_at,source_id,location_id)
         summary=self._hea_stats(rows,minimum_samples,weights)
         summary.update({'period_start':start_at,'period_end':end_at,'sources':len({r['source_id'] for r in rows})})
+
+        start=self._parse_dt(start_at).astimezone(timezone.utc)
+        end=self._parse_dt(end_at).astimezone(timezone.utc)
+        duration=end-start
+        previous_start=start-duration
+        previous_rows=self._hea_observations(previous_start.isoformat(),start.isoformat(),source_id,location_id)
+        previous=self._hea_stats(previous_rows,minimum_samples,weights)
+        summary.update(compare_periods(summary,previous))
+        summary['previous_period_start']=previous_start.isoformat()
+        summary['previous_period_end']=start.isoformat()
+
         grouped={}
         for r in rows:
             key=r['source_id'];g=grouped.setdefault(key,{'rows':[],'source_id':key,'source_name':r['resolved_source_name'] or key,'location_id':r['resolved_location_id'],'location_name':r['location_name'] or None})
@@ -272,23 +268,29 @@ class FlowDatabase:
         for g in grouped.values():
             stats=self._hea_stats(g.pop('rows'),minimum_samples,weights);sources.append({**g,**stats})
         sources.sort(key=lambda x:(x['experience_index'] is not None,x['experience_index'] if x['experience_index'] is not None else -999),reverse=True)
-        from datetime import datetime as _dt
-        start=_dt.fromisoformat(start_at.replace('Z','+00:00'));end=_dt.fromisoformat(end_at.replace('Z','+00:00'))
-        total_seconds=max(1,(end-start).total_seconds());bucket_seconds=max(60,int(total_seconds/max(1,max_history_points)))
+
+        total_seconds=max(1,(end-start).total_seconds())
+        # Keep enough observations per point for meaningful period highlights.
+        target_points=max(1,min(max_history_points,max(1,len(rows)//max(1,minimum_samples))))
+        bucket_seconds=max(60,int(total_seconds/target_points))
         buckets={}
         for r in rows:
-            t=_dt.fromisoformat(r['occurred_at'].replace('Z','+00:00'));idx=int((t-start).total_seconds()//bucket_seconds);buckets.setdefault(idx,[]).append(r)
+            t=self._parse_dt(r['occurred_at']).astimezone(timezone.utc);idx=max(0,int((t-start).total_seconds()//bucket_seconds));buckets.setdefault(idx,[]).append(r)
         history=[]
         for idx,brows in sorted(buckets.items()):
             bstart=start+timedelta(seconds=idx*bucket_seconds);bend=min(end,bstart+timedelta(seconds=bucket_seconds));stats=self._hea_stats(brows,minimum_samples,weights)
             history.append({'window_start':bstart.isoformat(),'window_end':bend.isoformat(),**stats})
+        available_windows=[item for item in history if item.get('experience_index') is not None]
+        summary['best_period']=max(available_windows,key=lambda item:item['experience_index']) if available_windows else None
+        summary['worst_period']=min(available_windows,key=lambda item:item['experience_index']) if available_windows else None
+
         options_sources=[];options_locations=[]
         with self.connect() as c:
             for r in c.execute("SELECT DISTINCT o.source_id,COALESCE(NULLIF(o.source_name,''),s.name,o.source_id) source_name FROM observations o LEFT JOIN sources s ON s.id=o.source_id WHERE o.metric_type='facial_expression' ORDER BY source_name"):
                 options_sources.append({'source_id':r['source_id'],'source_name':r['source_name']})
             for r in c.execute("SELECT DISTINCT COALESCE(o.location_id,s.location_id) location_id,l.name location_name FROM observations o LEFT JOIN sources s ON s.id=o.source_id LEFT JOIN locations l ON l.id=COALESCE(o.location_id,s.location_id) WHERE o.metric_type='facial_expression' AND COALESCE(o.location_id,s.location_id) IS NOT NULL ORDER BY l.name"):
                 options_locations.append({'location_id':r['location_id'],'location_name':r['location_name'] or r['location_id']})
-        return {'summary':summary,'sources':sources,'history':history,'filters':{'source_id':source_id,'location_id':location_id,'available_sources':options_sources,'available_locations':options_locations}}
+        return {'summary':summary,'previous_summary':previous,'sources':sources,'history':history,'filters':{'source_id':source_id,'location_id':location_id,'available_sources':options_sources,'available_locations':options_locations}}
 
     def hea_history(self, hours=24, source_id=None, limit=500):
         end=datetime.now(timezone.utc);start=end-timedelta(hours=max(1,hours));return self.hea_query(start.isoformat(),end.isoformat(),1,source_id=source_id,max_history_points=min(limit,500))['history']

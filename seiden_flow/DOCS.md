@@ -111,3 +111,25 @@ Com essa configuração:
 O portal `/hea` calcula o HEA diretamente das observações anônimas armazenadas para o intervalo solicitado. O resultado somente é disponibilizado quando o total atende a `human_experience_minimum_samples`.
 
 A retenção é definida por `hea_observation_retention_days` (padrão 365). Dados já removidos por versões anteriores não podem ser reconstruídos; a nova retenção passa a valer após a atualização.
+
+
+## Experience Index 2.0 — versão 0.5.1
+
+O índice é calculado pelo motor analítico em `app/experience.py`, sem cálculos na interface. Cada emoção possui peso próprio entre -100 e +100, ponderado pela confiança da análise.
+
+A resposta analítica inclui:
+
+- índice e classificação;
+- tendência e comparação com período anterior equivalente;
+- variação absoluta e percentual;
+- confiança média e quantidade de observações;
+- distribuição por categoria e emoção original;
+- melhor e pior intervalo elegível.
+
+Endpoint interno:
+
+```text
+GET /api/v2/experience
+```
+
+Filtros aceitos: `hours`, `start`, `end`, `source_id` e `location_id`. A variação percentual é omitida quando o índice anterior está próximo de zero, evitando uma leitura matematicamente enganosa.

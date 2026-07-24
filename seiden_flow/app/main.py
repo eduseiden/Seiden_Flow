@@ -131,6 +131,19 @@ def ingest_observation():
   return jsonify({'accepted':inserted,'result':result}),201 if inserted else 200
  except ValueError as exc:return jsonify({'error':'invalid_observation','message':str(exc)}),400
 
+
+@app.get('/api/v2/experience')
+def experience_v2():
+ end=_parse_iso(request.args.get('end'),datetime.now(timezone.utc))
+ start_value=request.args.get('start')
+ if start_value:start=_parse_iso(start_value,end-timedelta(hours=settings.hea_portal_default_hours))
+ else:
+  hours=max(1,min(87600,int(request.args.get('hours',settings.hea_portal_default_hours))))
+  start=end-timedelta(hours=hours)
+ if start>=end:abort(400,description='O início deve ser anterior ao fim')
+ result=db.hea_query(start.isoformat(),end.isoformat(),settings.human_experience_minimum_samples,service.weights,(request.args.get('source_id') or '').strip() or None,(request.args.get('location_id') or '').strip() or None,96)
+ return jsonify({'experience_index':result['summary'],'history':result['history'],'version':VERSION})
+
 @app.get('/api/v1/hea/summary')
 def hea_summary():
  return jsonify(db.hea_summary(int(request.args.get('hours',24)),settings.human_experience_minimum_samples))

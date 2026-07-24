@@ -1,5 +1,5 @@
 name: Seiden FLOW
-version: "0.4.2"
+version: "0.5.1"
 slug: seiden_flow
 description: Camada de dados operacional da Seiden Tech para ingestão, correlação, estado e disponibilização de eventos
 url: https://github.com/eduseiden/Seiden-HA
