@@ -75,7 +75,7 @@ class FlowService:
                 if n:LOGGER.info('Retenção removeu %s evento(s)',n)
         def observation_loop():
             while True:
-                time.sleep(60);o=self.db.cleanup_raw_observations(self.settings.observation_retain_raw_minutes)
-                if o:LOGGER.info('Privacidade HEA removeu %s observação(ões) bruta(s)',o)
+                time.sleep(60);o=self.db.cleanup_raw_observations(self.settings.hea_observation_retention_days)
+                if o:LOGGER.info('Retenção HEA removeu %s observação(ões) anônima(s)',o)
         threading.Thread(target=event_loop,daemon=True,name='event-retention').start()
         threading.Thread(target=observation_loop,daemon=True,name='observation-privacy').start()

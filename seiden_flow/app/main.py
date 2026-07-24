@@ -1,5 +1,6 @@
 from __future__ import annotations
 import csv,io,json,logging,os
+from datetime import datetime,timedelta,timezone
 from functools import wraps
 from flask import Flask,Response,abort,jsonify,make_response,redirect,render_template,request
 from config import load_settings
@@ -34,38 +35,30 @@ def restrict_public_hea_host():
  # Do not disclose which operational routes exist on a public HEA hostname.
  abort(404)
 
-def _portal_payload(hours: int):
- hours=max(1,min(720,hours))
- summary=db.hea_summary(hours,settings.human_experience_minimum_samples)
- sources=db.hea_sources(hours) if settings.hea_portal_show_sources else []
- history=db.hea_history(hours,limit=500)
- # Explicit allow-list: no people, images, event IDs, biometrics or technical HA entities.
- safe_summary={k:summary.get(k) for k in (
-  'available','experience_index','sample_count','dominant_expression',
-  'average_confidence','distribution','period_hours','minimum_samples'
- ) if k in summary}
- safe_sources=[]
- for item in sources:
-  safe_sources.append({k:item.get(k) for k in (
-   'source_id','source_name','location_name','experience_index','sample_count',
-   'dominant_expression','average_confidence','distribution'
-  ) if k in item})
- safe_history=[]
- for item in history:
-  safe_history.append({k:item.get(k) for k in (
-   'window_start','window_end','experience_index','sample_count',
-   'dominant_expression','average_confidence','distribution','source_id'
-  ) if k in item})
+def _parse_iso(value, default):
+ if not value:return default
+ try:
+  parsed=datetime.fromisoformat(str(value).replace('Z','+00:00'))
+  if parsed.tzinfo is None:parsed=parsed.replace(tzinfo=timezone.utc)
+  return parsed.astimezone(timezone.utc)
+ except ValueError:abort(400,description='Data/hora inválida')
+
+def _portal_payload():
+ end=_parse_iso(request.args.get('end'),datetime.now(timezone.utc))
+ start_value=request.args.get('start')
+ if start_value:start=_parse_iso(start_value,end-timedelta(hours=settings.hea_portal_default_hours))
+ else:
+  hours=max(1,min(87600,int(request.args.get('hours',settings.hea_portal_default_hours))))
+  start=end-timedelta(hours=hours)
+ if start>=end:abort(400,description='O início deve ser anterior ao fim')
+ source_id=(request.args.get('source_id') or '').strip() or None
+ location_id=(request.args.get('location_id') or '').strip() or None
+ result=db.hea_query(start.isoformat(),end.isoformat(),settings.human_experience_minimum_samples,service.weights,source_id,location_id,96)
  return {
-  'title':settings.hea_portal_title,
-  'subtitle':settings.hea_portal_subtitle,
-  'privacy_notice':settings.hea_portal_privacy_notice,
-  'hours':hours,
-  'summary':safe_summary,
-  'sources':safe_sources,
-  'history':safe_history,
-  'updated_at':__import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),
-  'version':VERSION
+  'title':settings.hea_portal_title,'subtitle':settings.hea_portal_subtitle,
+  'privacy_notice':settings.hea_portal_privacy_notice,'summary':result['summary'],
+  'sources':result['sources'] if settings.hea_portal_show_sources else [],'history':result['history'],
+  'filters':result['filters'],'updated_at':datetime.now(timezone.utc).isoformat(),'version':VERSION
  }
 
 @app.after_request
@@ -105,7 +98,7 @@ def hea_portal():
 def public_hea_dashboard():
  if not settings.hea_portal_enabled: abort(404)
  if request.method=='OPTIONS': return make_response('',204)
- return jsonify(_portal_payload(int(request.args.get('hours',settings.hea_portal_default_hours))))
+ return jsonify(_portal_payload())
 
 @app.get('/health')
 @app.get('/api/v1/health')

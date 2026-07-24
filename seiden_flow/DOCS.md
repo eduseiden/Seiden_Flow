@@ -104,3 +104,10 @@ Com essa configuração:
 - `/hea` e `/api/v1/public/hea/dashboard` permanecem disponíveis;
 - todas as demais rotas retornam `404`;
 - o acesso local por IP continua exibindo o FLOW completo.
+
+
+## HEA histórico — 0.4.2
+
+O portal `/hea` calcula o HEA diretamente das observações anônimas armazenadas para o intervalo solicitado. O resultado somente é disponibilizado quando o total atende a `human_experience_minimum_samples`.
+
+A retenção é definida por `hea_observation_retention_days` (padrão 365). Dados já removidos por versões anteriores não podem ser reconstruídos; a nova retenção passa a valer após a atualização.

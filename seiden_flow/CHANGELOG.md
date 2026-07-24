@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.2
+
+- HEA calculado sob demanda diretamente das observações anônimas do período selecionado.
+- Recupera observações históricas ainda existentes no banco, sem depender de janelas agregadas fechadas.
+- Filtros rápidos de 1h, 6h, 24h, 7 dias e 30 dias.
+- Intervalo personalizado por data e hora.
+- Filtros por fonte e local.
+- O mínimo configurado em `human_experience_minimum_samples` é obrigatório para o resultado geral, por fonte e para cada ponto do histórico.
+- Retenção configurável das observações anônimas por `hea_observation_retention_days` (padrão: 365 dias).
+- Novas observações passam a incrementar imediatamente o contador do período.
+
 ## 0.4.1
 
 - Restrição opcional por hostname para publicação segura do portal HEA.

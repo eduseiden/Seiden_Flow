@@ -22,6 +22,7 @@ class Settings:
     site_name: str = "Site padrão"
     observation_engine_enabled: bool = True
     observation_retain_raw_minutes: int = 30
+    hea_observation_retention_days: int = 365
     human_experience_enabled: bool = True
     human_experience_minimum_samples: int = 10
     human_experience_aggregation_window_minutes: int = 15
@@ -73,6 +74,7 @@ def load_settings() -> Settings:
         site_id=str(raw.get("site_id","default_site")), site_name=str(raw.get("site_name","Site padrão")),
         observation_engine_enabled=_bool(raw.get("observation_engine_enabled"),True),
         observation_retain_raw_minutes=max(1,int(raw.get("observation_retain_raw_minutes",30))),
+        hea_observation_retention_days=max(1,int(raw.get("hea_observation_retention_days",365))),
         human_experience_enabled=_bool(raw.get("human_experience_enabled"),True),
         human_experience_minimum_samples=max(1,int(raw.get("human_experience_minimum_samples",10))),
         human_experience_aggregation_window_minutes=max(1,int(raw.get("human_experience_aggregation_window_minutes",15))),
