@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.2.1 — Dashboard Polish
+
+- Novo Seiden Design System baseado em variáveis CSS.
+- Temas Claro, Escuro e Seguir Sistema, persistidos no navegador.
+- Layout responsivo dedicado para desktop, tablet e celular.
+- Gauge visual do Experience Index entre Crítico e Excelente.
+- Resultados por fonte convertidos em cards no celular.
+- Linguagem técnica substituída por mensagens orientadas ao negócio.
+- Melhor e pior período renomeados para melhor e pior momento.
+- Estados de carregamento com skeleton e microanimações discretas.
+- Tooltips, foco por teclado, contraste aprimorado e suporte a redução de movimento.
+- Identidade visual e assinatura Powered by Seiden FLOW.
+
 ## 0.5.2 — Epic 2: Dashboard Analytics
 
 - Novo gráfico de evolução temporal do Experience Index.
