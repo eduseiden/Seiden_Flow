@@ -38,6 +38,8 @@ class Settings:
     hea_portal_show_sources: bool = True
     hea_portal_privacy_notice: str = "Dados agregados e anônimos. Nenhuma identificação pessoal é exibida."
     hea_portal_allowed_origins: tuple[str, ...] = ()
+    hea_public_hostname: str = ""
+    hea_public_restrict_routes: bool = False
     config_dir: str = "/config"
 
 def _bool(v, default):
@@ -87,4 +89,6 @@ def load_settings() -> Settings:
         hea_portal_show_sources=_bool(raw.get("hea_portal_show_sources"),True),
         hea_portal_privacy_notice=str(raw.get("hea_portal_privacy_notice","Dados agregados e anônimos. Nenhuma identificação pessoal é exibida.")),
         hea_portal_allowed_origins=_strings(raw.get("hea_portal_allowed_origins",[])),
+        hea_public_hostname=str(raw.get("hea_public_hostname","") or "").strip().lower().rstrip("."),
+        hea_public_restrict_routes=_bool(raw.get("hea_public_restrict_routes"),False),
         config_dir=os.getenv("FLOW_CONFIG_DIR","/config"))

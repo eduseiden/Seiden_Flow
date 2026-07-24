@@ -1,7 +1,7 @@
 from __future__ import annotations
 import csv,io,json,logging,os
 from functools import wraps
-from flask import Flask,Response,abort,jsonify,make_response,render_template,request
+from flask import Flask,Response,abort,jsonify,make_response,redirect,render_template,request
 from config import load_settings
 from database import FlowDatabase
 from ha_client import HomeAssistantClient
@@ -12,6 +12,27 @@ app=Flask(__name__);app.config['MAX_CONTENT_LENGTH']=settings.webhook_max_body_m
 db=FlowDatabase(os.path.join(settings.config_dir,'seiden_flow.db'),settings.organization_id,settings.organization_name,settings.site_id,settings.site_name)
 ha=HomeAssistantClient();service=FlowService(db,ha,settings.publish_summary_to_home_assistant,settings);service.publish_summary();service.start_cleanup(settings.retention_days,settings.cleanup_interval_hours)
 if settings.subscribe_home_assistant_events:ha.start_event_listener([settings.bridge_presence_event,settings.bridge_online_event,settings.bridge_offline_event],lambda t,d:service.ingest(d,transport='home_assistant_event',ha_event_type=t),service.publish_connection)
+
+def _request_hostname() -> str:
+ forwarded=(request.headers.get('X-Forwarded-Host') or '').split(',')[0].strip()
+ host=forwarded or request.host
+ # Hostnames are compared without port and trailing dot. IPv6 literals are not expected here.
+ return host.split(':',1)[0].strip().lower().rstrip('.')
+
+def _is_public_hea_host() -> bool:
+ return bool(settings.hea_public_hostname and _request_hostname()==settings.hea_public_hostname)
+
+@app.before_request
+def restrict_public_hea_host():
+ if not (settings.hea_public_restrict_routes and _is_public_hea_host()):
+  return None
+ if request.path=='/':
+  return redirect('/hea',code=302)
+ allowed_exact={'/hea','/api/v1/public/hea/dashboard'}
+ if request.path in allowed_exact:
+  return None
+ # Do not disclose which operational routes exist on a public HEA hostname.
+ abort(404)
 
 def _portal_payload(hours: int):
  hours=max(1,min(720,hours))

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.1
+
+- Restrição opcional por hostname para publicação segura do portal HEA.
+- Redirecionamento da raiz `/` para `/hea` no hostname público configurado.
+- No hostname público, somente `/hea` e `/api/v1/public/hea/dashboard` são expostos.
+- Rotas operacionais, administrativas, de eventos, exportação e domínio retornam `404` externamente.
+- O acesso local pelo IP ou por outros hostnames permanece completo.
+- Compatível com Cloudflare Tunnel sem rewrite de caminho.
+
 ## 0.4.0
 
 - Portal web externo do Human Experience Analytics em `/hea`.

@@ -7,4 +7,4 @@ A versão 0.3.2 introduz o **Human Experience Analytics (HEA)**, com observaçõ
 Consulte `seiden_flow/DOCS.md`.
 
 
-Versão 0.4.0: portal web externo HEA disponível em `/hea`, pronto para uso atrás de Cloudflare Tunnel.
+Versão 0.4.1: portal HEA externo com restrição por hostname, pronto para publicação segura atrás de Cloudflare Tunnel.

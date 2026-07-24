@@ -81,3 +81,26 @@ A página externa está disponível em `http://HOST:8100/hea`. Para publicação
 O endpoint utilizado pela página é `GET /api/v1/public/hea/dashboard`. Ele usa uma lista explícita de campos e não expõe nomes de pessoas, imagens, biometria, identificadores de autenticação ou eventos individuais.
 
 Opções principais: `hea_portal_enabled`, `hea_portal_title`, `hea_portal_subtitle`, `hea_portal_default_hours`, `hea_portal_refresh_seconds`, `hea_portal_show_sources`, `hea_portal_privacy_notice` e `hea_portal_allowed_origins`.
+
+
+## Publicação segura por hostname (0.4.1)
+
+Para publicar somente o portal HEA em um domínio externo, configure:
+
+```yaml
+hea_public_hostname: hea.smarthome.app.br
+hea_public_restrict_routes: true
+```
+
+No Cloudflare Tunnel, o serviço deve apontar apenas para a origem, sem caminho:
+
+```text
+http://192.168.4.134:8100
+```
+
+Com essa configuração:
+
+- `https://hea.smarthome.app.br/` redireciona para `/hea`;
+- `/hea` e `/api/v1/public/hea/dashboard` permanecem disponíveis;
+- todas as demais rotas retornam `404`;
+- o acesso local por IP continua exibindo o FLOW completo.

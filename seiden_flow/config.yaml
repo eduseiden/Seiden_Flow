@@ -1,5 +1,5 @@
 name: Seiden FLOW
-version: "0.4.0"
+version: "0.4.1"
 slug: seiden_flow
 description: Camada de dados operacional da Seiden Tech para ingestão, correlação, estado e disponibilização de eventos
 url: https://github.com/eduseiden/Seiden-HA
@@ -62,6 +62,8 @@ options:
   hea_portal_show_sources: true
   hea_portal_privacy_notice: Dados agregados e anônimos. Nenhuma identificação pessoal é exibida.
   hea_portal_allowed_origins: []
+  hea_public_hostname: ""
+  hea_public_restrict_routes: false
 
 schema:
   log_level: list(debug|info|warning|error|critical)
@@ -99,3 +101,5 @@ schema:
   hea_portal_privacy_notice: str
   hea_portal_allowed_origins:
     - str
+  hea_public_hostname: str?
+  hea_public_restrict_routes: bool
