@@ -13,11 +13,7 @@ app=Flask(__name__);app.config['MAX_CONTENT_LENGTH']=settings.webhook_max_body_m
 db=FlowDatabase(os.path.join(settings.config_dir,'seiden_flow.db'),settings.organization_id,settings.organization_name,settings.site_id,settings.site_name)
 ha=HomeAssistantClient();service=FlowService(db,ha,settings.publish_summary_to_home_assistant,settings);service.publish_summary();service.start_cleanup(settings.retention_days,settings.cleanup_interval_hours)
 if settings.subscribe_home_assistant_events:
- event_types=[]
- if settings.bridge_source_mode in ("unified","hybrid"):
-  event_types.extend([settings.bridge_event,settings.connection_online_event,settings.connection_offline_event])
- if settings.bridge_source_mode in ("legacy","hybrid"):
-  event_types.extend([settings.legacy_presence_event,settings.legacy_online_event,settings.legacy_offline_event])
+ event_types=[settings.bridge_event,settings.connection_online_event,settings.connection_offline_event]
  if settings.vision_event:
   event_types.append(settings.vision_event)
  # Remove duplicidades preservando a ordem de configuração.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0 — Arquitetura unificada sem legado
+
+- Remove `bridge_source_mode` e todos os eventos legados.
+- Consome apenas os eventos unificados do Bridge e do Vision.
+- Elimina a dupla contabilização no modo híbrido.
+
+# Changelog
+
 ## 0.5.2.2 — Arquitetura unificada Bridge/Vision
 
 - Consumo nativo do evento unificado `seiden_bridge_event` do Seiden Bridge 0.8.3.

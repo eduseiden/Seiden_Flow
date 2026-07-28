@@ -37,10 +37,7 @@ def normalize_event(payload: dict[str, Any], transport: str = "api", ha_event_ty
     event_type = str(_pick(payload, "event_type", default=ha_event_type or "external.event"))
     if ha_event_type:
         # Eventos canônicos já trazem event_type/source no próprio payload.
-        if ha_event_type == "seiden_presence":
-            event_type = "person_authenticated"
-            source = "seiden_bridge"
-        elif "offline" in ha_event_type:
+        if "offline" in ha_event_type:
             event_type = "connection.offline"
             source = "seiden_bridge"
         elif "online" in ha_event_type:
@@ -64,14 +61,8 @@ def normalize_event(payload: dict[str, Any], transport: str = "api", ha_event_ty
         "device_id",
         default=_pick(payload, "reader_id", "device_id", "source_id"),
     )
-    # Compatibilidade com Bridges anteriores à 0.6.3: o nome é preferido ao IP
-    # porque gera o mesmo slug estável usado pelos eventos de presença.
     if not reader_id:
         reader_id = reader_name or reader_ip
-    # Eventos do Vision podem trazer a entidade auxiliar do Home Assistant
-    # (ex.: sensor.seiden_last_person) como source_id. Essa entidade não é
-    # a identidade operacional do leitor; quando houver nome legível, usamos
-    # um identificador canônico estável derivado dele.
     if source == "seiden_vision" and reader_name and str(reader_id or "").startswith(("sensor.", "binary_sensor.", "event.")):
         import re, unicodedata
         canonical = unicodedata.normalize("NFKD", str(reader_name)).encode("ascii", "ignore").decode().lower()

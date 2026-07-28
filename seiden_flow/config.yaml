@@ -1,19 +1,18 @@
 name: Seiden FLOW
-version: "0.5.2.2"
+version: 0.6.0
 slug: seiden_flow
-description: Camada de dados operacional da Seiden Tech para ingestão, correlação, estado e disponibilização de eventos
+description: Camada de dados operacional da Seiden Tech para ingestão, correlação,
+  estado e disponibilização de eventos
 url: https://github.com/eduseiden/Seiden-HA
 stage: experimental
 startup: application
 boot: auto
 init: false
 arch:
-  - amd64
-  - aarch64
-
+- amd64
+- aarch64
 homeassistant_api: true
 hassio_api: true
-
 ingress: true
 ingress_port: 8100
 ingress_panel: true
@@ -23,24 +22,18 @@ ports_description:
   8100/tcp: API e dashboard do Seiden FLOW
 panel_icon: mdi:database-cog
 panel_title: Seiden FLOW
-
 map:
-  - type: addon_config
-    read_only: false
-
+- type: addon_config
+  read_only: false
 options:
   log_level: info
-  api_key: ""
+  api_key: ''
   timezone: America/Sao_Paulo
   retention_days: 365
   subscribe_home_assistant_events: true
-  bridge_source_mode: hybrid
   bridge_event: seiden_bridge_event
   connection_online_event: seiden_connection_online
   connection_offline_event: seiden_connection_offline
-  legacy_presence_event: seiden_presence
-  legacy_online_event: seiden_reader_online
-  legacy_offline_event: seiden_reader_offline
   vision_event: vision.analysis_completed
   publish_summary_to_home_assistant: true
   cleanup_interval_hours: 12
@@ -66,24 +59,20 @@ options:
   hea_portal_default_hours: 24
   hea_portal_refresh_seconds: 10
   hea_portal_show_sources: true
-  hea_portal_privacy_notice: Dados agregados e anônimos. Nenhuma identificação pessoal é exibida.
+  hea_portal_privacy_notice: Dados agregados e anônimos. Nenhuma identificação pessoal
+    é exibida.
   hea_portal_allowed_origins: []
-  hea_public_hostname: ""
+  hea_public_hostname: ''
   hea_public_restrict_routes: false
-
 schema:
   log_level: list(debug|info|warning|error|critical)
   api_key: password?
   timezone: str
   retention_days: int(1,3650)
   subscribe_home_assistant_events: bool
-  bridge_source_mode: list(unified|legacy|hybrid)
   bridge_event: str
   connection_online_event: str
   connection_offline_event: str
-  legacy_presence_event: str
-  legacy_online_event: str
-  legacy_offline_event: str
   vision_event: str
   publish_summary_to_home_assistant: bool
   cleanup_interval_hours: int(1,168)
@@ -100,7 +89,7 @@ schema:
   human_experience_aggregation_window_minutes: int(1,1440)
   human_experience_minimum_confidence: float(0,1)
   human_experience_enabled_sources:
-    - str
+  - str
   human_experience_positive_weight: float(-10,10)
   human_experience_neutral_weight: float(-10,10)
   human_experience_negative_weight: float(-10,10)
@@ -112,6 +101,6 @@ schema:
   hea_portal_show_sources: bool
   hea_portal_privacy_notice: str
   hea_portal_allowed_origins:
-    - str
+  - str
   hea_public_hostname: str?
   hea_public_restrict_routes: bool

@@ -1,8 +1,14 @@
-# Seiden FLOW 0.5.2.2
+# Seiden FLOW 0.6.0
 
-## Integração com Seiden Bridge 0.8.3 e Seiden Vision 0.4.1
+Camada de compreensão do Seiden One. Transforma evidências em entendimento operacional.
 
-O FLOW pode consumir o evento unificado `seiden_bridge_event`, os eventos técnicos `seiden_connection_online` e `seiden_connection_offline` e o evento enriquecido `vision.analysis_completed`. Durante a migração, `bridge_source_mode: hybrid` mantém também os eventos legados. Após validar toda a cadeia, use `bridge_source_mode: unified` e desative o legado no Bridge. O Vision 0.4.1 pode continuar entregando `vision.analysis_completed` por webhook para `/api/v1/ingest`; a assinatura no Home Assistant fica pronta para publicação direta futura.
+## Arquitetura unificada
 
+O FLOW consome exclusivamente:
 
-Dashboard Polish: novo Seiden Design System, temas claro/escuro/sistema, responsividade real para desktop, tablet e celular, gauge do Experience Index, linguagem de negócio, estados de carregamento e apresentação móvel dos resultados por fonte.
+- `seiden_bridge_event`
+- `seiden_connection_online`
+- `seiden_connection_offline`
+- `vision.analysis_completed`
+
+Foram removidos o modo `hybrid` e os eventos `seiden_presence`, `seiden_reader_online` e `seiden_reader_offline`. Uma passagem EVO é contabilizada uma única vez. Eventos enriquecidos do Vision são correlacionados por `source_event_id`.
