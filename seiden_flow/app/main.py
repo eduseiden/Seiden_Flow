@@ -84,7 +84,7 @@ def require_api_key(fn):
   return fn(*a,**kw)
  return wrapped
 @app.get('/')
-def dashboard():return render_template('dashboard.html',version=VERSION,summary=db.summary(),events=db.list_events(limit=20),people=db.people_inside(),sources=db.sources_state(),ha_status=ha.connection_status,hea=db.hea_summary(24,settings.human_experience_minimum_samples),hea_sources=db.hea_sources(24),hea_history=db.hea_history(24,limit=96),hea_config={'minimum_samples':settings.human_experience_minimum_samples,'window_minutes':settings.human_experience_aggregation_window_minutes,'minimum_confidence':settings.human_experience_minimum_confidence})
+def dashboard():return render_template('dashboard.html',version=VERSION,summary=db.summary(),operational=db.operational_summary(),occurrences=db.list_occurrences(limit=20),people=db.people_inside(),sources=db.sources_state(),ha_status=ha.connection_status,hea=db.hea_summary(24,settings.human_experience_minimum_samples),hea_sources=db.hea_sources(24),hea_history=db.hea_history(24,limit=96),hea_config={'minimum_samples':settings.human_experience_minimum_samples,'window_minutes':settings.human_experience_aggregation_window_minutes,'minimum_confidence':settings.human_experience_minimum_confidence})
 
 @app.get('/hea')
 def hea_portal():
@@ -114,6 +114,19 @@ def health():return jsonify({'status':'ok','service':'seiden_flow','version':VER
 @require_api_key
 def ingest():
  e,i=service.ingest(request.get_json(silent=False),transport='api');return jsonify({'accepted':i,'duplicate':not i,'event':e}),201 if i else 200
+
+@app.get('/api/v1/occurrences')
+def occurrences():return jsonify({'items':db.list_occurrences(limit=int(request.args.get('limit',100)))})
+
+@app.get('/api/v1/occurrences/<occurrence_id>')
+def occurrence_detail(occurrence_id):
+ result=db.occurrence_detail(occurrence_id)
+ if not result:abort(404)
+ return jsonify(result)
+
+@app.get('/intelligence/hea')
+def hea_intelligence_alias():return redirect('/hea',code=302)
+
 @app.get('/api/v1/events')
 def events():return jsonify({'items':db.list_events(limit=int(request.args.get('limit',100)),event_type=request.args.get('event_type'),person=request.args.get('person'))})
 @app.get('/api/v1/state/people')
@@ -127,7 +140,7 @@ def sources_state():return jsonify({'items':db.sources_state()})
 def summary():return jsonify(db.summary())
 @app.get('/api/v1/dashboard-data')
 def dashboard_data():
- return jsonify({'summary':db.summary(),'events':db.list_events(limit=20),'people':db.people_inside(),'home_assistant_connection':ha.connection_status,'version':VERSION,'human_experience':{'summary':db.hea_summary(24,settings.human_experience_minimum_samples),'sources':db.hea_sources(24),'history':db.hea_history(24,limit=96),'config':{'minimum_samples':settings.human_experience_minimum_samples,'window_minutes':settings.human_experience_aggregation_window_minutes,'minimum_confidence':settings.human_experience_minimum_confidence}}})
+ return jsonify({'summary':db.summary(),'operational':db.operational_summary(),'occurrences':db.list_occurrences(limit=20),'people':db.people_inside(),'sources':db.sources_state(),'home_assistant_connection':ha.connection_status,'version':VERSION,'human_experience':{'summary':db.hea_summary(24,settings.human_experience_minimum_samples),'sources':db.hea_sources(24),'history':db.hea_history(24,limit=96),'config':{'minimum_samples':settings.human_experience_minimum_samples,'window_minutes':settings.human_experience_aggregation_window_minutes,'minimum_confidence':settings.human_experience_minimum_confidence}}})
 
 @app.post('/api/v1/observations')
 @require_api_key

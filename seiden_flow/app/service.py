@@ -62,9 +62,10 @@ class FlowService:
         if self.publish_to_ha:self.ha.publish_sensor('sensor.seiden_flow_ha_connection',status,{'friendly_name':'Seiden FLOW — conexão HA','icon':'mdi:lan-connect'})
     def publish_summary(self):
         if not self.publish_to_ha:return
-        s=self.db.summary();common={'friendly_name':'Seiden FLOW','icon':'mdi:database-cog','summary':s}
+        s=self.db.summary();operational=self.db.operational_summary();common={'friendly_name':'Seiden FLOW','icon':'mdi:database-cog','summary':s,'operational':operational}
         self.ha.publish_sensor('sensor.seiden_flow_people_inside',s['people_inside'],{**common,'unit_of_measurement':'pessoas'})
-        self.ha.publish_sensor('sensor.seiden_flow_events_today',s['events_today'],{**common,'unit_of_measurement':'eventos'})
+        self.ha.publish_sensor('sensor.seiden_flow_events_today',operational['occurrences_today'],{**common,'friendly_name':'Seiden FLOW — ocorrências hoje','unit_of_measurement':'ocorrências'})
+        self.ha.publish_sensor('sensor.seiden_flow_vision_analyses_today',operational['analyses_today'],{**common,'friendly_name':'Seiden FLOW — análises Vision hoje','unit_of_measurement':'análises'})
         self.ha.publish_sensor('sensor.seiden_flow_sources_offline',s['sources_offline'],{**common,'unit_of_measurement':'fontes'})
         hea=self.db.hea_summary(24,self.settings.human_experience_minimum_samples)
         self.ha.publish_sensor('sensor.seiden_flow_experience_index',hea.get('experience_index') if hea.get('experience_index') is not None else 'unknown',{'friendly_name':'Seiden FLOW — Experience Index','icon':'mdi:emoticon-outline','status':hea.get('status'),'classification':hea.get('classification'),'trend':hea.get('trend'),'delta':hea.get('delta'),'delta_percentage':hea.get('delta_percentage'),'previous_experience_index':hea.get('previous_experience_index'),'sample_count':hea.get('sample_count'),'average_confidence':hea.get('average_confidence'),'dominant_expression':hea.get('dominant_expression'),'distribution':hea.get('distribution'),'best_period':hea.get('best_period'),'worst_period':hea.get('worst_period')})

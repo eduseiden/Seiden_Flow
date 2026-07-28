@@ -1,6 +1,16 @@
-# Seiden FLOW 0.6.0
+# Seiden FLOW 0.6.1
 
 Camada de compreensão do Seiden One. Transforma evidências em entendimento operacional.
+
+
+## Painel 0.6.1
+
+O painel principal agora separa:
+
+- **Operação**: ocorrências, pessoas no local, fontes e enriquecimentos do Vision.
+- **Inteligência**: catálogo das soluções analíticas, começando pelo Human Experience Analytics.
+
+Uma ocorrência do Bridge conta uma vez. `vision.analysis_completed` é armazenado como evidência correlacionada por `source_event_id`, sem aumentar o contador de ocorrências. O portal público do HEA permanece disponível em `/hea`.
 
 ## Arquitetura unificada
 

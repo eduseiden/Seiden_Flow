@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.1 — Operação e Inteligência
+
+- Novo painel principal orientado à operação.
+- Eventos do Bridge passam a ser exibidos e contados como ocorrências operacionais.
+- Eventos `vision.analysis_completed` são tratados como evidências enriquecidas, correlacionadas por `source_event_id`.
+- Contadores separados para ocorrências, análises concluídas e análises pendentes.
+- Nova navegação por abas: **Operação** e **Inteligência**.
+- HEA passa a ser apresentado como a primeira solução de inteligência do FLOW.
+- Portal web independente do HEA preservado integralmente em `/hea`.
+- Nova rota alias `/intelligence/hea` e APIs de ocorrências.
+- Sensor `sensor.seiden_flow_events_today` passa a representar ocorrências hoje, preservando o entity_id existente.
+- Novo sensor `sensor.seiden_flow_vision_analyses_today`.
+
 ## 0.6.0 — Arquitetura unificada sem legado
 
 - Remove `bridge_source_mode` e todos os eventos legados.

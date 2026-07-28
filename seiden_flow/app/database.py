@@ -179,6 +179,60 @@ class FlowDatabase:
             q=lambda s:c.execute(s).fetchone()['c'];last=c.execute("SELECT occurred_at,event_type,person_name,reader_name FROM events ORDER BY occurred_at DESC LIMIT 1").fetchone()
             return {'events_total':q('SELECT COUNT(*) c FROM events'),'events_today':q("SELECT COUNT(*) c FROM events WHERE occurred_at >= date('now')"),'people_inside':q("SELECT COUNT(*) c FROM presences WHERE presence_status='inside'"),'sources_offline':q("SELECT COUNT(*) c FROM sources WHERE status='offline'"),'organizations':q('SELECT COUNT(*) c FROM organizations'),'sites':q('SELECT COUNT(*) c FROM sites'),'locations':q('SELECT COUNT(*) c FROM locations'),'sources':q('SELECT COUNT(*) c FROM sources'),'persons':q('SELECT COUNT(*) c FROM persons'),'last_event':dict(last) if last else None}
 
+    @staticmethod
+    def _is_operational_event_type(event_type):
+        return event_type not in {
+            'vision.analysis_completed',
+            'connection.online',
+            'connection.offline',
+        }
+
+    def operational_summary(self):
+        with self.connect() as c:
+            q=lambda sql,params=():c.execute(sql,params).fetchone()['c']
+            excluded=('vision.analysis_completed','connection.online','connection.offline')
+            occurrences_total=q("SELECT COUNT(*) c FROM events WHERE event_type NOT IN (?,?,?)",excluded)
+            occurrences_today=q("SELECT COUNT(*) c FROM events WHERE event_type NOT IN (?,?,?) AND occurred_at >= date('now')",excluded)
+            analyses_total=q("SELECT COUNT(*) c FROM events WHERE event_type='vision.analysis_completed'")
+            analyses_today=q("SELECT COUNT(*) c FROM events WHERE event_type='vision.analysis_completed' AND occurred_at >= date('now')")
+            pending=q("""SELECT COUNT(*) c FROM events root
+                         WHERE root.event_type='person_authenticated'
+                           AND NOT EXISTS (SELECT 1 FROM events ev WHERE ev.source_event_id=root.event_id AND ev.event_type='vision.analysis_completed')""")
+            return {
+                'occurrences_total':occurrences_total,
+                'occurrences_today':occurrences_today,
+                'analyses_total':analyses_total,
+                'analyses_today':analyses_today,
+                'analyses_pending':pending,
+            }
+
+    def list_occurrences(self,limit=20):
+        excluded=('vision.analysis_completed','connection.online','connection.offline')
+        with self.connect() as c:
+            rows=c.execute("""SELECT root.payload_json,
+                       (SELECT COUNT(*) FROM events ev WHERE ev.source_event_id=root.event_id) evidence_count,
+                       (SELECT COUNT(*) FROM events ev WHERE ev.source_event_id=root.event_id AND ev.event_type='vision.analysis_completed') vision_analysis_count
+                       FROM events root
+                       WHERE root.event_type NOT IN (?,?,?)
+                       ORDER BY root.occurred_at DESC LIMIT ?""",(*excluded,min(limit,500))).fetchall()
+        items=[]
+        for row in rows:
+            event=json.loads(row['payload_json'])
+            event['occurrence_id']=event.get('event_id')
+            event['evidence_count']=row['evidence_count']
+            event['vision_analysis_count']=row['vision_analysis_count']
+            event['enrichment_status']='completed' if row['vision_analysis_count'] else ('pending' if event.get('event_type')=='person_authenticated' else 'not_required')
+            items.append(event)
+        return items
+
+    def occurrence_detail(self,occurrence_id):
+        with self.connect() as c:
+            root=c.execute('SELECT payload_json FROM events WHERE event_id=?',(occurrence_id,)).fetchone()
+            if not root:return None
+            evidence=c.execute('SELECT payload_json FROM events WHERE source_event_id=? ORDER BY occurred_at',(occurrence_id,)).fetchall()
+        event=json.loads(root['payload_json'])
+        return {'occurrence_id':occurrence_id,'occurrence':event,'evidence':[json.loads(r['payload_json']) for r in evidence]}
+
     def insert_observation(self, observation):
         with self._lock,self.connect() as c:
             try:
