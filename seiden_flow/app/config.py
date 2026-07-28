@@ -10,9 +10,14 @@ class Settings:
     timezone: str = "America/Sao_Paulo"
     retention_days: int = 365
     subscribe_home_assistant_events: bool = True
-    bridge_presence_event: str = "seiden_presence"
-    bridge_online_event: str = "seiden_reader_online"
-    bridge_offline_event: str = "seiden_reader_offline"
+    bridge_source_mode: str = "hybrid"
+    bridge_event: str = "seiden_bridge_event"
+    connection_online_event: str = "seiden_connection_online"
+    connection_offline_event: str = "seiden_connection_offline"
+    legacy_presence_event: str = "seiden_presence"
+    legacy_online_event: str = "seiden_reader_online"
+    legacy_offline_event: str = "seiden_reader_offline"
+    vision_event: str = "vision.analysis_completed"
     publish_summary_to_home_assistant: bool = True
     cleanup_interval_hours: int = 12
     webhook_max_body_mb: int = 5
@@ -65,9 +70,14 @@ def load_settings() -> Settings:
         log_level=str(raw.get("log_level","info")), api_key=str(raw.get("api_key","") or ""),
         timezone=str(raw.get("timezone","America/Sao_Paulo")), retention_days=int(raw.get("retention_days",365)),
         subscribe_home_assistant_events=_bool(raw.get("subscribe_home_assistant_events"),True),
-        bridge_presence_event=str(raw.get("bridge_presence_event","seiden_presence")),
-        bridge_online_event=str(raw.get("bridge_online_event","seiden_reader_online")),
-        bridge_offline_event=str(raw.get("bridge_offline_event","seiden_reader_offline")),
+        bridge_source_mode=str(raw.get("bridge_source_mode","hybrid")).strip().lower(),
+        bridge_event=str(raw.get("bridge_event","seiden_bridge_event")),
+        connection_online_event=str(raw.get("connection_online_event","seiden_connection_online")),
+        connection_offline_event=str(raw.get("connection_offline_event","seiden_connection_offline")),
+        legacy_presence_event=str(raw.get("legacy_presence_event", raw.get("bridge_presence_event","seiden_presence"))),
+        legacy_online_event=str(raw.get("legacy_online_event", raw.get("bridge_online_event","seiden_reader_online"))),
+        legacy_offline_event=str(raw.get("legacy_offline_event", raw.get("bridge_offline_event","seiden_reader_offline"))),
+        vision_event=str(raw.get("vision_event","vision.analysis_completed")),
         publish_summary_to_home_assistant=_bool(raw.get("publish_summary_to_home_assistant"),True),
         cleanup_interval_hours=int(raw.get("cleanup_interval_hours",12)), webhook_max_body_mb=int(raw.get("webhook_max_body_mb",5)),
         organization_id=str(raw.get("organization_id","default_organization")), organization_name=str(raw.get("organization_name","Organização padrão")),

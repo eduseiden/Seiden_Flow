@@ -1,5 +1,5 @@
 name: Seiden FLOW
-version: "0.5.2.1"
+version: "0.5.2.2"
 slug: seiden_flow
 description: Camada de dados operacional da Seiden Tech para ingestão, correlação, estado e disponibilização de eventos
 url: https://github.com/eduseiden/Seiden-HA
@@ -34,9 +34,14 @@ options:
   timezone: America/Sao_Paulo
   retention_days: 365
   subscribe_home_assistant_events: true
-  bridge_presence_event: seiden_presence
-  bridge_online_event: seiden_reader_online
-  bridge_offline_event: seiden_reader_offline
+  bridge_source_mode: hybrid
+  bridge_event: seiden_bridge_event
+  connection_online_event: seiden_connection_online
+  connection_offline_event: seiden_connection_offline
+  legacy_presence_event: seiden_presence
+  legacy_online_event: seiden_reader_online
+  legacy_offline_event: seiden_reader_offline
+  vision_event: vision.analysis_completed
   publish_summary_to_home_assistant: true
   cleanup_interval_hours: 12
   webhook_max_body_mb: 5
@@ -72,9 +77,14 @@ schema:
   timezone: str
   retention_days: int(1,3650)
   subscribe_home_assistant_events: bool
-  bridge_presence_event: str
-  bridge_online_event: str
-  bridge_offline_event: str
+  bridge_source_mode: list(unified|legacy|hybrid)
+  bridge_event: str
+  connection_online_event: str
+  connection_offline_event: str
+  legacy_presence_event: str
+  legacy_online_event: str
+  legacy_offline_event: str
+  vision_event: str
   publish_summary_to_home_assistant: bool
   cleanup_interval_hours: int(1,168)
   webhook_max_body_mb: int(1,20)

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.2.2 — Arquitetura unificada Bridge/Vision
+
+- Consumo nativo do evento unificado `seiden_bridge_event` do Seiden Bridge 0.8.3.
+- Consumo dos eventos genéricos `seiden_connection_online` e `seiden_connection_offline`.
+- Novo modo de origem `bridge_source_mode`: `unified`, `legacy` ou `hybrid`.
+- Compatibilidade temporária com `seiden_presence`, `seiden_reader_online` e `seiden_reader_offline`.
+- Assinatura preparada para `vision.analysis_completed`, mantendo também a ingestão HTTP/webhook já existente.
+- Normalização de `connection`, `subject.external_id` e eventos técnicos genéricos.
+- Duplicidades da fase híbrida continuam protegidas por `event_id`.
+
+
 ## 0.5.2.1 — Dashboard Polish
 
 - Novo Seiden Design System baseado em variáveis CSS.

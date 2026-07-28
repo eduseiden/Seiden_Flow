@@ -29,20 +29,26 @@ def normalize_event(payload: dict[str, Any], transport: str = "api", ha_event_ty
     if not isinstance(payload, dict):
         raise ValueError("O evento deve ser um objeto JSON")
     original = dict(payload)
-    nested_reader = payload.get("reader") or payload.get("origin") or {}
+    nested_reader = payload.get("reader") or payload.get("origin") or payload.get("connection") or {}
     nested_person = payload.get("person") or payload.get("subject") or {}
     nested_operation = payload.get("operation") or payload.get("operational") or {}
 
     source = str(_pick(payload, "source", default="external"))
     event_type = str(_pick(payload, "event_type", default=ha_event_type or "external.event"))
     if ha_event_type:
+        # Eventos canônicos já trazem event_type/source no próprio payload.
         if ha_event_type == "seiden_presence":
             event_type = "person_authenticated"
             source = "seiden_bridge"
         elif "offline" in ha_event_type:
-            event_type = "reader.offline"; source = "seiden_bridge"
+            event_type = "connection.offline"
+            source = "seiden_bridge"
         elif "online" in ha_event_type:
-            event_type = "reader.online"; source = "seiden_bridge"
+            event_type = "connection.online"
+            source = "seiden_bridge"
+        elif ha_event_type == "vision.analysis_completed":
+            event_type = str(payload.get("event_type") or "vision.analysis_completed")
+            source = str(payload.get("source") or "seiden_vision")
 
     timestamp = str(_pick(payload, "timestamp", "occurred_at", "created_at", default=_now()))
     event_id = str(_pick(payload, "event_id", default=""))
@@ -71,7 +77,7 @@ def normalize_event(payload: dict[str, Any], transport: str = "api", ha_event_ty
         canonical = unicodedata.normalize("NFKD", str(reader_name)).encode("ascii", "ignore").decode().lower()
         reader_id = re.sub(r"[^a-z0-9]+", "_", canonical).strip("_") or reader_id
     location_id = _pick(nested_reader, "location_id", default=_pick(payload, "location_id"))
-    person_id = _pick(nested_person, "id", "person_id", default=_pick(payload, "person_id", "user_id"))
+    person_id = _pick(nested_person, "id", "person_id", "external_id", default=_pick(payload, "person_id", "user_id"))
     person_name = _pick(nested_person, "name", "person_name", default=_pick(payload, "person_name", "user_name", "name"))
     action = _pick(nested_operation, "action", default=_pick(payload, "action", "direction"))
 

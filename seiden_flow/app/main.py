@@ -12,7 +12,17 @@ settings=load_settings();logging.basicConfig(level=getattr(logging,settings.log_
 app=Flask(__name__);app.config['MAX_CONTENT_LENGTH']=settings.webhook_max_body_mb*1024*1024
 db=FlowDatabase(os.path.join(settings.config_dir,'seiden_flow.db'),settings.organization_id,settings.organization_name,settings.site_id,settings.site_name)
 ha=HomeAssistantClient();service=FlowService(db,ha,settings.publish_summary_to_home_assistant,settings);service.publish_summary();service.start_cleanup(settings.retention_days,settings.cleanup_interval_hours)
-if settings.subscribe_home_assistant_events:ha.start_event_listener([settings.bridge_presence_event,settings.bridge_online_event,settings.bridge_offline_event],lambda t,d:service.ingest(d,transport='home_assistant_event',ha_event_type=t),service.publish_connection)
+if settings.subscribe_home_assistant_events:
+ event_types=[]
+ if settings.bridge_source_mode in ("unified","hybrid"):
+  event_types.extend([settings.bridge_event,settings.connection_online_event,settings.connection_offline_event])
+ if settings.bridge_source_mode in ("legacy","hybrid"):
+  event_types.extend([settings.legacy_presence_event,settings.legacy_online_event,settings.legacy_offline_event])
+ if settings.vision_event:
+  event_types.append(settings.vision_event)
+ # Remove duplicidades preservando a ordem de configuração.
+ event_types=list(dict.fromkeys(e for e in event_types if e))
+ ha.start_event_listener(event_types,lambda t,d:service.ingest(d,transport='home_assistant_event',ha_event_type=t),service.publish_connection)
 
 def _request_hostname() -> str:
  forwarded=(request.headers.get('X-Forwarded-Host') or '').split(',')[0].strip()

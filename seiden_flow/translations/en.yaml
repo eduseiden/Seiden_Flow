@@ -20,3 +20,21 @@ configuration:
   human_experience_enabled_sources:
     name: HEA enabled sources
     description: List of source_id values. An empty list enables all sources.
+
+  bridge_source_mode:
+    name: Bridge source mode
+    description: unified uses only the new architecture; legacy uses old events; hybrid keeps both during migration.
+  bridge_event:
+    name: Unified Bridge event
+  connection_online_event:
+    name: Connection online event
+  connection_offline_event:
+    name: Connection offline event
+  legacy_presence_event:
+    name: Legacy presence event
+  legacy_online_event:
+    name: Legacy reader online event
+  legacy_offline_event:
+    name: Legacy reader offline event
+  vision_event:
+    name: Seiden Vision event

@@ -1,5 +1,10 @@
 # Seiden FLOW 0.3.1
 
+## Integração com Seiden Bridge 0.8.3 e Seiden Vision 0.4.1
+
+O FLOW pode consumir o evento unificado `seiden_bridge_event`, os eventos técnicos `seiden_connection_online` e `seiden_connection_offline` e o evento enriquecido `vision.analysis_completed`. Durante a migração, `bridge_source_mode: hybrid` mantém também os eventos legados. Após validar toda a cadeia, use `bridge_source_mode: unified` e desative o legado no Bridge. O Vision 0.4.1 pode continuar entregando `vision.analysis_completed` por webhook para `/api/v1/ingest`; a assinatura no Home Assistant fica pronta para publicação direta futura.
+
+
 Camada de dados e inteligência operacional da plataforma Seiden.
 
 ## Human Experience Analytics (HEA)
