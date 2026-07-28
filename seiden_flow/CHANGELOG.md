@@ -1,3 +1,11 @@
+## 0.6.1.6 — Consolidação definitiva das fontes HEA
+
+- Migração direta dos IDs históricos em `observations` e `observation_aggregates`, independentemente da tabela `sources`.
+- Seleção da fonte canônica pelo nome normalizado, priorizando a fonte operacional do Seiden Bridge.
+- Remoção segura de agregados duplicados da mesma janela analítica.
+- Deduplicação defensiva no seletor de fontes do HEA, impedindo nomes repetidos mesmo diante de resíduos históricos.
+- Migração idempotente executada automaticamente ao iniciar o FLOW.
+
 ## 0.6.1.5 — Deduplicação segura de fontes
 
 - Migração automática de fontes duplicadas por site, tipo e nome normalizado.

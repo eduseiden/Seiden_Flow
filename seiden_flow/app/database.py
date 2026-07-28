@@ -10,7 +10,7 @@ from experience import calculate_stats, compare_periods
 class FlowDatabase:
     def __init__(self,path:str,organization_id="default_organization",organization_name="Organização padrão",site_id="default_site",site_name="Site padrão"):
         self.path=path;self.organization_id=organization_id;self.site_id=site_id;self._lock=threading.RLock();Path(path).parent.mkdir(parents=True,exist_ok=True)
-        self._init_schema(organization_name,site_name);self._migrate_legacy();self._reconcile_vision_sources();self._deduplicate_locations();self._deduplicate_sources()
+        self._init_schema(organization_name,site_name);self._migrate_legacy();self._reconcile_vision_sources();self._deduplicate_locations();self._deduplicate_sources();self._deduplicate_hea_sources()
     @contextmanager
     def connect(self)->Iterator[sqlite3.Connection]:
         c=sqlite3.connect(self.path,timeout=30);c.row_factory=sqlite3.Row;c.execute("PRAGMA foreign_keys=ON")
@@ -227,6 +227,70 @@ class FlowDatabase:
                         c.execute("UPDATE observation_aggregates SET source_id=?,source_name=? WHERE source_id=?",(canonical_id,canonical_name,old))
             if merged:
                 c.execute("INSERT INTO meta(key,value) VALUES('sources_deduplicated_at',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",(datetime.now(timezone.utc).isoformat(),))
+
+    def _deduplicate_hea_sources(self):
+        """Consolida definitivamente IDs históricos do HEA pelo nome visível.
+
+        Versões antigas do Vision podiam gravar a mesma fonte com IDs técnicos
+        diferentes, mesmo quando havia apenas uma linha correspondente em
+        ``sources``. Esta migração trabalha diretamente sobre ``observations``
+        e ``observation_aggregates`` e, portanto, não depende da existência de
+        fontes duplicadas na tabela de domínio.
+        """
+        with self._lock,self.connect() as c:
+            source_rows=c.execute("SELECT * FROM sources WHERE site_id=? ORDER BY created_at,id",(self.site_id,)).fetchall()
+            source_groups={}
+            for row in source_rows:
+                source_groups.setdefault(self._slug(row['name']),[]).append(row)
+
+            observed=c.execute("SELECT DISTINCT source_id,COALESCE(NULLIF(source_name,''),source_id) source_name FROM observations WHERE metric_type='facial_expression'").fetchall()
+            groups={}
+            for row in observed:
+                groups.setdefault(self._slug(row['source_name']),[]).append(row)
+
+            merged=0
+            now=datetime.now(timezone.utc).isoformat()
+            for normalized,items in groups.items():
+                domain=source_groups.get(normalized,[])
+                canonical_source=next((r for r in domain if r['provider']=='seiden_bridge'),None)
+                if canonical_source is None:
+                    canonical_source=next((r for r in domain if str(r['id']).startswith('reader_')),domain[0] if domain else None)
+
+                if canonical_source is not None:
+                    canonical_id=canonical_source['id']
+                    canonical_name=canonical_source['name']
+                    canonical_location=canonical_source['location_id']
+                else:
+                    # Sem fonte de domínio, preserva o ID mais estável e legível.
+                    preferred=next((r for r in items if not str(r['source_id']).startswith(('sensor.','binary_sensor.','event.'))),items[0])
+                    canonical_id=preferred['source_id']
+                    canonical_name=preferred['source_name']
+                    canonical_location=None
+
+                for row in items:
+                    old_id=row['source_id']
+                    if old_id==canonical_id:
+                        c.execute("UPDATE observations SET source_name=?,location_id=COALESCE(location_id,?) WHERE source_id=? AND metric_type='facial_expression'",(canonical_name,canonical_location,old_id))
+                        c.execute("UPDATE observation_aggregates SET source_name=?,location_id=COALESCE(location_id,?) WHERE source_id=? AND metric_type='facial_expression'",(canonical_name,canonical_location,old_id))
+                        continue
+                    c.execute("UPDATE observations SET source_id=?,source_name=?,location_id=COALESCE(location_id,?) WHERE source_id=? AND metric_type='facial_expression'",(canonical_id,canonical_name,canonical_location,old_id))
+                    c.execute("UPDATE observation_aggregates SET source_id=?,source_name=?,location_id=COALESCE(location_id,?) WHERE source_id=? AND metric_type='facial_expression'",(canonical_id,canonical_name,canonical_location,old_id))
+                    merged+=1
+
+            # Após consolidar os IDs, mantém apenas o agregado mais recente para
+            # cada janela lógica. As observações brutas continuam intactas.
+            duplicates=c.execute("""SELECT metric_type,site_id,source_id,period_start,period_end,window_minutes,COUNT(*) total
+                FROM observation_aggregates
+                GROUP BY metric_type,site_id,source_id,period_start,period_end,window_minutes
+                HAVING COUNT(*)>1""").fetchall()
+            for group in duplicates:
+                rows=c.execute("""SELECT id FROM observation_aggregates
+                    WHERE metric_type=? AND site_id=? AND source_id=? AND period_start=? AND period_end=? AND window_minutes=?
+                    ORDER BY updated_at DESC,id DESC""",(group['metric_type'],group['site_id'],group['source_id'],group['period_start'],group['period_end'],group['window_minutes'])).fetchall()
+                for duplicate in rows[1:]:
+                    c.execute("DELETE FROM observation_aggregates WHERE id=?",(duplicate['id'],))
+
+            c.execute("INSERT INTO meta(key,value) VALUES('hea_sources_deduplicated_at',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",(now,))
 
     def _person_id(self,external,name): return f"person_{self._slug(external or name)}"
     def _ensure_person(self,c,pid,external,name,ts):
@@ -471,8 +535,22 @@ class FlowDatabase:
 
         options_sources=[];options_locations=[]
         with self.connect() as c:
-            for r in c.execute("SELECT DISTINCT o.source_id,COALESCE(NULLIF(o.source_name,''),s.name,o.source_id) source_name FROM observations o LEFT JOIN sources s ON s.id=o.source_id WHERE o.metric_type='facial_expression' ORDER BY source_name"):
-                options_sources.append({'source_id':r['source_id'],'source_name':r['source_name']})
+            source_options=c.execute("""SELECT DISTINCT o.source_id,
+                COALESCE(NULLIF(o.source_name,''),s.name,o.source_id) source_name,
+                CASE WHEN s.provider='seiden_bridge' THEN 0 WHEN s.id IS NOT NULL THEN 1 ELSE 2 END priority
+                FROM observations o LEFT JOIN sources s ON s.id=o.source_id
+                WHERE o.metric_type='facial_expression'
+                ORDER BY source_name,priority,o.source_id""").fetchall()
+            # Blindagem de interface: mesmo que reste algum ID histórico no banco,
+            # uma fonte visual aparece apenas uma vez no seletor.
+            visible={}
+            for r in source_options:
+                key=self._slug(r['source_name'])
+                current=visible.get(key)
+                candidate={'source_id':r['source_id'],'source_name':r['source_name'],'priority':r['priority']}
+                if current is None or candidate['priority']<current['priority']:
+                    visible[key]=candidate
+            options_sources=[{'source_id':v['source_id'],'source_name':v['source_name']} for v in sorted(visible.values(),key=lambda x:self._slug(x['source_name']))]
             for r in c.execute("SELECT DISTINCT COALESCE(o.location_id,s.location_id) location_id,l.name location_name FROM observations o LEFT JOIN sources s ON s.id=o.source_id LEFT JOIN locations l ON l.id=COALESCE(o.location_id,s.location_id) WHERE o.metric_type='facial_expression' AND COALESCE(o.location_id,s.location_id) IS NOT NULL ORDER BY l.name"):
                 options_locations.append({'location_id':r['location_id'],'location_name':r['location_name'] or r['location_id']})
         return {'summary':summary,'previous_summary':previous,'sources':sources,'history':history,'filters':{'source_id':source_id,'location_id':location_id,'available_sources':options_sources,'available_locations':options_locations}}
