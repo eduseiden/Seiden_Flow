@@ -125,7 +125,8 @@ def occurrence_detail(occurrence_id):
  return jsonify(result)
 
 @app.get('/intelligence/hea')
-def hea_intelligence_alias():return redirect('/hea',code=302)
+def hea_intelligence_alias():
+ return hea_portal()
 
 @app.get('/api/v1/events')
 def events():return jsonify({'items':db.list_events(limit=int(request.args.get('limit',100)),event_type=request.args.get('event_type'),person=request.args.get('person'))})

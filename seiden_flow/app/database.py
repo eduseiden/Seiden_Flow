@@ -183,6 +183,7 @@ class FlowDatabase:
     def _is_operational_event_type(event_type):
         return event_type not in {
             'vision.analysis_completed',
+            'mqtt.message_received',
             'connection.online',
             'connection.offline',
         }
@@ -190,30 +191,35 @@ class FlowDatabase:
     def operational_summary(self):
         with self.connect() as c:
             q=lambda sql,params=():c.execute(sql,params).fetchone()['c']
-            excluded=('vision.analysis_completed','connection.online','connection.offline')
-            occurrences_total=q("SELECT COUNT(*) c FROM events WHERE event_type NOT IN (?,?,?)",excluded)
-            occurrences_today=q("SELECT COUNT(*) c FROM events WHERE event_type NOT IN (?,?,?) AND occurred_at >= date('now')",excluded)
+            excluded=('vision.analysis_completed','mqtt.message_received','connection.online','connection.offline')
+            occurrences_total=q("SELECT COUNT(*) c FROM events WHERE event_type NOT IN (?,?,?,?)",excluded)
+            occurrences_today=q("SELECT COUNT(*) c FROM events WHERE event_type NOT IN (?,?,?,?) AND occurred_at >= date('now')",excluded)
+            captured_today=q("SELECT COUNT(*) c FROM events WHERE source='seiden_bridge' AND occurred_at >= date('now')")
+            mqtt_messages_today=q("SELECT COUNT(*) c FROM events WHERE event_type='mqtt.message_received' AND occurred_at >= date('now')")
             analyses_total=q("SELECT COUNT(*) c FROM events WHERE event_type='vision.analysis_completed'")
             analyses_today=q("SELECT COUNT(*) c FROM events WHERE event_type='vision.analysis_completed' AND occurred_at >= date('now')")
             pending=q("""SELECT COUNT(*) c FROM events root
                          WHERE root.event_type='person_authenticated'
+                           AND root.occurred_at >= datetime('now','-24 hours')
                            AND NOT EXISTS (SELECT 1 FROM events ev WHERE ev.source_event_id=root.event_id AND ev.event_type='vision.analysis_completed')""")
             return {
                 'occurrences_total':occurrences_total,
                 'occurrences_today':occurrences_today,
+                'captured_today':captured_today,
+                'mqtt_messages_today':mqtt_messages_today,
                 'analyses_total':analyses_total,
                 'analyses_today':analyses_today,
                 'analyses_pending':pending,
             }
 
     def list_occurrences(self,limit=20):
-        excluded=('vision.analysis_completed','connection.online','connection.offline')
+        excluded=('vision.analysis_completed','mqtt.message_received','connection.online','connection.offline')
         with self.connect() as c:
             rows=c.execute("""SELECT root.payload_json,
                        (SELECT COUNT(*) FROM events ev WHERE ev.source_event_id=root.event_id) evidence_count,
                        (SELECT COUNT(*) FROM events ev WHERE ev.source_event_id=root.event_id AND ev.event_type='vision.analysis_completed') vision_analysis_count
                        FROM events root
-                       WHERE root.event_type NOT IN (?,?,?)
+                       WHERE root.event_type NOT IN (?,?,?,?)
                        ORDER BY root.occurred_at DESC LIMIT ?""",(*excluded,min(limit,500))).fetchall()
         items=[]
         for row in rows:

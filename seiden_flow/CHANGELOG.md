@@ -1,6 +1,14 @@
+## 0.6.1.2
+
+- Mensagens `mqtt.message_received` deixam de ser tratadas como ocorrências operacionais.
+- Últimas ocorrências passam a mostrar fatos operacionais, preservando eventos MQTT brutos no banco.
+- Novo indicador “Eventos capturados hoje” separa volume técnico de acontecimentos operacionais.
+- Análises pendentes passam a considerar apenas autenticações das últimas 24 horas.
+- Mantidas a navegação Operação/Inteligência e a publicação independente do HEA em `/hea`.
+
 # Changelog
 
-## 0.6.1 — Operação e Inteligência
+## 0.6.1.1 — Operação e Inteligência
 
 - Novo painel principal orientado à operação.
 - Eventos do Bridge passam a ser exibidos e contados como ocorrências operacionais.

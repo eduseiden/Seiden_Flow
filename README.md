@@ -1,9 +1,9 @@
-# Seiden FLOW 0.6.1
+# Seiden FLOW 0.6.1.2
 
 Camada de compreensão do Seiden One. Transforma evidências em entendimento operacional.
 
 
-## Painel 0.6.1
+## Painel 0.6.1.2
 
 O painel principal agora separa:
 
@@ -22,3 +22,8 @@ O FLOW consome exclusivamente:
 - `vision.analysis_completed`
 
 Foram removidos o modo `hybrid` e os eventos `seiden_presence`, `seiden_reader_online` e `seiden_reader_offline`. Uma passagem EVO é contabilizada uma única vez. Eventos enriquecidos do Vision são correlacionados por `source_event_id`.
+
+
+## Classificação operacional na 0.6.1.2
+
+Mensagens brutas `mqtt.message_received` permanecem armazenadas e disponíveis para diagnóstico, mas não são contabilizadas como ocorrências operacionais nem ocupam a lista de últimas ocorrências. O painel separa **Ocorrências hoje** de **Eventos capturados hoje**.
