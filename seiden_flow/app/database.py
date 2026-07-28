@@ -10,7 +10,7 @@ from experience import calculate_stats, compare_periods
 class FlowDatabase:
     def __init__(self,path:str,organization_id="default_organization",organization_name="Organização padrão",site_id="default_site",site_name="Site padrão"):
         self.path=path;self.organization_id=organization_id;self.site_id=site_id;self._lock=threading.RLock();Path(path).parent.mkdir(parents=True,exist_ok=True)
-        self._init_schema(organization_name,site_name);self._migrate_legacy();self._reconcile_vision_sources();self._deduplicate_locations()
+        self._init_schema(organization_name,site_name);self._migrate_legacy();self._reconcile_vision_sources();self._deduplicate_locations();self._deduplicate_sources()
     @contextmanager
     def connect(self)->Iterator[sqlite3.Connection]:
         c=sqlite3.connect(self.path,timeout=30);c.row_factory=sqlite3.Row;c.execute("PRAGMA foreign_keys=ON")
@@ -172,6 +172,62 @@ class FlowDatabase:
             if merged:
                 c.execute("INSERT INTO meta(key,value) VALUES('locations_deduplicated_at',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",(datetime.now(timezone.utc).isoformat(),))
 
+
+    def _canonical_source_id(self,c,site_id,source_type,name,preferred_id=None):
+        """Resolve uma fonte canônica por site, tipo e nome normalizado."""
+        normalized=self._slug(name)
+        rows=c.execute("SELECT * FROM sources WHERE site_id=? AND source_type=? ORDER BY created_at,id",(site_id,source_type)).fetchall()
+        matches=[r for r in rows if self._slug(r['name'])==normalized]
+        if not matches:return str(preferred_id) if preferred_id else f"{source_type}_{normalized}"
+        if preferred_id:
+            for r in matches:
+                if r['id']==str(preferred_id):return r['id']
+        # Prioriza a fonte operacional do Bridge e, depois, identificadores reader_ estáveis.
+        bridge=next((r for r in matches if r['provider']=='seiden_bridge'),None)
+        if bridge:return bridge['id']
+        stable=next((r for r in matches if str(r['id']).startswith('reader_')),None)
+        return (stable or matches[0])['id']
+
+    def _deduplicate_sources(self):
+        """Mescla fontes duplicadas e consolida eventos e observações HEA.
+
+        A chave lógica é site + tipo + nome normalizado. A fonte do Bridge é
+        preferida como canônica. A migração é idempotente.
+        """
+        with self._lock,self.connect() as c:
+            rows=c.execute("SELECT * FROM sources ORDER BY site_id,source_type,created_at,id").fetchall()
+            groups={}
+            for r in rows:
+                groups.setdefault((r['site_id'],r['source_type'],self._slug(r['name'])),[]).append(r)
+            merged=0
+            for (_,source_type,normalized),items in groups.items():
+                if len(items)<2:continue
+                canonical=next((r for r in items if r['provider']=='seiden_bridge'),None)
+                if canonical is None:
+                    canonical=next((r for r in items if str(r['id']).startswith('reader_')),items[0])
+                canonical_id=canonical['id'];canonical_name=canonical['name']
+                for duplicate in items:
+                    duplicate_id=duplicate['id']
+                    if duplicate_id==canonical_id:continue
+                    c.execute("UPDATE events SET source_id=? WHERE source_id=?",(canonical_id,duplicate_id))
+                    c.execute("UPDATE observations SET source_id=?,source_name=COALESCE(NULLIF(source_name,''),?) WHERE source_id=?",(canonical_id,canonical_name,duplicate_id))
+                    c.execute("UPDATE observation_aggregates SET source_id=?,source_name=COALESCE(NULLIF(source_name,''),?) WHERE source_id=?",(canonical_id,canonical_name,duplicate_id))
+                    c.execute("UPDATE sources_state SET source_id=?,source_name=COALESCE(NULLIF(source_name,''),?) WHERE source_id=?",(canonical_id,canonical_name,duplicate_id))
+                    c.execute("DELETE FROM sources WHERE id=?",(duplicate_id,))
+                    merged+=1
+                c.execute("UPDATE sources SET name=?,updated_at=? WHERE id=?",(canonical_name,datetime.now(timezone.utc).isoformat(),canonical_id))
+
+                # O Vision pode ter gravado observações com um source_id que nunca
+                # existiu na tabela sources. Consolida também pelo nome visível.
+                obs=c.execute("SELECT DISTINCT source_id,source_name FROM observations WHERE source_id<>?",(canonical_id,)).fetchall()
+                for r in obs:
+                    if self._slug(r['source_name'])==normalized:
+                        old=r['source_id']
+                        c.execute("UPDATE observations SET source_id=?,source_name=? WHERE source_id=?",(canonical_id,canonical_name,old))
+                        c.execute("UPDATE observation_aggregates SET source_id=?,source_name=? WHERE source_id=?",(canonical_id,canonical_name,old))
+            if merged:
+                c.execute("INSERT INTO meta(key,value) VALUES('sources_deduplicated_at',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",(datetime.now(timezone.utc).isoformat(),))
+
     def _person_id(self,external,name): return f"person_{self._slug(external or name)}"
     def _ensure_person(self,c,pid,external,name,ts):
         c.execute("INSERT INTO persons(id,organization_id,external_id,display_name,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET external_id=COALESCE(excluded.external_id,persons.external_id),display_name=excluded.display_name,updated_at=excluded.updated_at",(pid,self.organization_id,str(external) if external else None,name or pid,ts,ts))
@@ -184,8 +240,9 @@ class FlowDatabase:
             c.execute("INSERT INTO locations(id,site_id,name,location_type,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,updated_at=excluded.updated_at",(str(loc),self.site_id,display_name,'access_point',ts,ts))
         source_id=None
         if rid:
-            source_id=f"reader_{self._slug(rid)}";driver=(event.get('reader') or {}).get('driver')
-            c.execute("INSERT INTO sources(id,site_id,location_id,source_type,provider,driver,name,status,last_event_id,last_seen_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET location_id=COALESCE(excluded.location_id,sources.location_id),driver=COALESCE(excluded.driver,sources.driver),name=COALESCE(excluded.name,sources.name),last_event_id=excluded.last_event_id,last_seen_at=excluded.last_seen_at,updated_at=excluded.updated_at",(source_id,self.site_id,loc,'reader',event.get('source','external'),driver,rname or rid,'unknown',event_id,ts,ts,ts))
+            preferred=f"reader_{self._slug(rid)}";driver=(event.get('reader') or {}).get('driver');display_source_name=rname or rid
+            source_id=self._canonical_source_id(c,self.site_id,'reader',display_source_name,preferred)
+            c.execute("INSERT INTO sources(id,site_id,location_id,source_type,provider,driver,name,status,last_event_id,last_seen_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET location_id=COALESCE(excluded.location_id,sources.location_id),driver=COALESCE(excluded.driver,sources.driver),name=COALESCE(excluded.name,sources.name),last_event_id=excluded.last_event_id,last_seen_at=excluded.last_seen_at,updated_at=excluded.updated_at",(source_id,self.site_id,loc,'reader',event.get('source','external'),driver,display_source_name,'unknown',event_id,ts,ts,ts))
         person_domain=None
         if flat.get('person_name'):
             person_domain=self._person_id(flat.get('person_id'),flat.get('person_name'));self._ensure_person(c,person_domain,flat.get('person_id'),flat.get('person_name'),ts)

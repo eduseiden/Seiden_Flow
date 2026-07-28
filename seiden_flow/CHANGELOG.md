@@ -1,3 +1,12 @@
+## 0.6.1.5 — Deduplicação segura de fontes
+
+- Migração automática de fontes duplicadas por site, tipo e nome normalizado.
+- Prioriza como fonte canônica o registro operacional criado pelo Seiden Bridge.
+- Consolida referências em eventos, observações e agregados HEA.
+- Corrige fontes duplicadas no filtro do painel HEA, inclusive quando o source_id antigo não existia na tabela de fontes.
+- Proteção preventiva para reutilizar a fonte existente em novos eventos.
+- Migração idempotente, sem necessidade de limpeza manual ou reinício do Home Assistant.
+
 ## 0.6.1.4 — Deduplicação segura de locais
 
 - Migração automática de locais duplicados por site e nome normalizado.
