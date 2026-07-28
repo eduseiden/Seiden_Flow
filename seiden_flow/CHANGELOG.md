@@ -1,3 +1,10 @@
+## 0.6.1.4 — Deduplicação segura de locais
+
+- Migração automática de locais duplicados por site e nome normalizado.
+- Referências em fontes, presenças, eventos, observações e agregados HEA são consolidadas no local canônico.
+- Proteção preventiva: novas mensagens reutilizam um local existente com o mesmo nome em vez de criar outro registro.
+- Migração idempotente, sem necessidade de limpeza manual do banco.
+
 ## 0.6.1.3
 
 - Mensagens `mqtt.message_received` deixam de ser tratadas como ocorrências operacionais.

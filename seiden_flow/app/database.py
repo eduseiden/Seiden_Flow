@@ -10,7 +10,7 @@ from experience import calculate_stats, compare_periods
 class FlowDatabase:
     def __init__(self,path:str,organization_id="default_organization",organization_name="Organização padrão",site_id="default_site",site_name="Site padrão"):
         self.path=path;self.organization_id=organization_id;self.site_id=site_id;self._lock=threading.RLock();Path(path).parent.mkdir(parents=True,exist_ok=True)
-        self._init_schema(organization_name,site_name);self._migrate_legacy();self._reconcile_vision_sources()
+        self._init_schema(organization_name,site_name);self._migrate_legacy();self._reconcile_vision_sources();self._deduplicate_locations()
     @contextmanager
     def connect(self)->Iterator[sqlite3.Connection]:
         c=sqlite3.connect(self.path,timeout=30);c.row_factory=sqlite3.Row;c.execute("PRAGMA foreign_keys=ON")
@@ -120,13 +120,68 @@ class FlowDatabase:
                         used=c.execute("SELECT 1 FROM sources WHERE location_id=? UNION SELECT 1 FROM presences WHERE current_location_id=? LIMIT 1",(r['location_id'],r['location_id'])).fetchone()
                         if not used:c.execute("DELETE FROM locations WHERE id=?",(r['location_id'],))
 
+    def _canonical_location_id(self,c,site_id,name,preferred_id=None):
+        """Resolve um local canônico por site + nome normalizado.
+
+        Evita que mudanças de identificador técnico criem dois locais com o mesmo
+        nome visível. Quando já existe um local equivalente, ele é reutilizado.
+        """
+        normalized=self._slug(name)
+        rows=c.execute("SELECT id,name FROM locations WHERE site_id=? ORDER BY created_at,id",(site_id,)).fetchall()
+        matches=[r for r in rows if self._slug(r['name'])==normalized]
+        if not matches:return str(preferred_id) if preferred_id else f"location_{normalized}"
+        if preferred_id:
+            for r in matches:
+                if r['id']==str(preferred_id):return r['id']
+        # Prefere o identificador estável derivado do leitor/nome quando existir.
+        stable=f"location_{normalized}"
+        for r in matches:
+            if r['id']==stable:return r['id']
+        return matches[0]['id']
+
+    def _deduplicate_locations(self):
+        """Mescla locais duplicados de forma segura e atualiza todas as referências.
+
+        A chave lógica do domínio passa a ser site + nome normalizado. A migração
+        é idempotente e pode ser executada em toda inicialização.
+        """
+        with self._lock,self.connect() as c:
+            rows=c.execute("SELECT * FROM locations ORDER BY site_id,created_at,id").fetchall()
+            groups={}
+            for r in rows:
+                groups.setdefault((r['site_id'],self._slug(r['name'])),[]).append(r)
+            merged=0
+            for (_,normalized),items in groups.items():
+                if len(items)<2:continue
+                stable=f"location_{normalized}"
+                canonical=next((r for r in items if r['id']==stable),items[0])
+                canonical_id=canonical['id']
+                for duplicate in items:
+                    duplicate_id=duplicate['id']
+                    if duplicate_id==canonical_id:continue
+                    c.execute("UPDATE sources SET location_id=? WHERE location_id=?",(canonical_id,duplicate_id))
+                    c.execute("UPDATE presences SET current_location_id=? WHERE current_location_id=?",(canonical_id,duplicate_id))
+                    c.execute("UPDATE persons_state SET current_location_id=? WHERE current_location_id=?",(canonical_id,duplicate_id))
+                    c.execute("UPDATE observations SET location_id=? WHERE location_id=?",(canonical_id,duplicate_id))
+                    c.execute("UPDATE observation_aggregates SET location_id=? WHERE location_id=?",(canonical_id,duplicate_id))
+                    c.execute("UPDATE events SET location_id=? WHERE location_id=?",(canonical_id,duplicate_id))
+                    c.execute("UPDATE locations SET parent_location_id=? WHERE parent_location_id=?",(canonical_id,duplicate_id))
+                    c.execute("DELETE FROM locations WHERE id=?",(duplicate_id,))
+                    merged+=1
+                c.execute("UPDATE locations SET name=?,updated_at=? WHERE id=?",(canonical['name'],datetime.now(timezone.utc).isoformat(),canonical_id))
+            if merged:
+                c.execute("INSERT INTO meta(key,value) VALUES('locations_deduplicated_at',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",(datetime.now(timezone.utc).isoformat(),))
+
     def _person_id(self,external,name): return f"person_{self._slug(external or name)}"
     def _ensure_person(self,c,pid,external,name,ts):
         c.execute("INSERT INTO persons(id,organization_id,external_id,display_name,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET external_id=COALESCE(excluded.external_id,persons.external_id),display_name=excluded.display_name,updated_at=excluded.updated_at",(pid,self.organization_id,str(external) if external else None,name or pid,ts,ts))
     def _upsert_domain(self,c,event,flat,event_id,ts):
         rid=flat.get('reader_id');rname=flat.get('reader_name');loc=flat.get('location_id')
-        if not loc and rid:loc=f"location_{self._slug(rid)}"
-        if loc:c.execute("INSERT INTO locations(id,site_id,name,location_type,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,updated_at=excluded.updated_at",(str(loc),self.site_id,rname or str(loc),'access_point',ts,ts))
+        if rid or loc:
+            display_name=rname or str(loc or rid)
+            preferred=loc or (f"location_{self._slug(rid)}" if rid else None)
+            loc=self._canonical_location_id(c,self.site_id,display_name,preferred)
+            c.execute("INSERT INTO locations(id,site_id,name,location_type,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,updated_at=excluded.updated_at",(str(loc),self.site_id,display_name,'access_point',ts,ts))
         source_id=None
         if rid:
             source_id=f"reader_{self._slug(rid)}";driver=(event.get('reader') or {}).get('driver')
