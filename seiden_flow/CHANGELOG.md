@@ -1,4 +1,4 @@
-## 0.6.1.2
+## 0.6.1.3
 
 - Mensagens `mqtt.message_received` deixam de ser tratadas como ocorrências operacionais.
 - Últimas ocorrências passam a mostrar fatos operacionais, preservando eventos MQTT brutos no banco.
@@ -8,7 +8,7 @@
 
 # Changelog
 
-## 0.6.1.1 — Operação e Inteligência
+## 0.6.1.3 — Operação e Inteligência
 
 - Novo painel principal orientado à operação.
 - Eventos do Bridge passam a ser exibidos e contados como ocorrências operacionais.
