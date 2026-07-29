@@ -8,6 +8,7 @@ from database import FlowDatabase
 from ha_client import HomeAssistantClient
 from service import FlowService
 from version import VERSION,SCHEMA_VERSION,DATABASE_SCHEMA_VERSION
+from environmental_analytics import calculate_environmental_analytics, period_bounds, utc_iso
 settings=load_settings();logging.basicConfig(level=getattr(logging,settings.log_level.upper(),logging.INFO),format='%(asctime)s [%(levelname)s] %(name)s: %(message)s');LOGGER=logging.getLogger('seiden_flow')
 app=Flask(__name__);app.config['MAX_CONTENT_LENGTH']=settings.webhook_max_body_mb*1024*1024
 db=FlowDatabase(os.path.join(settings.config_dir,'seiden_flow.db'),settings.organization_id,settings.organization_name,settings.site_id,settings.site_name)
@@ -184,6 +185,35 @@ def environment_latest():
 @app.get('/api/v1/environment/summary')
 def environment_summary():
  return jsonify({'measurement_count':db.environmental_count(),'latest':db.environmental_latest(),'storage_enabled':settings.environmental_storage_enabled})
+
+
+def _environment_analytics_payload(include_timeline=True):
+ try:
+  start,end,period=period_bounds(period=(request.args.get('period') or '24h').strip(),start=(request.args.get('start') or '').strip() or None,end=(request.args.get('end') or '').strip() or None)
+  sampling_minutes=max(1,min(60,int(request.args.get('sampling_minutes',1))))
+  bucket_minutes=max(sampling_minutes,min(1440,int(request.args.get('bucket_minutes',60))))
+ except (ValueError,TypeError) as exc:
+  abort(400,description=str(exc))
+ source_id=(request.args.get('source_id') or '').strip() or None
+ location_id=(request.args.get('location_id') or '').strip() or None
+ previous_start=start-(end-start)
+ rows=db.environmental_range(utc_iso(start),utc_iso(end),source_id,location_id)
+ previous=db.environmental_range(utc_iso(previous_start),utc_iso(start),source_id,location_id)
+ result=calculate_environmental_analytics(rows,start,end,previous,sampling_minutes,bucket_minutes,minimum_samples=10)
+ result['period']['preset']=period
+ result['scope']['source_id']=source_id
+ result['scope']['location_id']=location_id
+ if not include_timeline:result.pop('timeline',None)
+ return result
+
+@app.get('/api/v1/environment/analytics')
+def environment_analytics():
+ return jsonify(_environment_analytics_payload(include_timeline=False))
+
+@app.get('/api/v1/environment/timeline')
+def environment_timeline():
+ payload=_environment_analytics_payload(include_timeline=True)
+ return jsonify({'period':payload['period'],'scope':payload['scope'],'data_quality':payload['data_quality'],'items':payload['timeline']})
 
 @app.get('/api/v1/hea/summary')
 def hea_summary():

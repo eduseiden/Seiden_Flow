@@ -630,6 +630,14 @@ class FlowDatabase:
         sql+=' ORDER BY occurred_at DESC LIMIT ?';params.append(max(1,min(int(limit),5000)))
         return self._rows(sql,tuple(params))
 
+    def environmental_range(self, start_at, end_at, source_id=None, location_id=None, limit=100000):
+        where=['occurred_at>=?','occurred_at<?'];params=[start_at,end_at]
+        if source_id:where.append('source_id=?');params.append(source_id)
+        if location_id:where.append('location_id=?');params.append(location_id)
+        sql='SELECT event_id,source_event_id,source_id,source_name,location_id,location_name,occurred_at,temperature_c,humidity_pct,condition,comfort_score,confidence,ruleset,battery_pct,linkquality,source_last_seen FROM environmental_measurements WHERE '+' AND '.join(where)+' ORDER BY occurred_at ASC LIMIT ?'
+        params.append(max(1,min(int(limit),100000)))
+        return self._rows(sql,tuple(params))
+
     def environmental_count(self):
         with self.connect() as c:return int(c.execute('SELECT COUNT(*) FROM environmental_measurements').fetchone()[0])
 

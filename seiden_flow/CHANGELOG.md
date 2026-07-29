@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.1 — EEA Analytics Engine
+
+- Introduz o motor Environmental Experience Analytics em `environmental_analytics.py`.
+- Nova API `GET /api/v1/environment/analytics` com EEA Index, estatísticas, distribuição de condições, tendência, melhor/pior período e qualidade dos dados.
+- Nova API `GET /api/v1/environment/timeline` com agregação temporal configurável.
+- Normalização analítica por fonte e janela temporal, preservando todos os eventos brutos no banco.
+- Comparação automática com o período imediatamente anterior.
+- Filtros por período, intervalo personalizado, fonte e local.
+- Nenhuma mudança no schema SQLite; `DATABASE_SCHEMA_VERSION` permanece em 8.
+
 ## 0.8.0 — Consolidação de versão e documentação
 
 - Alinha a versão exibida no add-on, no runtime, nas APIs e na documentação.

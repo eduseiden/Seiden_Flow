@@ -1,46 +1,76 @@
-# Seiden FLOW 0.8.0
+# Seiden FLOW 0.8.1
 
 Camada de compreensão do Seiden One. Transforma evidências em entendimento operacional.
 
-## Environmental Storage
+## Environmental Experience Analytics — EEA
 
-A persistência ambiental, introduzida na versão 0.7.1, adiciona suporte nativo ao evento `environment.observation`, produzido pelo Seiden Vision. A versão 0.8.0 consolida a numeração do add-on, do runtime e da documentação, sem alterar os contratos existentes.
+A versão 0.8.1 introduz o primeiro motor analítico ambiental do FLOW. As medições brutas continuam preservadas integralmente no banco; para os cálculos, o EEA mantém somente a última leitura de cada fonte em cada janela temporal, evitando que republicações MQTT distorçam médias, tendências e distribuição das condições.
 
-O fluxo ambiental passa a ser:
+O fluxo ambiental é:
 
 ```text
-MQTT → Seiden Bridge → Seiden Vision → environment.observation → Seiden FLOW
+MQTT → Seiden Bridge → Seiden Vision → environment.observation → Seiden FLOW → EEA
 ```
 
-### Dados armazenados
+### Indicadores calculados
 
-- temperatura normalizada em Celsius;
-- umidade relativa em percentual;
-- condição ambiental;
-- Environmental Comfort Score;
-- confiança e ruleset da análise;
-- fonte, local, conexão e tópico MQTT;
-- bateria, qualidade do enlace e último contato da fonte;
-- correlação com o evento original por `source_event_id`.
-
-O FLOW impede duplicidades por `event_id` e `source_event_id`.
+- EEA Index médio de 0 a 100;
+- condição e leitura ambiental atuais;
+- médias, mínimos e máximos de temperatura, umidade e Comfort Score;
+- distribuição entre `comfortable`, `attention` e `uncomfortable`;
+- comparação com o período imediatamente anterior;
+- tendência `improving`, `stable`, `worsening` ou `insufficient_data`;
+- melhor e pior intervalo analítico;
+- qualidade dos dados, cobertura, confiança e amostras brutas/normalizadas.
 
 ### APIs ambientais
 
 - `GET /api/v1/environment/measurements`
 - `GET /api/v1/environment/latest`
 - `GET /api/v1/environment/summary`
+- `GET /api/v1/environment/analytics`
+- `GET /api/v1/environment/timeline`
 
-Esta versão implementa a camada de armazenamento. O painel público do EEA será introduzido em uma versão posterior.
+### Filtros do EEA
+
+Os endpoints analíticos aceitam:
+
+- `period`: `1h`, `6h`, `12h`, `24h`, `7d` ou `30d`;
+- `start` e `end`: intervalo UTC personalizado em ISO 8601;
+- `source_id` e `location_id`;
+- `sampling_minutes`: janela de normalização, de 1 a 60 minutos;
+- `bucket_minutes`: agrupamento da timeline, de 1 a 1440 minutos.
+
+Exemplos:
+
+```text
+/api/v1/environment/analytics?period=24h
+/api/v1/environment/analytics?location_id=escritorio&period=7d
+/api/v1/environment/timeline?period=24h&bucket_minutes=15
+```
+
+O dashboard público do EEA permanece planejado para uma versão posterior.
+
+## Environmental Storage
+
+O armazenamento nativo do evento `environment.observation` preserva:
+
+- temperatura em Celsius e umidade relativa;
+- condição ambiental, Comfort Score, confiança e ruleset;
+- fonte, local, conexão e tópico MQTT;
+- bateria, qualidade do enlace e último contato;
+- correlação por `source_event_id`.
+
+O FLOW impede duplicidades técnicas por `event_id` e `source_event_id`.
 
 ## Operação e Inteligência
 
 O painel principal permanece separado em:
 
 - **Operação**: ocorrências, pessoas no local, fontes e enriquecimentos do Vision;
-- **Inteligência**: catálogo das soluções analíticas, começando pelo Human Experience Analytics.
+- **Inteligência**: catálogo das soluções analíticas, incluindo HEA e EEA.
 
-Uma ocorrência do Bridge conta uma vez. `vision.analysis_completed` é armazenado como evidência correlacionada por `source_event_id`, sem aumentar o contador de ocorrências. O portal público do HEA permanece disponível em `/hea`.
+O portal público do HEA permanece disponível em `/hea`.
 
 ## Eventos consumidos
 
@@ -49,5 +79,3 @@ Uma ocorrência do Bridge conta uma vez. `vision.analysis_completed` é armazena
 - `seiden_connection_offline`
 - `vision.analysis_completed`
 - `environment.observation`
-
-Mensagens brutas `mqtt.message_received` permanecem disponíveis para diagnóstico, mas não são contabilizadas como ocorrências operacionais.
