@@ -1,3 +1,12 @@
+# 0.9.1
+
+- Adiciona o EEA à área **Inteligência** do painel principal, com acesso direto e resumo das últimas 24 horas.
+- Classifica textualmente o EEA Index médio do período.
+- Torna a cobertura mais transparente, exibindo minutos observados sobre o total do período.
+- Adiciona marcadores visuais e tooltips aos gráficos.
+- Implementa gráfico climático com dois eixos: temperatura à esquerda e umidade à direita.
+- Melhora a leitura dos gráficos e preserva o schema de banco na versão 8.
+
 # 0.9.0
 
 - Adiciona o primeiro dashboard Environmental Experience Analytics em `/environment`.

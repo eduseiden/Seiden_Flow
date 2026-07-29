@@ -159,7 +159,7 @@ def sources_state():return jsonify({'items':db.sources_state()})
 def summary():return jsonify(db.summary())
 @app.get('/api/v1/dashboard-data')
 def dashboard_data():
- return jsonify({'summary':db.summary(),'operational':db.operational_summary(),'occurrences':db.list_occurrences(limit=50),'captured_events':db.list_events(limit=100),'people':db.people_inside(),'sources':db.sources_state(),'home_assistant_connection':ha.connection_status,'version':VERSION,'human_experience':{'summary':db.hea_summary(24,settings.human_experience_minimum_samples),'sources':db.hea_sources(24),'history':db.hea_history(24,limit=96),'config':{'minimum_samples':settings.human_experience_minimum_samples,'window_minutes':settings.human_experience_aggregation_window_minutes,'minimum_confidence':settings.human_experience_minimum_confidence}}})
+ return jsonify({'summary':db.summary(),'operational':db.operational_summary(),'occurrences':db.list_occurrences(limit=50),'captured_events':db.list_events(limit=100),'people':db.people_inside(),'sources':db.sources_state(),'home_assistant_connection':ha.connection_status,'version':VERSION,'human_experience':{'summary':db.hea_summary(24,settings.human_experience_minimum_samples),'sources':db.hea_sources(24),'history':db.hea_history(24,limit=96),'config':{'minimum_samples':settings.human_experience_minimum_samples,'window_minutes':settings.human_experience_aggregation_window_minutes,'minimum_confidence':settings.human_experience_minimum_confidence}},'environmental_experience':_environment_analytics_payload(include_timeline=False)})
 
 @app.post('/api/v1/observations')
 @require_api_key
