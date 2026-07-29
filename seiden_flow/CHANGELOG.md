@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.0.1
+- O card **Fontes** do HEA passa a contar fontes canônicas, e não IDs históricos distintos.
+- Observações legadas e atuais com o mesmo nome normalizado e local são consolidadas na métrica e no detalhamento por fonte.
+- Nenhuma alteração nos cálculos do Experience Index, confiança ou distribuição de expressões.
+
 ## 0.7.0
 - Adoção do Seiden One Platform Standard v1.0.
 - Fuso de exibição configurável por `timezone`.

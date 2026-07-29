@@ -484,7 +484,13 @@ class FlowDatabase:
     def hea_query(self,start_at,end_at,minimum_samples=10,weights=None,source_id=None,location_id=None,max_history_points=96):
         rows=self._hea_observations(start_at,end_at,source_id,location_id)
         summary=self._hea_stats(rows,minimum_samples,weights)
-        summary.update({'period_start':start_at,'period_end':end_at,'sources':len({r['source_id'] for r in rows})})
+        # Fontes canônicas: IDs históricos diferentes que representam a mesma
+        # fonte visível no mesmo local contam apenas uma vez.
+        canonical_sources={
+            (self._slug(r['resolved_source_name'] or r['source_id']), r['resolved_location_id'] or '')
+            for r in rows
+        }
+        summary.update({'period_start':start_at,'period_end':end_at,'sources':len(canonical_sources)})
 
         start=self._parse_dt(start_at).astimezone(timezone.utc)
         end=self._parse_dt(end_at).astimezone(timezone.utc)
@@ -498,7 +504,19 @@ class FlowDatabase:
 
         grouped={}
         for r in rows:
-            key=r['source_id'];g=grouped.setdefault(key,{'rows':[],'source_id':key,'source_name':r['resolved_source_name'] or key,'location_id':r['resolved_location_id'],'location_name':r['location_name'] or None})
+            source_name=r['resolved_source_name'] or r['source_id']
+            key=(self._slug(source_name), r['resolved_location_id'] or '')
+            g=grouped.setdefault(key,{
+                'rows':[],
+                'source_id':r['source_id'],
+                'source_name':source_name,
+                'location_id':r['resolved_location_id'],
+                'location_name':r['location_name'] or None,
+            })
+            # Prefer the current operational source when historical and canonical
+            # IDs coexist for the same visible source.
+            if str(r['source_id']).startswith('evo_') or str(r['source_id']).startswith('mqtt_'):
+                g['source_id']=r['source_id']
             g['rows'].append(r)
         sources=[]
         for g in grouped.values():
