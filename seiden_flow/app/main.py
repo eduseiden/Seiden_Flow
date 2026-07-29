@@ -235,6 +235,24 @@ def _environment_sources_payload():
   _env_cache_put(key,payload)
  return payload
 
+def _environment_alias_scope(source_id=None,location_id=None):
+ catalog=_environment_sources_payload()
+ source_ids=[];location_ids=[]
+ if source_id:
+  for item in catalog.get('items',[]):
+   if source_id==item.get('source_id') or source_id in (item.get('source_aliases') or []):
+    source_ids=item.get('source_aliases') or [item.get('source_id')]
+    if not location_id:location_ids=item.get('location_aliases') or []
+    break
+  if not source_ids:source_ids=[source_id]
+ if location_id:
+  for item in catalog.get('locations',[]):
+   if location_id==item.get('location_id') or location_id in (item.get('location_aliases') or []):
+    location_ids=item.get('location_aliases') or [item.get('location_id')]
+    break
+  if not location_ids:location_ids=[location_id]
+ return source_ids,location_ids
+
 @app.get('/api/v1/environment/sources')
 def environment_sources():
  return jsonify(_environment_sources_payload())
@@ -259,8 +277,9 @@ def _environment_analytics_payload(include_timeline=True):
  source_id=(request.args.get('source_id') or '').strip() or None
  location_id=(request.args.get('location_id') or '').strip() or None
  previous_start=start-(end-start)
- rows=db.environmental_range(utc_iso(start),utc_iso(end),source_id,location_id)
- previous=db.environmental_range(utc_iso(previous_start),utc_iso(start),source_id,location_id)
+ source_ids,location_ids=_environment_alias_scope(source_id,location_id)
+ rows=db.environmental_range(utc_iso(start),utc_iso(end),source_id,location_id,source_ids=source_ids,location_ids=location_ids)
+ previous=db.environmental_range(utc_iso(previous_start),utc_iso(start),source_id,location_id,source_ids=source_ids,location_ids=location_ids)
  result=calculate_environmental_analytics(rows,start,end,previous,sampling_minutes,bucket_minutes,minimum_samples=10)
  result['period']['preset']=period
  result['scope']['source_id']=source_id
@@ -270,6 +289,34 @@ def _environment_analytics_payload(include_timeline=True):
  if not include_timeline:response.pop('timeline',None)
  return response
 
+
+@app.get('/api/v1/environment/portfolio')
+def environment_portfolio():
+ try:
+  start,end,period=period_bounds(period=(request.args.get('period') or '24h').strip(),start=(request.args.get('start') or '').strip() or None,end=(request.args.get('end') or '').strip() or None)
+  sampling_minutes=max(1,min(60,int(request.args.get('sampling_minutes',1))))
+  bucket_minutes=max(sampling_minutes,min(1440,int(request.args.get('bucket_minutes',60))))
+ except (ValueError,TypeError) as exc:abort(400,description=str(exc))
+ location_id=(request.args.get('location_id') or '').strip() or None
+ catalog=_environment_sources_payload();items=[]
+ for source in catalog.get('items',[]):
+  if location_id and location_id!=source.get('location_id') and location_id not in (source.get('location_aliases') or []):continue
+  aliases=source.get('source_aliases') or [source.get('source_id')]
+  rows=db.environmental_range(utc_iso(start),utc_iso(end),source_ids=aliases)
+  if not rows:continue
+  result=calculate_environmental_analytics(rows,start,end,[],sampling_minutes,bucket_minutes,minimum_samples=10)
+  current=result.get('current') or {}
+  items.append({
+   'source_id':source.get('source_id'),'source_name':source.get('source_name'),
+   'location_id':source.get('location_id'),'location_name':source.get('location_name'),
+   'source_aliases':aliases,'eea_index':result.get('eea_index'),
+   'condition':current.get('condition') or ('comfortable' if (result.get('eea_index') or 0)>=85 else 'attention' if (result.get('eea_index') or 0)>=70 else 'uncomfortable' if (result.get('eea_index') or 0)>=50 else 'critical'),
+   'temperature_c':current.get('temperature_c'),'humidity_pct':current.get('humidity_pct'),
+   'occurred_at':current.get('occurred_at'),'coverage_pct':result.get('data_quality',{}).get('coverage_pct'),
+   'quality_status':result.get('data_quality',{}).get('status'),'observed_minutes':result.get('data_quality',{}).get('sample_count_normalized'),
+  })
+ counts={k:sum(1 for x in items if x.get('condition')==k) for k in ('comfortable','attention','uncomfortable','critical')}
+ return jsonify({'period':{'start':utc_iso(start),'end':utc_iso(end),'preset':period},'items':items,'counts':counts,'source_count':len(items),'version':VERSION})
 
 @app.get('/api/v1/environment/dashboard')
 def environment_dashboard():

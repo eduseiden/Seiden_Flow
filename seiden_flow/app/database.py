@@ -1,5 +1,7 @@
 from __future__ import annotations
-import json, sqlite3, threading
+import json
+import re
+import unicodedata, sqlite3, threading
 from contextlib import contextmanager
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
@@ -630,43 +632,75 @@ class FlowDatabase:
         sql+=' ORDER BY occurred_at DESC LIMIT ?';params.append(max(1,min(int(limit),5000)))
         return self._rows(sql,tuple(params))
 
-    def environmental_range(self, start_at, end_at, source_id=None, location_id=None, limit=100000):
+    @staticmethod
+    def _environment_identity_key(value):
+        text=unicodedata.normalize('NFKD',str(value or '')).encode('ascii','ignore').decode('ascii').lower()
+        return re.sub(r'[^a-z0-9]+','_',text).strip('_')
+
+    def environmental_range(self, start_at, end_at, source_id=None, location_id=None, limit=100000, source_ids=None, location_ids=None):
         where=['occurred_at>=?','occurred_at<?'];params=[start_at,end_at]
-        if source_id:where.append('source_id=?');params.append(source_id)
-        if location_id:where.append('location_id=?');params.append(location_id)
+        effective_sources=list(dict.fromkeys(source_ids or ([source_id] if source_id else [])))
+        effective_locations=list(dict.fromkeys(location_ids or ([location_id] if location_id else [])))
+        if effective_sources:
+            where.append('source_id IN (%s)'%','.join('?' for _ in effective_sources));params.extend(effective_sources)
+        if effective_locations:
+            where.append('location_id IN (%s)'%','.join('?' for _ in effective_locations));params.extend(effective_locations)
         sql='SELECT event_id,source_event_id,source_id,source_name,location_id,location_name,occurred_at,temperature_c,humidity_pct,condition,comfort_score,confidence,ruleset,battery_pct,linkquality,source_last_seen FROM environmental_measurements WHERE '+' AND '.join(where)+' ORDER BY occurred_at ASC LIMIT ?'
         params.append(max(1,min(int(limit),100000)))
         return self._rows(sql,tuple(params))
 
     def environmental_sources_catalog(self):
-        """Return the environmental sources and locations already observed by FLOW.
+        """Return a canonical environmental catalog while preserving legacy aliases.
 
-        Friendly names are preserved from the normalized events received from Vision/Bridge.
-        No device registry or schema migration is required for this read model.
+        Source identities that differ only by case, accents or separators are consolidated.
+        The most recent observation defines the canonical friendly names. Historical source
+        and location identifiers remain available as aliases so analytics can include them.
         """
-        sql="""
-            SELECT
-                source_id,
-                COALESCE(MAX(NULLIF(source_name,'')),source_id) AS source_name,
-                location_id,
-                COALESCE(MAX(NULLIF(location_name,'')),location_id) AS location_name,
-                COUNT(*) AS measurement_count,
-                MAX(occurred_at) AS latest_at
+        rows=self._rows("""
+            SELECT source_id,source_name,location_id,location_name,occurred_at
             FROM environmental_measurements
-            GROUP BY source_id,location_id
-            ORDER BY COALESCE(MAX(NULLIF(location_name,'')),location_id,''),
-                     COALESCE(MAX(NULLIF(source_name,'')),source_id)
-        """
-        items=self._rows(sql)
+            ORDER BY occurred_at ASC
+        """)
+        groups={}
+        for row in rows:
+            key=self._environment_identity_key(row.get('source_id') or row.get('source_name'))
+            if not key:continue
+            group=groups.setdefault(key,{'rows':[],'source_ids':set(),'location_ids':set(),'measurement_count':0})
+            group['rows'].append(row);group['measurement_count']+=1
+            if row.get('source_id'):group['source_ids'].add(row['source_id'])
+            if row.get('location_id'):group['location_ids'].add(row['location_id'])
+        items=[]
+        for key,group in groups.items():
+            latest=group['rows'][-1]
+            canonical_source_id=latest.get('source_id') or key
+            item={
+                'source_id':canonical_source_id,
+                'source_name':latest.get('source_name') or canonical_source_id,
+                'location_id':latest.get('location_id'),
+                'location_name':latest.get('location_name') or latest.get('location_id'),
+                'measurement_count':group['measurement_count'],
+                'latest_at':latest.get('occurred_at'),
+                'source_aliases':sorted(group['source_ids']),
+                'location_aliases':sorted(group['location_ids']),
+                'identity_key':key,
+            }
+            items.append(item)
+        items.sort(key=lambda x:((x.get('location_name') or '').lower(),(x.get('source_name') or '').lower()))
         locations={}
         for item in items:
             location_id=item.get('location_id')
-            if location_id and location_id not in locations:
-                locations[location_id]={
-                    'location_id':location_id,
-                    'location_name':item.get('location_name') or location_id
-                }
-        return {'items':items,'locations':list(locations.values())}
+            if not location_id:continue
+            key=self._environment_identity_key(location_id)
+            current=locations.get(key)
+            if current is None:
+                locations[key]={'location_id':location_id,'location_name':item.get('location_name') or location_id,'location_aliases':set(item.get('location_aliases') or [])}
+            else:
+                current['location_aliases'].update(item.get('location_aliases') or [])
+        location_items=[]
+        for value in locations.values():
+            value['location_aliases']=sorted(value['location_aliases']);location_items.append(value)
+        location_items.sort(key=lambda x:(x.get('location_name') or '').lower())
+        return {'items':items,'locations':location_items}
 
     def environmental_count(self):
         with self.connect() as c:return int(c.execute('SELECT COUNT(*) FROM environmental_measurements').fetchone()[0])

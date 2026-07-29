@@ -1,3 +1,17 @@
+# 0.9.2.2
+
+## Consolidação de identidades e visão de portfólio
+
+- consolida fontes ambientais legadas que diferem apenas por maiúsculas, acentos ou separadores;
+- preserva aliases históricos de `source_id` e `location_id` sem apagar medições do SQLite;
+- usa a identidade mais recente e amigável como identidade canônica nos filtros;
+- inclui o histórico legado ao consultar a fonte canônica;
+- adiciona `GET /api/v1/environment/portfolio`;
+- substitui a análise global sem significado por uma visão individual de todas as fontes;
+- mantém o dashboard analítico completo somente quando um sensor específico é selecionado;
+- não calcula média global de temperatura ou umidade entre ambientes distintos;
+- preserva `DATABASE_SCHEMA_VERSION = 8`, sem migração.
+
 # 0.9.2.1
 
 ## Correções de estabilidade
