@@ -1,0 +1,112 @@
+name: Seiden FLOW
+version: 0.7.1
+slug: seiden_flow
+description: Motor de entendimento operacional do Seiden One, conforme Platform Standard
+  v1.0
+url: https://github.com/eduseiden/Seiden_Flow
+stage: experimental
+startup: application
+boot: auto
+init: false
+arch:
+- amd64
+- aarch64
+homeassistant_api: true
+hassio_api: true
+ingress: true
+ingress_port: 8100
+ingress_panel: true
+ports:
+  8100/tcp: 8100
+ports_description:
+  8100/tcp: API e dashboard do Seiden FLOW
+panel_icon: mdi:database-cog
+panel_title: Seiden FLOW
+map:
+- type: addon_config
+  read_only: false
+options:
+  log_level: info
+  api_key: ''
+  timezone: America/Sao_Paulo
+  retention_days: 365
+  subscribe_home_assistant_events: true
+  bridge_event: seiden_bridge_event
+  connection_online_event: seiden_connection_online
+  connection_offline_event: seiden_connection_offline
+  vision_event: vision.analysis_completed
+  environment_event: environment.observation
+  environmental_storage_enabled: true
+  publish_summary_to_home_assistant: true
+  cleanup_interval_hours: 12
+  webhook_max_body_mb: 5
+  organization_id: default_organization
+  organization_name: Organização padrão
+  site_id: default_site
+  site_name: Site padrão
+  observation_engine_enabled: true
+  observation_retain_raw_minutes: 30
+  hea_observation_retention_days: 365
+  human_experience_enabled: true
+  human_experience_minimum_samples: 10
+  human_experience_aggregation_window_minutes: 15
+  human_experience_minimum_confidence: 0.75
+  human_experience_enabled_sources: []
+  human_experience_positive_weight: 1.0
+  human_experience_neutral_weight: 0.0
+  human_experience_negative_weight: -1.0
+  hea_portal_enabled: true
+  hea_portal_title: Human Experience Analytics
+  hea_portal_subtitle: Indicadores agregados de experiência
+  hea_portal_default_hours: 24
+  hea_portal_refresh_seconds: 10
+  hea_portal_show_sources: true
+  hea_portal_privacy_notice: Dados agregados e anônimos. Nenhuma identificação pessoal
+    é exibida.
+  hea_portal_allowed_origins: []
+  hea_public_hostname: ''
+  hea_public_restrict_routes: false
+  datetime_format: YYYY-MM-DD HH:mm:ss
+schema:
+  log_level: list(debug|info|warning|error|critical)
+  api_key: password?
+  timezone: str
+  retention_days: int(1,3650)
+  subscribe_home_assistant_events: bool
+  bridge_event: str
+  connection_online_event: str
+  connection_offline_event: str
+  vision_event: str
+  environment_event: str
+  environmental_storage_enabled: bool
+  publish_summary_to_home_assistant: bool
+  cleanup_interval_hours: int(1,168)
+  webhook_max_body_mb: int(1,20)
+  organization_id: str
+  organization_name: str
+  site_id: str
+  site_name: str
+  observation_engine_enabled: bool
+  observation_retain_raw_minutes: int(1,1440)
+  hea_observation_retention_days: int(1,3650)
+  human_experience_enabled: bool
+  human_experience_minimum_samples: int(1,1000)
+  human_experience_aggregation_window_minutes: int(1,1440)
+  human_experience_minimum_confidence: float(0,1)
+  human_experience_enabled_sources:
+  - str
+  human_experience_positive_weight: float(-10,10)
+  human_experience_neutral_weight: float(-10,10)
+  human_experience_negative_weight: float(-10,10)
+  hea_portal_enabled: bool
+  hea_portal_title: str
+  hea_portal_subtitle: str
+  hea_portal_default_hours: int(1,720)
+  hea_portal_refresh_seconds: int(5,3600)
+  hea_portal_show_sources: bool
+  hea_portal_privacy_notice: str
+  hea_portal_allowed_origins:
+  - str
+  hea_public_hostname: str?
+  hea_public_restrict_routes: bool
+  datetime_format: str
