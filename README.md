@@ -1,38 +1,53 @@
-# Seiden FLOW 0.7.0.1
+# Seiden FLOW 0.7.1
 
 Camada de compreensão do Seiden One. Transforma evidências em entendimento operacional.
 
+## Environmental Storage
 
-## Painel 0.7.0.1
+A versão 0.7.1 inaugura a persistência ambiental do FLOW e adiciona suporte nativo ao evento `environment.observation`, produzido pelo Seiden Vision 0.6.1.
 
-O painel principal agora separa:
+O fluxo ambiental passa a ser:
 
-- **Operação**: ocorrências, pessoas no local, fontes e enriquecimentos do Vision.
+```text
+MQTT → Seiden Bridge → Seiden Vision → environment.observation → Seiden FLOW
+```
+
+### Dados armazenados
+
+- temperatura normalizada em Celsius;
+- umidade relativa em percentual;
+- condição ambiental;
+- Environmental Comfort Score;
+- confiança e ruleset da análise;
+- fonte, local, conexão e tópico MQTT;
+- bateria, qualidade do enlace e último contato da fonte;
+- correlação com o evento original por `source_event_id`.
+
+O FLOW impede duplicidades por `event_id` e `source_event_id`.
+
+### APIs ambientais
+
+- `GET /api/v1/environment/measurements`
+- `GET /api/v1/environment/latest`
+- `GET /api/v1/environment/summary`
+
+Esta versão implementa a camada de armazenamento. O painel público do EEA será introduzido em uma versão posterior.
+
+## Operação e Inteligência
+
+O painel principal permanece separado em:
+
+- **Operação**: ocorrências, pessoas no local, fontes e enriquecimentos do Vision;
 - **Inteligência**: catálogo das soluções analíticas, começando pelo Human Experience Analytics.
 
 Uma ocorrência do Bridge conta uma vez. `vision.analysis_completed` é armazenado como evidência correlacionada por `source_event_id`, sem aumentar o contador de ocorrências. O portal público do HEA permanece disponível em `/hea`.
 
-## Arquitetura unificada
-
-O FLOW consome exclusivamente:
+## Eventos consumidos
 
 - `seiden_bridge_event`
 - `seiden_connection_online`
 - `seiden_connection_offline`
 - `vision.analysis_completed`
+- `environment.observation`
 
-Foram removidos o modo `hybrid` e os eventos `seiden_presence`, `seiden_reader_online` e `seiden_reader_offline`. Uma passagem EVO é contabilizada uma única vez. Eventos enriquecidos do Vision são correlacionados por `source_event_id`.
-
-
-## Classificação operacional na 0.7.0.1
-
-Mensagens brutas `mqtt.message_received` permanecem armazenadas e disponíveis para diagnóstico, mas não são contabilizadas como ocorrências operacionais nem ocupam a lista de últimas ocorrências. O painel separa **Ocorrências hoje** de **Eventos capturados hoje**.
-
-## Migração automática da 0.7.0.1
-
-Ao iniciar, o FLOW identifica locais duplicados dentro do mesmo site pelo nome normalizado, consolida todas as referências no registro canônico e remove apenas os registros redundantes. Não é necessário editar o banco manualmente.
-
-
-### Correção 0.7.0.1
-
-A fonte HEA é consolidada diretamente nas observações históricas e o filtro público/interno agrupa nomes equivalentes de forma defensiva.
+Mensagens brutas `mqtt.message_received` permanecem disponíveis para diagnóstico, mas não são contabilizadas como ocorrências operacionais.
