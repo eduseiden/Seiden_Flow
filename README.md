@@ -1,10 +1,10 @@
-# Seiden FLOW 0.7.1
+# Seiden FLOW 0.8.0
 
 Camada de compreensão do Seiden One. Transforma evidências em entendimento operacional.
 
 ## Environmental Storage
 
-A versão 0.7.1 inaugura a persistência ambiental do FLOW e adiciona suporte nativo ao evento `environment.observation`, produzido pelo Seiden Vision 0.6.1.
+A persistência ambiental, introduzida na versão 0.7.1, adiciona suporte nativo ao evento `environment.observation`, produzido pelo Seiden Vision. A versão 0.8.0 consolida a numeração do add-on, do runtime e da documentação, sem alterar os contratos existentes.
 
 O fluxo ambiental passa a ser:
 

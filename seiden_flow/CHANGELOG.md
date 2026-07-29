@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0 — Consolidação de versão e documentação
+
+- Alinha a versão exibida no add-on, no runtime, nas APIs e na documentação.
+- Consolida o Environmental Storage e suas APIs como baseline oficial do FLOW.
+- Sincroniza `README.md` e `DOCS.md` com os eventos atualmente consumidos.
+- Nenhuma alteração no banco de dados, no HEA, no EEA ou nos contratos de eventos existentes.
+
 ## 0.7.1 — Environmental Storage
 - Assinatura nativa do evento `environment.observation` produzido pelo Seiden Vision 0.6.1.
 - Nova persistência `environmental_measurements` para temperatura, umidade, condição, Comfort Score e saúde da fonte.
