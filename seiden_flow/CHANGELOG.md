@@ -1,6 +1,10 @@
+## 0.8.1.3
+
+- Hotfix: restaura `SCHEMA_VERSION` e `DATABASE_SCHEMA_VERSION = 8` em `app/version.py`, corrigindo a inicialização do FLOW.
+
 # Changelog
 
-## 0.8.1.2 — EEA Current Condition Consistency
+## 0.8.1.3 — EEA Current Condition Consistency
 
 - Recalcula `current.condition` com o mesmo ruleset aplicado aos agregados, à timeline e à distribuição.
 - Preserva a condição original do Vision no campo `current.source_condition`.
