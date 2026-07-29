@@ -1,3 +1,12 @@
+# 0.9.0
+
+- Adiciona o primeiro dashboard Environmental Experience Analytics em `/environment`.
+- Exibe EEA Index, condição atual, temperatura, umidade e cobertura de dados.
+- Inclui distribuição por condição, timeline, melhor/pior período e leitura operacional.
+- Adiciona filtros de período e agrupamento, suporte a Ingress e timezone operacional.
+- Integra o acesso ao EEA na área de Inteligência do dashboard principal.
+- Mantém o schema de banco na versão 8.
+
 ## 0.8.1.3
 
 - Hotfix: restaura `SCHEMA_VERSION` e `DATABASE_SCHEMA_VERSION = 8` em `app/version.py`, corrigindo a inicialização do FLOW.
