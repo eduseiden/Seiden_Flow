@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.9.3.2
+
+- traduz estados positivos como `within_optimal_range` para “Dentro da faixa ideal”;
+- trata valores de bateria fora de 0–100% na apresentação;
+- transforma o contexto técnico em seção expansível de largura integral;
+- exibe o identificador curto do ruleset, preservando o valor completo em tooltip;
+- compacta a grade e remove grandes vazios visuais;
+- contextualiza observações com o período efetivamente selecionado;
+- remove indicadores redundantes de extrapolação da escala;
+- apresenta o valor medido junto ao limite ultrapassado;
+- preserva o rodapé `Powered by Seiden One Intelligence`;
+- mantém `DATABASE_SCHEMA_VERSION = 9`, sem nova migração.
+
 ## 0.9.3.1
 
 - atualiza o README da raiz para a versão corrente;

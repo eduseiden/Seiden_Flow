@@ -116,3 +116,7 @@ O FLOW consome os perfis resolvidos pelo Vision e não mantém faixas ambientais
 O portal Environmental Intelligence passa a priorizar interpretação operacional: observações do período substituem a cobertura percentual, os motivos são apresentados em português, o motivo principal aparece junto à condição atual, e as barras exibem ideal, atenção e limites críticos. Leituras fora dos limites recebem indicação explícita de extrapolação.
 
 O bloco Saúde da fonte usa `battery_pct`, `linkquality` e `source_last_seen` já armazenados pelo FLOW. O contexto técnico traduz `analysis_type`, `operational_state` e `ruleset_source`, preservando o ruleset completo. O rodapé é padronizado como **Powered by Seiden One Intelligence**.
+
+## Refinamento de UX/UI — FLOW 0.9.3.2
+
+A versão 0.9.3.2 prioriza clareza comercial e operacional: traduz estados positivos, contextualiza observações pelo período selecionado, trata leituras inválidas de bateria, reduz redundâncias na escala e move o contexto técnico para uma seção expansível. O ruleset passa a ser apresentado de forma curta, mantendo o identificador completo acessível ao usuário técnico.
