@@ -1,3 +1,14 @@
+# 0.9.2.3
+
+- adiciona escala visual progressiva ao EEA Index, de 0 a 100;
+- posiciona marcador proporcional ao índice do período;
+- explicita as faixas Crítico, Desconfortável, Atenção e Confortável;
+- adiciona ajuda contextual sobre cálculo e cobertura do índice;
+- mostra a base observada e a confiabilidade junto ao EEA Index;
+- adiciona escala compacta nos cards da visão de portfólio;
+- padroniza o título visual para `EEA Index`;
+- não altera o schema do banco.
+
 # 0.9.2.2
 
 ## Consolidação de identidades e visão de portfólio
@@ -151,7 +162,21 @@
 
 # Changelog
 
-## 0.9.2.1
+## 0.9.2.2
+
+## Consolidação de identidades e visão de portfólio
+
+- consolida fontes ambientais legadas que diferem apenas por maiúsculas, acentos ou separadores;
+- preserva aliases históricos de `source_id` e `location_id` sem apagar medições do SQLite;
+- usa a identidade mais recente e amigável como identidade canônica nos filtros;
+- inclui o histórico legado ao consultar a fonte canônica;
+- adiciona `GET /api/v1/environment/portfolio`;
+- substitui a análise global sem significado por uma visão individual de todas as fontes;
+- mantém o dashboard analítico completo somente quando um sensor específico é selecionado;
+- não calcula média global de temperatura ou umidade entre ambientes distintos;
+- preserva `DATABASE_SCHEMA_VERSION = 8`, sem migração.
+
+# 0.9.2.1
 
 - corrige o carregamento do EEA após falha HTTP 500 no endpoint agregado;
 - retorna o portal a endpoints ambientais sequenciais e já validados, sem requisições sobrepostas;
@@ -182,7 +207,21 @@
 
 # Changelog
 
-## 0.9.2.1
+## 0.9.2.2
+
+## Consolidação de identidades e visão de portfólio
+
+- consolida fontes ambientais legadas que diferem apenas por maiúsculas, acentos ou separadores;
+- preserva aliases históricos de `source_id` e `location_id` sem apagar medições do SQLite;
+- usa a identidade mais recente e amigável como identidade canônica nos filtros;
+- inclui o histórico legado ao consultar a fonte canônica;
+- adiciona `GET /api/v1/environment/portfolio`;
+- substitui a análise global sem significado por uma visão individual de todas as fontes;
+- mantém o dashboard analítico completo somente quando um sensor específico é selecionado;
+- não calcula média global de temperatura ou umidade entre ambientes distintos;
+- preserva `DATABASE_SCHEMA_VERSION = 8`, sem migração.
+
+# 0.9.2.1
 
 - corrige o carregamento do EEA após falha HTTP 500 no endpoint agregado;
 - retorna o portal a endpoints ambientais sequenciais e já validados, sem requisições sobrepostas;
