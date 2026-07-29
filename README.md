@@ -93,3 +93,14 @@ No endpoint `/api/v1/environment/analytics`, o bloco `current` aplica o mesmo ru
 O dashboard EEA agora permite filtrar as análises por local e por fonte ambiental já observada. Os nomes amigáveis recebidos nos eventos normalizados são preservados pelo FLOW e apresentados no seletor e no resumo de fontes. A rota `GET /api/v1/environment/sources` expõe o catálogo de leitura sem alterar o schema do banco.
 
 A visão inclui a assinatura discreta **Powered by Seiden One Intelligence**.
+
+### Proteções de desempenho
+
+- o dashboard ambiental usa uma única chamada a `GET /api/v1/environment/dashboard`;
+- analytics, timeline e catálogo compartilham cache em memória de 30 segundos;
+- apenas uma atualização pode permanecer ativa por aba;
+- requisições anteriores são canceladas quando o usuário altera filtros;
+- a atualização automática é pausada quando a aba fica oculta;
+- o Gunicorn opera com um worker e quatro threads, reciclando o worker periodicamente para conter crescimento de memória;
+- consultas ambientais com duração acima de 500 ms são registradas como warning.
+

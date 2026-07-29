@@ -1,5 +1,5 @@
 from __future__ import annotations
-import csv,io,json,logging,os
+import csv,io,json,logging,os,threading,time
 from datetime import datetime,timedelta,timezone
 from functools import wraps
 from flask import Flask,Response,abort,jsonify,make_response,redirect,render_template,request
@@ -10,6 +10,39 @@ from service import FlowService
 from version import VERSION,SCHEMA_VERSION,DATABASE_SCHEMA_VERSION
 from environmental_analytics import calculate_environmental_analytics, period_bounds, utc_iso
 settings=load_settings();logging.basicConfig(level=getattr(logging,settings.log_level.upper(),logging.INFO),format='%(asctime)s [%(levelname)s] %(name)s: %(message)s');LOGGER=logging.getLogger('seiden_flow')
+
+_ENV_CACHE_TTL_SECONDS=30
+_ENV_CACHE_MAX_ITEMS=32
+_ENV_CACHE={}
+_ENV_CACHE_LOCK=threading.RLock()
+
+def _env_cache_get(key):
+ now=time.monotonic()
+ with _ENV_CACHE_LOCK:
+  item=_ENV_CACHE.get(key)
+  if not item:return None
+  expires,payload=item
+  if expires<=now:
+   _ENV_CACHE.pop(key,None);return None
+  return payload
+
+def _env_cache_put(key,payload):
+ now=time.monotonic()
+ with _ENV_CACHE_LOCK:
+  expired=[k for k,(expires,_) in _ENV_CACHE.items() if expires<=now]
+  for k in expired:_ENV_CACHE.pop(k,None)
+  if len(_ENV_CACHE)>=_ENV_CACHE_MAX_ITEMS:
+   oldest=next(iter(_ENV_CACHE),None)
+   if oldest is not None:_ENV_CACHE.pop(oldest,None)
+  _ENV_CACHE[key]=(now+_ENV_CACHE_TTL_SECONDS,payload)
+
+def _timed_environment_call(label,fn):
+ started=time.perf_counter()
+ try:return fn()
+ finally:
+  elapsed=time.perf_counter()-started
+  log=LOGGER.warning if elapsed>=0.5 else LOGGER.debug
+  log('%s concluído em %.3f s',label,elapsed)
 app=Flask(__name__);app.config['MAX_CONTENT_LENGTH']=settings.webhook_max_body_mb*1024*1024
 db=FlowDatabase(os.path.join(settings.config_dir,'seiden_flow.db'),settings.organization_id,settings.organization_name,settings.site_id,settings.site_name)
 ha=HomeAssistantClient();service=FlowService(db,ha,settings.publish_summary_to_home_assistant,settings);service.publish_summary();service.start_cleanup(settings.retention_days,settings.cleanup_interval_hours)
@@ -194,12 +227,26 @@ def environment_latest():
 def environment_summary():
  return jsonify({'measurement_count':db.environmental_count(),'latest':db.environmental_latest(),'storage_enabled':settings.environmental_storage_enabled})
 
+def _environment_sources_payload():
+ key=('sources',)
+ payload=_env_cache_get(key)
+ if payload is None:
+  payload=_timed_environment_call('environment.sources',db.environmental_sources_catalog)
+  _env_cache_put(key,payload)
+ return payload
+
 @app.get('/api/v1/environment/sources')
 def environment_sources():
- return jsonify(db.environmental_sources_catalog())
+ return jsonify(_environment_sources_payload())
 
+
+def _environment_request_key(include_timeline=True):
+ return ('analytics',include_timeline,tuple(sorted((k,v) for k in request.args.items())))
 
 def _environment_analytics_payload(include_timeline=True):
+ cache_key=_environment_request_key(include_timeline)
+ cached=_env_cache_get(cache_key)
+ if cached is not None:return cached
  try:
   start,end,period=period_bounds(period=(request.args.get('period') or '24h').strip(),start=(request.args.get('start') or '').strip() or None,end=(request.args.get('end') or '').strip() or None)
   sampling_minutes=max(1,min(60,int(request.args.get('sampling_minutes',1))))
@@ -216,7 +263,28 @@ def _environment_analytics_payload(include_timeline=True):
  result['scope']['source_id']=source_id
  result['scope']['location_id']=location_id
  if not include_timeline:result.pop('timeline',None)
+ _env_cache_put(cache_key,result)
  return result
+
+
+@app.get('/api/v1/environment/dashboard')
+def environment_dashboard():
+ def build():
+  analytics=_environment_analytics_payload(include_timeline=True)
+  return {
+   'analytics':analytics,
+   'timeline':{'period':analytics['period'],'scope':analytics['scope'],'data_quality':analytics['data_quality'],'items':analytics.get('timeline',[])},
+   'catalog':_environment_sources_payload(),
+   'generated_at':datetime.now(timezone.utc).isoformat(),
+   'cache_ttl_seconds':_ENV_CACHE_TTL_SECONDS,
+   'version':VERSION,
+  }
+ key=('dashboard',tuple(sorted((k,v) for k in request.args.items())))
+ payload=_env_cache_get(key)
+ if payload is None:
+  payload=_timed_environment_call('environment.dashboard',build)
+  _env_cache_put(key,payload)
+ return jsonify(payload)
 
 @app.get('/api/v1/environment/analytics')
 def environment_analytics():

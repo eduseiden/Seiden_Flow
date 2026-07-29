@@ -9,6 +9,16 @@
 - adiciona a assinatura `Powered by Seiden One Intelligence`;
 - preserva `DATABASE_SCHEMA_VERSION = 8`, sem migração.
 
+## Performance e estabilidade
+
+- substitui as chamadas paralelas de analytics e timeline por um único endpoint `GET /api/v1/environment/dashboard`;
+- adiciona cache em memória de 30 segundos, limitado a 32 entradas;
+- impede sobreposição de atualizações e cancela requisições obsoletas;
+- pausa o auto refresh quando a aba não está visível;
+- remove o `setInterval`, adotando agendamento somente após a conclusão da atualização anterior;
+- reduz o Gunicorn para quatro threads e adiciona reciclagem preventiva do worker;
+- registra o tempo das consultas ambientais, elevando para warning operações acima de 500 ms.
+
 
 - Adiciona o EEA à área **Inteligência** do painel principal, com acesso direto e resumo das últimas 24 horas.
 - Classifica textualmente o EEA Index médio do período.
