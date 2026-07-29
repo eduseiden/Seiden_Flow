@@ -4,4 +4,4 @@ build_from:
 labels:
   org.opencontainers.image.title: Seiden FLOW
   org.opencontainers.image.description: Operational Data Layer da Seiden Tech
-  org.opencontainers.image.source: https://github.com/eduseiden/Seiden-HA
+  org.opencontainers.image.source: https://github.com/eduseiden/Seiden_Flow
