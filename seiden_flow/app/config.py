@@ -8,6 +8,7 @@ class Settings:
     log_level: str = "info"
     api_key: str = ""
     timezone: str = "America/Sao_Paulo"
+    datetime_format: str = "YYYY-MM-DD HH:mm:ss"
     retention_days: int = 365
     subscribe_home_assistant_events: bool = True
     bridge_event: str = "seiden_bridge_event"
@@ -64,7 +65,7 @@ def load_settings() -> Settings:
     if p.exists(): raw=json.loads(p.read_text(encoding="utf-8"))
     return Settings(
         log_level=str(raw.get("log_level","info")), api_key=str(raw.get("api_key","") or ""),
-        timezone=str(raw.get("timezone","America/Sao_Paulo")), retention_days=int(raw.get("retention_days",365)),
+        timezone=str(raw.get("timezone","America/Sao_Paulo")), datetime_format=str(raw.get("datetime_format","YYYY-MM-DD HH:mm:ss")), retention_days=int(raw.get("retention_days",365)),
         subscribe_home_assistant_events=_bool(raw.get("subscribe_home_assistant_events"),True),
         bridge_event=str(raw.get("bridge_event","seiden_bridge_event")),
         connection_online_event=str(raw.get("connection_online_event","seiden_connection_online")),

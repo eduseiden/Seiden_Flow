@@ -1,4 +1,13 @@
-## 0.6.1.6 — Consolidação definitiva das fontes HEA
+# Changelog
+
+## 0.7.0
+- Adoção do Seiden One Platform Standard v1.0.
+- Fuso de exibição configurável por `timezone`.
+- Formato visual padronizado em `YYYY-MM-DD HH:MM:SS`.
+- Conversão consistente de eventos UTC, AWS, Bridge e Vision nas telas Operação e HEA.
+- Registros históricos sem offset permanecem exibidos sem deslocamento retroativo.
+
+## 0.7.0 — Consolidação definitiva das fontes HEA
 
 - Migração direta dos IDs históricos em `observations` e `observation_aggregates`, independentemente da tabela `sources`.
 - Seleção da fonte canônica pelo nome normalizado, priorizando a fonte operacional do Seiden Bridge.

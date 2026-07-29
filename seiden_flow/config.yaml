@@ -1,7 +1,8 @@
 name: Seiden FLOW
-version: 0.6.1.6
+version: 0.7.0
 slug: seiden_flow
-description: Motor de entendimento operacional do Seiden One, com ocorrências, evidências e soluções de inteligência
+description: Motor de entendimento operacional do Seiden One, conforme Platform Standard
+  v1.0
 url: https://github.com/eduseiden/Seiden-HA
 stage: experimental
 startup: application
@@ -63,6 +64,7 @@ options:
   hea_portal_allowed_origins: []
   hea_public_hostname: ''
   hea_public_restrict_routes: false
+  datetime_format: YYYY-MM-DD HH:mm:ss
 schema:
   log_level: list(debug|info|warning|error|critical)
   api_key: password?
@@ -103,3 +105,4 @@ schema:
   - str
   hea_public_hostname: str?
   hea_public_restrict_routes: bool
+  datetime_format: str

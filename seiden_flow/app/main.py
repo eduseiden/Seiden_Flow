@@ -88,7 +88,7 @@ def require_api_key(fn):
   return fn(*a,**kw)
  return wrapped
 @app.get('/')
-def dashboard():return render_template('dashboard.html',version=VERSION,ingress_path=_ingress_path(),summary=db.summary(),operational=db.operational_summary(),occurrences=db.list_occurrences(limit=50),captured_events=db.list_events(limit=100),people=db.people_inside(),sources=db.sources_state(),ha_status=ha.connection_status,hea=db.hea_summary(24,settings.human_experience_minimum_samples),hea_sources=db.hea_sources(24),hea_history=db.hea_history(24,limit=96),hea_config={'minimum_samples':settings.human_experience_minimum_samples,'window_minutes':settings.human_experience_aggregation_window_minutes,'minimum_confidence':settings.human_experience_minimum_confidence})
+def dashboard():return render_template('dashboard.html',version=VERSION,ingress_path=_ingress_path(),display_timezone=settings.timezone,datetime_format=settings.datetime_format,summary=db.summary(),operational=db.operational_summary(),occurrences=db.list_occurrences(limit=50),captured_events=db.list_events(limit=100),people=db.people_inside(),sources=db.sources_state(),ha_status=ha.connection_status,hea=db.hea_summary(24,settings.human_experience_minimum_samples),hea_sources=db.hea_sources(24),hea_history=db.hea_history(24,limit=96),hea_config={'minimum_samples':settings.human_experience_minimum_samples,'window_minutes':settings.human_experience_aggregation_window_minutes,'minimum_confidence':settings.human_experience_minimum_confidence})
 
 @app.get('/hea')
 def hea_portal():
@@ -102,7 +102,9 @@ def hea_portal():
   refresh_seconds=settings.hea_portal_refresh_seconds,
   show_sources=settings.hea_portal_show_sources,
   version=VERSION,
-  ingress_path=_ingress_path()
+  ingress_path=_ingress_path(),
+  display_timezone=settings.timezone,
+  datetime_format=settings.datetime_format
  )
 
 @app.route('/api/v1/public/hea/dashboard',methods=['GET','OPTIONS'])
