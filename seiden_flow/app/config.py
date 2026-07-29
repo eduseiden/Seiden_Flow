@@ -15,6 +15,8 @@ class Settings:
     connection_online_event: str = "seiden_connection_online"
     connection_offline_event: str = "seiden_connection_offline"
     vision_event: str = "vision.analysis_completed"
+    environment_event: str = "environment.observation"
+    environmental_storage_enabled: bool = True
     publish_summary_to_home_assistant: bool = True
     cleanup_interval_hours: int = 12
     webhook_max_body_mb: int = 5
@@ -71,6 +73,8 @@ def load_settings() -> Settings:
         connection_online_event=str(raw.get("connection_online_event","seiden_connection_online")),
         connection_offline_event=str(raw.get("connection_offline_event","seiden_connection_offline")),
         vision_event=str(raw.get("vision_event","vision.analysis_completed")),
+        environment_event=str(raw.get("environment_event","environment.observation")),
+        environmental_storage_enabled=_bool(raw.get("environmental_storage_enabled"),True),
         publish_summary_to_home_assistant=_bool(raw.get("publish_summary_to_home_assistant"),True),
         cleanup_interval_hours=int(raw.get("cleanup_interval_hours",12)), webhook_max_body_mb=int(raw.get("webhook_max_body_mb",5)),
         organization_id=str(raw.get("organization_id","default_organization")), organization_name=str(raw.get("organization_name","Organização padrão")),

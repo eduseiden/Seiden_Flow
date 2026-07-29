@@ -1,9 +1,9 @@
 name: Seiden FLOW
-version: 0.7.0.1
+version: 0.7.1
 slug: seiden_flow
 description: Motor de entendimento operacional do Seiden One, conforme Platform Standard
   v1.0
-url: https://github.com/eduseiden/Seiden-HA
+url: https://github.com/eduseiden/Seiden_Flow
 stage: experimental
 startup: application
 boot: auto
@@ -35,6 +35,8 @@ options:
   connection_online_event: seiden_connection_online
   connection_offline_event: seiden_connection_offline
   vision_event: vision.analysis_completed
+  environment_event: environment.observation
+  environmental_storage_enabled: true
   publish_summary_to_home_assistant: true
   cleanup_interval_hours: 12
   webhook_max_body_mb: 5
@@ -75,6 +77,8 @@ schema:
   connection_online_event: str
   connection_offline_event: str
   vision_event: str
+  environment_event: str
+  environmental_storage_enabled: bool
   publish_summary_to_home_assistant: bool
   cleanup_interval_hours: int(1,168)
   webhook_max_body_mb: int(1,20)

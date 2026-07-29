@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.1 — Environmental Storage
+- Assinatura nativa do evento `environment.observation` produzido pelo Seiden Vision 0.6.1.
+- Nova persistência `environmental_measurements` para temperatura, umidade, condição, Comfort Score e saúde da fonte.
+- Deduplicação por `event_id` e `source_event_id`, impedindo regravação do mesmo evento ambiental.
+- Validação de contrato, unidades, limites físicos e timestamps UTC antes do armazenamento.
+- Novas APIs internas: `/api/v1/environment/measurements`, `/api/v1/environment/latest` e `/api/v1/environment/summary`.
+- Nenhuma alteração no HEA, nas ocorrências operacionais ou nos cálculos existentes.
+
 ## 0.7.0.1
 - O card **Fontes** do HEA passa a contar fontes canônicas, e não IDs históricos distintos.
 - Observações legadas e atuais com o mesmo nome normalizado e local são consolidadas na métrica e no detalhamento por fonte.

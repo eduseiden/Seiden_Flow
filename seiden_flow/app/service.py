@@ -5,6 +5,7 @@ from database import FlowDatabase
 from ha_client import HomeAssistantClient
 from normalizer import normalize_event
 from observation import extract_vision_observation, sanitize_vision_event
+from environmental import extract_environmental_measurement
 from experience import DEFAULT_EMOTION_WEIGHTS
 LOGGER=logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ class FlowService:
     def ingest(self,payload:dict[str,Any],transport='api',ha_event_type=None):
         original=dict(payload)
         observation=extract_vision_observation(original) if self.settings.observation_engine_enabled and self.settings.human_experience_enabled else None
+        environmental=extract_environmental_measurement(original,ha_event_type) if self.settings.environmental_storage_enabled else None
         if observation:
             payload=sanitize_vision_event(original)
         event=normalize_event(payload,transport=transport,ha_event_type=ha_event_type)
@@ -36,6 +38,12 @@ class FlowService:
                     else:
                         self.db.insert_observation(observation)
                         hea_result=self.db.aggregate_observation_window(observation,self.settings.human_experience_aggregation_window_minutes,self.settings.human_experience_minimum_samples,self.weights)
+                if environmental:
+                    environmental_inserted=self.db.insert_environmental_measurement(environmental)
+                    if environmental_inserted:
+                        LOGGER.info('Medição ambiental armazenada: %s | %.2f °C | %.2f%% | %s',environmental['source_id'],environmental['temperature_c'],environmental['humidity_pct'],environmental['condition'])
+                    else:
+                        LOGGER.info('Medição ambiental duplicada ignorada: %s',environmental['source_event_id'])
                 self.publish_summary();LOGGER.info('Evento ingerido: %s | %s | %s',event['event_type'],event['event_id'],event['source'])
             else:LOGGER.info('Evento duplicado ignorado: %s',event['event_id'])
         event.pop('_flat',None)

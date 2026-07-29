@@ -74,6 +74,36 @@ class FlowDatabase:
             );
             CREATE INDEX IF NOT EXISTS idx_aggregates_metric_period ON observation_aggregates(metric_type,period_start DESC);
             CREATE INDEX IF NOT EXISTS idx_aggregates_source_period ON observation_aggregates(source_id,period_start DESC);
+            CREATE TABLE IF NOT EXISTS environmental_measurements(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id TEXT NOT NULL UNIQUE,
+                source_event_id TEXT NOT NULL UNIQUE,
+                schema_version TEXT NOT NULL,
+                organization_id TEXT NOT NULL,
+                site_id TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                source_name TEXT,
+                location_id TEXT,
+                location_name TEXT,
+                connection_id TEXT,
+                connector TEXT,
+                topic TEXT,
+                occurred_at TEXT NOT NULL,
+                temperature_c REAL NOT NULL,
+                humidity_pct REAL NOT NULL,
+                condition TEXT NOT NULL,
+                comfort_score REAL NOT NULL,
+                confidence REAL NOT NULL,
+                ruleset TEXT,
+                battery_pct REAL,
+                linkquality REAL,
+                source_last_seen TEXT,
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_environmental_time ON environmental_measurements(occurred_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_environmental_source_time ON environmental_measurements(source_id,occurred_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_environmental_location_time ON environmental_measurements(location_id,occurred_at DESC);
             CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,value TEXT NOT NULL);
             """)
             cols={r['name'] for r in c.execute("PRAGMA table_info(events)")}
@@ -581,6 +611,34 @@ class FlowDatabase:
 
     def hea_sources(self, hours=24):
         end=datetime.now(timezone.utc);start=end-timedelta(hours=max(1,hours));return self.hea_query(start.isoformat(),end.isoformat(),1)['sources']
+
+    def insert_environmental_measurement(self, measurement):
+        now=datetime.now(timezone.utc).isoformat()
+        values=(measurement['event_id'],measurement['source_event_id'],measurement['schema_version'],self.organization_id,self.site_id,measurement['source_id'],measurement.get('source_name'),measurement.get('location_id'),measurement.get('location_name'),measurement.get('connection_id'),measurement.get('connector'),measurement.get('topic'),measurement['occurred_at'],measurement['temperature_c'],measurement['humidity_pct'],measurement['condition'],measurement['comfort_score'],measurement['confidence'],measurement.get('ruleset'),measurement.get('battery_pct'),measurement.get('linkquality'),measurement.get('source_last_seen'),json.dumps(measurement.get('payload') or {},ensure_ascii=False),now)
+        with self._lock,self.connect() as c:
+            cur=c.execute("""INSERT OR IGNORE INTO environmental_measurements(event_id,source_event_id,schema_version,organization_id,site_id,source_id,source_name,location_id,location_name,connection_id,connector,topic,occurred_at,temperature_c,humidity_pct,condition,comfort_score,confidence,ruleset,battery_pct,linkquality,source_last_seen,payload_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",values)
+            return cur.rowcount==1
+
+    def environmental_measurements(self, limit=500, source_id=None, location_id=None, start_at=None, end_at=None):
+        where=[];params=[]
+        if source_id:where.append('source_id=?');params.append(source_id)
+        if location_id:where.append('location_id=?');params.append(location_id)
+        if start_at:where.append('occurred_at>=?');params.append(start_at)
+        if end_at:where.append('occurred_at<?');params.append(end_at)
+        sql='SELECT event_id,source_event_id,schema_version,source_id,source_name,location_id,location_name,connection_id,connector,topic,occurred_at,temperature_c,humidity_pct,condition,comfort_score,confidence,ruleset,battery_pct,linkquality,source_last_seen,created_at FROM environmental_measurements'
+        if where:sql+=' WHERE '+' AND '.join(where)
+        sql+=' ORDER BY occurred_at DESC LIMIT ?';params.append(max(1,min(int(limit),5000)))
+        return self._rows(sql,tuple(params))
+
+    def environmental_count(self):
+        with self.connect() as c:return int(c.execute('SELECT COUNT(*) FROM environmental_measurements').fetchone()[0])
+
+    def environmental_latest(self, source_id=None):
+        sql='SELECT event_id,source_event_id,source_id,source_name,location_id,location_name,occurred_at,temperature_c,humidity_pct,condition,comfort_score,confidence,battery_pct,linkquality,source_last_seen FROM environmental_measurements'
+        params=()
+        if source_id:sql+=' WHERE source_id=?';params=(source_id,)
+        sql+=' ORDER BY occurred_at DESC LIMIT 1'
+        rows=self._rows(sql,params);return rows[0] if rows else None
 
     def cleanup(self,days):
         cutoff=(datetime.now(timezone.utc)-timedelta(days=days)).isoformat()

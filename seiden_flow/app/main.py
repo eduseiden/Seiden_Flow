@@ -16,6 +16,8 @@ if settings.subscribe_home_assistant_events:
  event_types=[settings.bridge_event,settings.connection_online_event,settings.connection_offline_event]
  if settings.vision_event:
   event_types.append(settings.vision_event)
+ if settings.environmental_storage_enabled and settings.environment_event:
+  event_types.append(settings.environment_event)
  # Remove duplicidades preservando a ordem de configuração.
  event_types=list(dict.fromkeys(e for e in event_types if e))
  ha.start_event_listener(event_types,lambda t,d:service.ingest(d,transport='home_assistant_event',ha_event_type=t),service.publish_connection)
@@ -170,6 +172,18 @@ def experience_v2():
  if start>=end:abort(400,description='O início deve ser anterior ao fim')
  result=db.hea_query(start.isoformat(),end.isoformat(),settings.human_experience_minimum_samples,service.weights,(request.args.get('source_id') or '').strip() or None,(request.args.get('location_id') or '').strip() or None,96)
  return jsonify({'experience_index':result['summary'],'history':result['history'],'version':VERSION})
+
+@app.get('/api/v1/environment/measurements')
+def environment_measurements():
+ return jsonify({'items':db.environmental_measurements(limit=int(request.args.get('limit',500)),source_id=(request.args.get('source_id') or '').strip() or None,location_id=(request.args.get('location_id') or '').strip() or None,start_at=(request.args.get('start') or '').strip() or None,end_at=(request.args.get('end') or '').strip() or None)})
+
+@app.get('/api/v1/environment/latest')
+def environment_latest():
+ return jsonify({'item':db.environmental_latest((request.args.get('source_id') or '').strip() or None)})
+
+@app.get('/api/v1/environment/summary')
+def environment_summary():
+ return jsonify({'measurement_count':db.environmental_count(),'latest':db.environmental_latest(),'storage_enabled':settings.environmental_storage_enabled})
 
 @app.get('/api/v1/hea/summary')
 def hea_summary():
