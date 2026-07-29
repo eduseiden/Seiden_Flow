@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.1.2 — EEA Current Condition Consistency
+
+- Recalcula `current.condition` com o mesmo ruleset aplicado aos agregados, à timeline e à distribuição.
+- Preserva a condição original do Vision no campo `current.source_condition`.
+- Expõe `current.condition_source` como `eea_ruleset` para rastreabilidade da classificação.
+- Mantém o schema do banco na versão 8, sem migração.
+
 ## 0.8.1.1 — EEA Analytics Consistency
 
 - Deriva a condição dos períodos agregados a partir do `comfort_score` médio.

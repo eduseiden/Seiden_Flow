@@ -96,7 +96,7 @@ def _series_stats(rows: list[dict[str, Any]], field: str) -> dict[str, float | N
 def condition_from_score(score: float | int | None) -> str | None:
     """Deriva a condição ambiental do comfort score agregado.
 
-    Faixas oficiais do EEA 0.8.1.1:
+    Faixas oficiais do EEA 0.8.1.2:
     85–100 comfortable; 70–84.99 attention; 50–69.99 uncomfortable; 0–49.99 critical.
     """
     if score is None:
@@ -203,7 +203,9 @@ def calculate_environmental_analytics(
             "temperature_c": _round(latest.get("temperature_c")),
             "humidity_pct": _round(latest.get("humidity_pct")),
             "comfort_score": _round(latest.get("comfort_score")),
-            "condition": latest.get("condition"),
+            "condition": condition_from_score(latest.get("comfort_score")),
+            "source_condition": latest.get("condition"),
+            "condition_source": "eea_ruleset",
             "confidence": _round(latest.get("confidence")),
         }
 
