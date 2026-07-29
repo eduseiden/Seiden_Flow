@@ -109,3 +109,10 @@ A visão inclui a assinatura discreta **Powered by Seiden One Intelligence**.
 ## Environmental Profiles — FLOW 0.9.3
 
 O FLOW consome os perfis resolvidos pelo Vision e não mantém faixas ambientais próprias. A interface usa `applied_ranges`, `metric_scores`, `analysis_type`, `environmental_score`, `profile_label` e `reason_codes` do evento `environment.observation`. Perfis com `humidity: null` não exibem avaliação de umidade.
+
+
+## Refinamento operacional — FLOW 0.9.3.1
+
+O portal Environmental Intelligence passa a priorizar interpretação operacional: observações do período substituem a cobertura percentual, os motivos são apresentados em português, o motivo principal aparece junto à condição atual, e as barras exibem ideal, atenção e limites críticos. Leituras fora dos limites recebem indicação explícita de extrapolação.
+
+O bloco Saúde da fonte usa `battery_pct`, `linkquality` e `source_last_seen` já armazenados pelo FLOW. O contexto técnico traduz `analysis_type`, `operational_state` e `ruleset_source`, preservando o ruleset completo. O rodapé é padronizado como **Powered by Seiden One Intelligence**.

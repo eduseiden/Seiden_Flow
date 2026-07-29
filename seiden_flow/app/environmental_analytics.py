@@ -221,6 +221,9 @@ def calculate_environmental_analytics(
             "applied_ranges": latest.get("applied_ranges") or {},
             "reason_codes": latest.get("reason_codes") or [],
             "confidence": _round(latest.get("confidence")),
+            "battery_pct": _round(latest.get("battery_pct")),
+            "linkquality": _round(latest.get("linkquality")),
+            "source_last_seen": latest.get("source_last_seen"),
         }
 
     return {

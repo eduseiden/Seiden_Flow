@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.9.3.1
+
+- atualiza o README da raiz para a versão corrente;
+- substitui “Qualidade dos dados” por contagem de observações no período;
+- completa a tradução dos `reason_codes` e adiciona fallback legível;
+- destaca o motivo principal no card de condição atual;
+- detalha faixas ideal, atenção e limites críticos;
+- sinaliza valores abaixo ou acima da escala exibida;
+- traduz tipos de análise, estado operacional e origem das regras;
+- preserva rulesets longos sem truncamento visual;
+- adiciona saúde da fonte com bateria, sinal e último contato;
+- reorganiza a grade para perfis sem umidade;
+- padroniza o rodapé como `Powered by Seiden One Intelligence`;
+- mantém `DATABASE_SCHEMA_VERSION = 9`, sem nova migração.
+
 ## 0.9.3
 
 - adiciona suporte aos perfis ambientais autoritativos do Seiden Vision 0.8.3.1;

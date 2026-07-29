@@ -1,4 +1,4 @@
-# Seiden FLOW 0.9.2.3
+# Seiden FLOW 0.9.3.1
 
 Camada de compreensão do Seiden One. Transforma evidências em entendimento operacional.
 
@@ -109,3 +109,17 @@ A visão inclui a assinatura discreta **Powered by Seiden One Intelligence**.
 ## Environmental Profiles — FLOW 0.9.3
 
 O FLOW consome os perfis resolvidos pelo Vision e não mantém faixas ambientais próprias. A interface usa `applied_ranges`, `metric_scores`, `analysis_type`, `environmental_score`, `profile_label` e `reason_codes` do evento `environment.observation`. Perfis com `humidity: null` não exibem avaliação de umidade.
+
+
+## Refinamento operacional — FLOW 0.9.3.1
+
+A versão 0.9.3.1 refina a apresentação dos perfis ambientais sem duplicar regras do Vision:
+
+- substitui a porcentagem ambígua de qualidade por quantidade de observações no período;
+- traduz todos os motivos conhecidos de classificação e mantém fallback legível;
+- apresenta o motivo principal diretamente na condição atual;
+- exibe ideal, atenção e limites críticos sob cada barra;
+- sinaliza leituras que extrapolam a escala;
+- traduz o contexto técnico e preserva o identificador completo do ruleset sem truncamento;
+- inclui saúde da fonte, com bateria, sinal e último contato;
+- padroniza o rodapé como **Powered by Seiden One Intelligence**.
