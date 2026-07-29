@@ -1,3 +1,14 @@
+# 0.9.2.1
+
+## Correções de estabilidade
+
+- corrige o carregamento do EEA após falha HTTP 500 no endpoint agregado;
+- retorna o portal a endpoints ambientais sequenciais e já validados, sem requisições sobrepostas;
+- mantém cache de 30 segundos, pausa em aba oculta e cancelamento de requisições;
+- torna o catálogo de fontes opcional, evitando que sua falha derrube o painel;
+- adiciona logs completos de exceção ao endpoint agregado;
+- atualiza o rodapé do HEA para `Powered by Seiden One Intelligence`.
+
 # 0.9.2
 
 ## Environmental Sources
@@ -39,8 +50,6 @@
 ## 0.8.1.3
 
 - Hotfix: restaura `SCHEMA_VERSION` e `DATABASE_SCHEMA_VERSION = 8` em `app/version.py`, corrigindo a inicialização do FLOW.
-
-# Changelog
 
 ## 0.8.1.3 — EEA Current Condition Consistency
 
@@ -128,6 +137,16 @@
 
 # Changelog
 
+## 0.9.2.1
+
+- corrige o carregamento do EEA após falha HTTP 500 no endpoint agregado;
+- retorna o portal a endpoints ambientais sequenciais e já validados, sem requisições sobrepostas;
+- mantém cache de 30 segundos, pausa em aba oculta e cancelamento de requisições;
+- torna o catálogo de fontes opcional, evitando que sua falha derrube o painel;
+- adiciona logs completos de exceção ao endpoint agregado;
+- atualiza o rodapé do HEA para `Powered by Seiden One Intelligence`.
+
+
 ## 0.6.1.3 — Operação e Inteligência
 
 - Novo painel principal orientado à operação.
@@ -148,6 +167,16 @@
 - Elimina a dupla contabilização no modo híbrido.
 
 # Changelog
+
+## 0.9.2.1
+
+- corrige o carregamento do EEA após falha HTTP 500 no endpoint agregado;
+- retorna o portal a endpoints ambientais sequenciais e já validados, sem requisições sobrepostas;
+- mantém cache de 30 segundos, pausa em aba oculta e cancelamento de requisições;
+- torna o catálogo de fontes opcional, evitando que sua falha derrube o painel;
+- adiciona logs completos de exceção ao endpoint agregado;
+- atualiza o rodapé do HEA para `Powered by Seiden One Intelligence`.
+
 
 ## 0.5.2.2 — Arquitetura unificada Bridge/Vision
 

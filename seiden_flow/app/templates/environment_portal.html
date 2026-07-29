@@ -46,9 +46,18 @@ async function refresh(force=false){
  const period=document.getElementById('period').value,bucket=document.getElementById('bucket').value,f=selectedFilters(),params=new URLSearchParams({period,bucket_minutes:bucket});
  if(f.location_id)params.set('location_id',f.location_id);if(f.source_id)params.set('source_id',f.source_id);
  try{
-  const r=await fetch(api('/api/v1/environment/dashboard?'+params.toString()),{cache:'no-store',signal:currentController.signal});
-  if(!r.ok)throw new Error(`HTTP ${r.status}`);
-  const payload=await r.json();catalog=payload.catalog||{items:[],locations:[]};populateFilters();render(payload.analytics,payload.timeline);renderSources();st.textContent=`Atualizado ${new Date().toLocaleTimeString('pt-BR')}`;
+  const options={cache:'no-store',signal:currentController.signal};
+  const analyticsResponse=await fetch(api('/api/v1/environment/analytics?'+params.toString()),options);
+  if(!analyticsResponse.ok)throw new Error(`Analytics HTTP ${analyticsResponse.status}`);
+  const analytics=await analyticsResponse.json();
+  const timelineResponse=await fetch(api('/api/v1/environment/timeline?'+params.toString()),options);
+  if(!timelineResponse.ok)throw new Error(`Timeline HTTP ${timelineResponse.status}`);
+  const timeline=await timelineResponse.json();
+  try{
+   const catalogResponse=await fetch(api('/api/v1/environment/sources'),options);
+   catalog=catalogResponse.ok?await catalogResponse.json():{items:[],locations:[]};
+  }catch(catalogError){if(catalogError.name==='AbortError')throw catalogError;catalog={items:[],locations:[]}}
+  populateFilters();render(analytics,timeline);renderSources();st.textContent=`Atualizado ${new Date().toLocaleTimeString('pt-BR')}`;
  }catch(e){if(e.name!=='AbortError')st.textContent=`Falha: ${e.message}`}
  finally{refreshRunning=false;currentController=null;scheduleRefresh()}
 }

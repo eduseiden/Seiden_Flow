@@ -1,10 +1,10 @@
-# Seiden FLOW 0.9.2
+# Seiden FLOW 0.9.2.1
 
 Camada de compreensão do Seiden One. Transforma evidências em entendimento operacional.
 
 ## Environmental Experience Analytics — EEA
 
-A versão 0.9.2 consolida o primeiro motor analítico ambiental do FLOW. As medições brutas continuam preservadas integralmente no banco; para os cálculos, o EEA mantém somente a última leitura de cada fonte em cada janela temporal, evitando que republicações MQTT distorçam médias, tendências e distribuição das condições.
+A versão 0.9.2.1 consolida o primeiro motor analítico ambiental do FLOW. As medições brutas continuam preservadas integralmente no banco; para os cálculos, o EEA mantém somente a última leitura de cada fonte em cada janela temporal, evitando que republicações MQTT distorçam médias, tendências e distribuição das condições.
 
 O fluxo ambiental é:
 
@@ -82,13 +82,13 @@ O portal público do HEA permanece disponível em `/hea`.
 
 ## Consistência dos indicadores agregados
 
-Na versão 0.9.2, a condição exibida nos períodos agregados é derivada do `comfort_score` médio: `comfortable` (85–100), `attention` (70–84,99), `uncomfortable` (50–69,99) e `critical` (0–49,99). A distribuição usa as mesmas faixas. O campo `observed_minutes` representa somente minutos com amostras normalizadas; intervalos sem dados não são tratados como tempo medido.
+Na versão 0.9.2.1, a condição exibida nos períodos agregados é derivada do `comfort_score` médio: `comfortable` (85–100), `attention` (70–84,99), `uncomfortable` (50–69,99) e `critical` (0–49,99). A distribuição usa as mesmas faixas. O campo `observed_minutes` representa somente minutos com amostras normalizadas; intervalos sem dados não são tratados como tempo medido.
 
 ### Consistência da condição atual
 
 No endpoint `/api/v1/environment/analytics`, o bloco `current` aplica o mesmo ruleset do EEA usado na timeline e nos agregados. O valor original recebido do Vision é preservado em `source_condition`, enquanto `condition_source` identifica a classificação oficial como `eea_ruleset`.
 
-## Environmental Experience Analytics 0.9.2
+## Environmental Experience Analytics 0.9.2.1
 
 O dashboard EEA agora permite filtrar as análises por local e por fonte ambiental já observada. Os nomes amigáveis recebidos nos eventos normalizados são preservados pelo FLOW e apresentados no seletor e no resumo de fontes. A rota `GET /api/v1/environment/sources` expõe o catálogo de leitura sem alterar o schema do banco.
 

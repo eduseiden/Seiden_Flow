@@ -240,13 +240,16 @@ def environment_sources():
  return jsonify(_environment_sources_payload())
 
 
-def _environment_request_key(include_timeline=True):
- return ('analytics',include_timeline,tuple(sorted((k,v) for k in request.args.items())))
+def _environment_request_key():
+ return ('analytics_full',tuple(sorted((k,v) for k,v in request.args.items())))
 
 def _environment_analytics_payload(include_timeline=True):
- cache_key=_environment_request_key(include_timeline)
+ cache_key=_environment_request_key()
  cached=_env_cache_get(cache_key)
- if cached is not None:return cached
+ if cached is not None:
+  result=dict(cached)
+  if not include_timeline:result.pop('timeline',None)
+  return result
  try:
   start,end,period=period_bounds(period=(request.args.get('period') or '24h').strip(),start=(request.args.get('start') or '').strip() or None,end=(request.args.get('end') or '').strip() or None)
   sampling_minutes=max(1,min(60,int(request.args.get('sampling_minutes',1))))
@@ -262,29 +265,35 @@ def _environment_analytics_payload(include_timeline=True):
  result['period']['preset']=period
  result['scope']['source_id']=source_id
  result['scope']['location_id']=location_id
- if not include_timeline:result.pop('timeline',None)
  _env_cache_put(cache_key,result)
- return result
+ response=dict(result)
+ if not include_timeline:response.pop('timeline',None)
+ return response
 
 
 @app.get('/api/v1/environment/dashboard')
 def environment_dashboard():
- def build():
-  analytics=_environment_analytics_payload(include_timeline=True)
-  return {
+ # Endpoint agregado mantido para compatibilidade, mas construído de forma defensiva.
+ # O portal usa endpoints sequenciais comprovados para que uma falha no catálogo não
+ # indisponibilize os indicadores ambientais.
+ try:
+  analytics=_timed_environment_call('environment.dashboard.analytics',lambda:_environment_analytics_payload(include_timeline=True))
+  try:
+   catalog=_timed_environment_call('environment.dashboard.sources',_environment_sources_payload)
+  except Exception:
+   LOGGER.exception('Falha ao montar catálogo ambiental; seguindo com catálogo vazio')
+   catalog={'items':[],'locations':[]}
+  return jsonify({
    'analytics':analytics,
    'timeline':{'period':analytics['period'],'scope':analytics['scope'],'data_quality':analytics['data_quality'],'items':analytics.get('timeline',[])},
-   'catalog':_environment_sources_payload(),
+   'catalog':catalog,
    'generated_at':datetime.now(timezone.utc).isoformat(),
    'cache_ttl_seconds':_ENV_CACHE_TTL_SECONDS,
    'version':VERSION,
-  }
- key=('dashboard',tuple(sorted((k,v) for k in request.args.items())))
- payload=_env_cache_get(key)
- if payload is None:
-  payload=_timed_environment_call('environment.dashboard',build)
-  _env_cache_put(key,payload)
- return jsonify(payload)
+  })
+ except Exception:
+  LOGGER.exception('Falha no endpoint agregado do dashboard ambiental')
+  return jsonify({'error':'environment_dashboard_failed','message':'Falha ao montar dashboard ambiental'}),500
 
 @app.get('/api/v1/environment/analytics')
 def environment_analytics():
