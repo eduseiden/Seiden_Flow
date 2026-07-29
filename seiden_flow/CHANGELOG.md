@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.1.1 — EEA Analytics Consistency
+
+- Deriva a condição dos períodos agregados a partir do `comfort_score` médio.
+- Padroniza as faixas do EEA: `comfortable` (85–100), `attention` (70–84,99), `uncomfortable` (50–69,99) e `critical` (0–49,99).
+- Aplica as mesmas faixas à timeline e à distribuição das amostras observadas.
+- Renomeia `estimated_minutes` para `observed_minutes`, evitando interpretar lacunas de cobertura como tempo real medido.
+- Mantém o schema do banco na versão 8, sem migração.
+
 ## 0.8.1 — EEA Analytics Engine
 
 - Introduz o motor Environmental Experience Analytics em `environmental_analytics.py`.

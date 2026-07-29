@@ -92,6 +92,25 @@ def _series_stats(rows: list[dict[str, Any]], field: str) -> dict[str, float | N
     return {"average": _round(fmean(values)), "minimum": _round(min(values)), "maximum": _round(max(values))}
 
 
+
+def condition_from_score(score: float | int | None) -> str | None:
+    """Deriva a condição ambiental do comfort score agregado.
+
+    Faixas oficiais do EEA 0.8.1.1:
+    85–100 comfortable; 70–84.99 attention; 50–69.99 uncomfortable; 0–49.99 critical.
+    """
+    if score is None:
+        return None
+    value = float(score)
+    if value >= 85.0:
+        return "comfortable"
+    if value >= 70.0:
+        return "attention"
+    if value >= 50.0:
+        return "uncomfortable"
+    return "critical"
+
+
 def _timeline(rows: list[dict[str, Any]], bucket_minutes: int) -> list[dict[str, Any]]:
     grouped: dict[datetime, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
@@ -99,10 +118,7 @@ def _timeline(rows: list[dict[str, Any]], bucket_minutes: int) -> list[dict[str,
     result = []
     for start in sorted(grouped):
         items = grouped[start]
-        counts = defaultdict(int)
-        for item in items:
-            counts[str(item.get("condition") or "unknown")] += 1
-        dominant = max(counts, key=counts.get) if counts else None
+        average_score = _series_stats(items, "comfort_score")["average"]
         result.append({
             "start": utc_iso(start),
             "end": utc_iso(start + timedelta(minutes=bucket_minutes)),
@@ -110,8 +126,8 @@ def _timeline(rows: list[dict[str, Any]], bucket_minutes: int) -> list[dict[str,
             "source_count": len({str(item.get("source_id") or "") for item in items}),
             "temperature_c": _series_stats(items, "temperature_c")["average"],
             "humidity_pct": _series_stats(items, "humidity_pct")["average"],
-            "comfort_score": _series_stats(items, "comfort_score")["average"],
-            "condition": dominant,
+            "comfort_score": average_score,
+            "condition": condition_from_score(average_score),
         })
     return result
 
@@ -130,9 +146,9 @@ def calculate_environmental_analytics(
     source_ids = sorted({str(row.get("source_id") or "unknown") for row in normalized})
     latest = max(normalized, key=lambda row: row["_occurred_dt"], default=None)
 
-    condition_counts = {"comfortable": 0, "attention": 0, "uncomfortable": 0}
+    condition_counts = {"comfortable": 0, "attention": 0, "uncomfortable": 0, "critical": 0}
     for row in normalized:
-        condition = str(row.get("condition") or "")
+        condition = condition_from_score(row.get("comfort_score"))
         if condition in condition_counts:
             condition_counts[condition] += 1
     total_condition = sum(condition_counts.values())
@@ -140,7 +156,7 @@ def calculate_environmental_analytics(
     for condition, count in condition_counts.items():
         distribution[condition] = {
             "samples": count,
-            "estimated_minutes": count * sampling_minutes,
+            "observed_minutes": count * sampling_minutes,
             "percentage": _round((count / total_condition * 100.0) if total_condition else 0.0),
         }
 
