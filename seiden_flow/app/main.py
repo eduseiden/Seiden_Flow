@@ -194,6 +194,10 @@ def environment_latest():
 def environment_summary():
  return jsonify({'measurement_count':db.environmental_count(),'latest':db.environmental_latest(),'storage_enabled':settings.environmental_storage_enabled})
 
+@app.get('/api/v1/environment/sources')
+def environment_sources():
+ return jsonify(db.environmental_sources_catalog())
+
 
 def _environment_analytics_payload(include_timeline=True):
  try:

@@ -638,6 +638,36 @@ class FlowDatabase:
         params.append(max(1,min(int(limit),100000)))
         return self._rows(sql,tuple(params))
 
+    def environmental_sources_catalog(self):
+        """Return the environmental sources and locations already observed by FLOW.
+
+        Friendly names are preserved from the normalized events received from Vision/Bridge.
+        No device registry or schema migration is required for this read model.
+        """
+        sql="""
+            SELECT
+                source_id,
+                COALESCE(MAX(NULLIF(source_name,'')),source_id) AS source_name,
+                location_id,
+                COALESCE(MAX(NULLIF(location_name,'')),location_id) AS location_name,
+                COUNT(*) AS measurement_count,
+                MAX(occurred_at) AS latest_at
+            FROM environmental_measurements
+            GROUP BY source_id,location_id
+            ORDER BY COALESCE(MAX(NULLIF(location_name,'')),location_id,''),
+                     COALESCE(MAX(NULLIF(source_name,'')),source_id)
+        """
+        items=self._rows(sql)
+        locations={}
+        for item in items:
+            location_id=item.get('location_id')
+            if location_id and location_id not in locations:
+                locations[location_id]={
+                    'location_id':location_id,
+                    'location_name':item.get('location_name') or location_id
+                }
+        return {'items':items,'locations':list(locations.values())}
+
     def environmental_count(self):
         with self.connect() as c:return int(c.execute('SELECT COUNT(*) FROM environmental_measurements').fetchone()[0])
 

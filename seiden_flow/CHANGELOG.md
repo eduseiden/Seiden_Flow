@@ -1,4 +1,14 @@
-# 0.9.1
+# 0.9.2
+
+## Environmental Sources
+
+- adiciona filtros de EEA por `location_id` e `source_id`;
+- adiciona catálogo de fontes ambientais em `GET /api/v1/environment/sources`;
+- apresenta nomes amigáveis, local, quantidade de medições e última leitura;
+- adiciona seleção direta de uma fonte a partir dos cards do dashboard;
+- adiciona a assinatura `Powered by Seiden One Intelligence`;
+- preserva `DATABASE_SCHEMA_VERSION = 8`, sem migração.
+
 
 - Adiciona o EEA à área **Inteligência** do painel principal, com acesso direto e resumo das últimas 24 horas.
 - Classifica textualmente o EEA Index médio do período.
