@@ -314,6 +314,10 @@ def environment_portfolio():
    'temperature_c':current.get('temperature_c'),'humidity_pct':current.get('humidity_pct'),
    'occurred_at':current.get('occurred_at'),'coverage_pct':result.get('data_quality',{}).get('coverage_pct'),
    'quality_status':result.get('data_quality',{}).get('status'),'observed_minutes':result.get('data_quality',{}).get('sample_count_normalized'),
+   'analysis_type':current.get('analysis_type'),'profile_id':current.get('resolved_profile_id') or current.get('profile_id'),
+   'profile_label':current.get('profile_label'),'environmental_score':current.get('environmental_score'),
+   'operational_state':current.get('operational_state'),'metric_scores':current.get('metric_scores') or {},
+   'applied_ranges':current.get('applied_ranges') or {},'reason_codes':current.get('reason_codes') or [],
   })
  counts={k:sum(1 for x in items if x.get('condition')==k) for k in ('comfortable','attention','uncomfortable','critical')}
  return jsonify({'period':{'start':utc_iso(start),'end':utc_iso(end),'preset':period},'items':items,'counts':counts,'source_count':len(items),'version':VERSION})

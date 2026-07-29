@@ -118,7 +118,7 @@ def _timeline(rows: list[dict[str, Any]], bucket_minutes: int) -> list[dict[str,
     result = []
     for start in sorted(grouped):
         items = grouped[start]
-        average_score = _series_stats(items, "comfort_score")["average"]
+        average_score = _series_stats(items, "environmental_score")["average"] if any(i.get("environmental_score") is not None for i in items) else _series_stats(items, "comfort_score")["average"]
         result.append({
             "start": utc_iso(start),
             "end": utc_iso(start + timedelta(minutes=bucket_minutes)),
@@ -127,6 +127,7 @@ def _timeline(rows: list[dict[str, Any]], bucket_minutes: int) -> list[dict[str,
             "temperature_c": _series_stats(items, "temperature_c")["average"],
             "humidity_pct": _series_stats(items, "humidity_pct")["average"],
             "comfort_score": average_score,
+            "environmental_score": average_score,
             "condition": condition_from_score(average_score),
         })
     return result
@@ -160,9 +161,9 @@ def calculate_environmental_analytics(
             "percentage": _round((count / total_condition * 100.0) if total_condition else 0.0),
         }
 
-    comfort_values = [float(row["comfort_score"]) for row in normalized if row.get("comfort_score") is not None]
+    comfort_values = [float(row.get("environmental_score", row.get("comfort_score"))) for row in normalized if row.get("environmental_score", row.get("comfort_score")) is not None]
     index = _round(fmean(comfort_values)) if comfort_values else None
-    previous_values = [float(row["comfort_score"]) for row in comparison if row.get("comfort_score") is not None]
+    previous_values = [float(row.get("environmental_score", row.get("comfort_score"))) for row in comparison if row.get("environmental_score", row.get("comfort_score")) is not None]
     previous_index = _round(fmean(previous_values)) if previous_values else None
     delta = _round(index - previous_index) if index is not None and previous_index is not None else None
     if delta is None:
@@ -203,9 +204,22 @@ def calculate_environmental_analytics(
             "temperature_c": _round(latest.get("temperature_c")),
             "humidity_pct": _round(latest.get("humidity_pct")),
             "comfort_score": _round(latest.get("comfort_score")),
-            "condition": condition_from_score(latest.get("comfort_score")),
+            "environmental_score": _round(latest.get("environmental_score", latest.get("comfort_score"))),
+            "condition": latest.get("condition") or condition_from_score(latest.get("environmental_score", latest.get("comfort_score"))),
             "source_condition": latest.get("condition"),
-            "condition_source": "eea_ruleset",
+            "condition_source": "vision_profile",
+            "analysis_type": latest.get("analysis_type"),
+            "operational_state": latest.get("operational_state"),
+            "profile_id": latest.get("profile_id"),
+            "resolved_profile_id": latest.get("resolved_profile_id"),
+            "profile_label": latest.get("profile_label"),
+            "profile_fallback": bool(latest.get("profile_fallback")),
+            "profile_customized": bool(latest.get("profile_customized")),
+            "ruleset": latest.get("ruleset"),
+            "ruleset_source": latest.get("ruleset_source"),
+            "metric_scores": latest.get("metric_scores") or {},
+            "applied_ranges": latest.get("applied_ranges") or {},
+            "reason_codes": latest.get("reason_codes") or [],
             "confidence": _round(latest.get("confidence")),
         }
 

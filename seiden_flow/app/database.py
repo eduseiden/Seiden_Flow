@@ -108,6 +108,15 @@ class FlowDatabase:
             CREATE INDEX IF NOT EXISTS idx_environmental_location_time ON environmental_measurements(location_id,occurred_at DESC);
             CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,value TEXT NOT NULL);
             """)
+            env_cols={r['name'] for r in c.execute("PRAGMA table_info(environmental_measurements)")}
+            env_additions={
+                'environmental_score':'REAL', 'analysis_type':'TEXT', 'operational_state':'TEXT',
+                'profile_id':'TEXT', 'resolved_profile_id':'TEXT', 'profile_label':'TEXT',
+                'profile_fallback':'INTEGER NOT NULL DEFAULT 0', 'profile_customized':'INTEGER NOT NULL DEFAULT 0',
+                'ruleset_source':'TEXT', 'metric_scores_json':'TEXT', 'applied_ranges_json':'TEXT', 'reason_codes_json':'TEXT'
+            }
+            for col,definition in env_additions.items():
+                if col not in env_cols:c.execute(f"ALTER TABLE environmental_measurements ADD COLUMN {col} {definition}")
             cols={r['name'] for r in c.execute("PRAGMA table_info(events)")}
             for col in ('organization_id','site_id','source_id','domain_person_id'):
                 if col not in cols:c.execute(f"ALTER TABLE events ADD COLUMN {col} TEXT")
@@ -616,9 +625,9 @@ class FlowDatabase:
 
     def insert_environmental_measurement(self, measurement):
         now=datetime.now(timezone.utc).isoformat()
-        values=(measurement['event_id'],measurement['source_event_id'],measurement['schema_version'],self.organization_id,self.site_id,measurement['source_id'],measurement.get('source_name'),measurement.get('location_id'),measurement.get('location_name'),measurement.get('connection_id'),measurement.get('connector'),measurement.get('topic'),measurement['occurred_at'],measurement['temperature_c'],measurement['humidity_pct'],measurement['condition'],measurement['comfort_score'],measurement['confidence'],measurement.get('ruleset'),measurement.get('battery_pct'),measurement.get('linkquality'),measurement.get('source_last_seen'),json.dumps(measurement.get('payload') or {},ensure_ascii=False),now)
+        values=(measurement['event_id'],measurement['source_event_id'],measurement['schema_version'],self.organization_id,self.site_id,measurement['source_id'],measurement.get('source_name'),measurement.get('location_id'),measurement.get('location_name'),measurement.get('connection_id'),measurement.get('connector'),measurement.get('topic'),measurement['occurred_at'],measurement['temperature_c'],measurement.get('humidity_pct'),measurement['condition'],measurement['comfort_score'],measurement.get('environmental_score',measurement['comfort_score']),measurement.get('analysis_type'),measurement.get('operational_state'),measurement.get('profile_id'),measurement.get('resolved_profile_id'),measurement.get('profile_label'),int(bool(measurement.get('profile_fallback'))),int(bool(measurement.get('profile_customized'))),measurement['confidence'],measurement.get('ruleset'),measurement.get('ruleset_source'),json.dumps(measurement.get('metric_scores') or {},ensure_ascii=False),json.dumps(measurement.get('applied_ranges') or {},ensure_ascii=False),json.dumps(measurement.get('reason_codes') or [],ensure_ascii=False),measurement.get('battery_pct'),measurement.get('linkquality'),measurement.get('source_last_seen'),json.dumps(measurement.get('payload') or {},ensure_ascii=False),now)
         with self._lock,self.connect() as c:
-            cur=c.execute("""INSERT OR IGNORE INTO environmental_measurements(event_id,source_event_id,schema_version,organization_id,site_id,source_id,source_name,location_id,location_name,connection_id,connector,topic,occurred_at,temperature_c,humidity_pct,condition,comfort_score,confidence,ruleset,battery_pct,linkquality,source_last_seen,payload_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",values)
+            cur=c.execute("""INSERT OR IGNORE INTO environmental_measurements(event_id,source_event_id,schema_version,organization_id,site_id,source_id,source_name,location_id,location_name,connection_id,connector,topic,occurred_at,temperature_c,humidity_pct,condition,comfort_score,environmental_score,analysis_type,operational_state,profile_id,resolved_profile_id,profile_label,profile_fallback,profile_customized,confidence,ruleset,ruleset_source,metric_scores_json,applied_ranges_json,reason_codes_json,battery_pct,linkquality,source_last_seen,payload_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",values)
             return cur.rowcount==1
 
     def environmental_measurements(self, limit=500, source_id=None, location_id=None, start_at=None, end_at=None):
@@ -627,10 +636,21 @@ class FlowDatabase:
         if location_id:where.append('location_id=?');params.append(location_id)
         if start_at:where.append('occurred_at>=?');params.append(start_at)
         if end_at:where.append('occurred_at<?');params.append(end_at)
-        sql='SELECT event_id,source_event_id,schema_version,source_id,source_name,location_id,location_name,connection_id,connector,topic,occurred_at,temperature_c,humidity_pct,condition,comfort_score,confidence,ruleset,battery_pct,linkquality,source_last_seen,created_at FROM environmental_measurements'
+        sql='SELECT event_id,source_event_id,schema_version,source_id,source_name,location_id,location_name,connection_id,connector,topic,occurred_at,temperature_c,humidity_pct,condition,comfort_score,environmental_score,analysis_type,operational_state,profile_id,resolved_profile_id,profile_label,profile_fallback,profile_customized,confidence,ruleset,ruleset_source,metric_scores_json,applied_ranges_json,reason_codes_json,battery_pct,linkquality,source_last_seen,created_at FROM environmental_measurements'
         if where:sql+=' WHERE '+' AND '.join(where)
         sql+=' ORDER BY occurred_at DESC LIMIT ?';params.append(max(1,min(int(limit),5000)))
-        return self._rows(sql,tuple(params))
+        return self._decode_environmental_rows(self._rows(sql,tuple(params)))
+
+    @staticmethod
+    def _decode_environmental_rows(rows):
+        for row in rows:
+            for source,target,default in (('metric_scores_json','metric_scores',{}),('applied_ranges_json','applied_ranges',{}),('reason_codes_json','reason_codes',[])):
+                raw=row.pop(source,None)
+                try:row[target]=json.loads(raw) if raw else default
+                except (TypeError,ValueError):row[target]=default
+            row['profile_fallback']=bool(row.get('profile_fallback'))
+            row['profile_customized']=bool(row.get('profile_customized'))
+        return rows
 
     @staticmethod
     def _environment_identity_key(value):
@@ -645,9 +665,9 @@ class FlowDatabase:
             where.append('source_id IN (%s)'%','.join('?' for _ in effective_sources));params.extend(effective_sources)
         if effective_locations:
             where.append('location_id IN (%s)'%','.join('?' for _ in effective_locations));params.extend(effective_locations)
-        sql='SELECT event_id,source_event_id,source_id,source_name,location_id,location_name,occurred_at,temperature_c,humidity_pct,condition,comfort_score,confidence,ruleset,battery_pct,linkquality,source_last_seen FROM environmental_measurements WHERE '+' AND '.join(where)+' ORDER BY occurred_at ASC LIMIT ?'
+        sql='SELECT event_id,source_event_id,source_id,source_name,location_id,location_name,occurred_at,temperature_c,humidity_pct,condition,comfort_score,environmental_score,analysis_type,operational_state,profile_id,resolved_profile_id,profile_label,profile_fallback,profile_customized,confidence,ruleset,ruleset_source,metric_scores_json,applied_ranges_json,reason_codes_json,battery_pct,linkquality,source_last_seen FROM environmental_measurements WHERE '+' AND '.join(where)+' ORDER BY occurred_at ASC LIMIT ?'
         params.append(max(1,min(int(limit),100000)))
-        return self._rows(sql,tuple(params))
+        return self._decode_environmental_rows(self._rows(sql,tuple(params)))
 
     def environmental_sources_catalog(self):
         """Return a canonical environmental catalog while preserving legacy aliases.
@@ -657,7 +677,7 @@ class FlowDatabase:
         and location identifiers remain available as aliases so analytics can include them.
         """
         rows=self._rows("""
-            SELECT source_id,source_name,location_id,location_name,occurred_at
+            SELECT source_id,source_name,location_id,location_name,occurred_at,resolved_profile_id,profile_label,analysis_type
             FROM environmental_measurements
             ORDER BY occurred_at ASC
         """)
@@ -683,6 +703,9 @@ class FlowDatabase:
                 'source_aliases':sorted(group['source_ids']),
                 'location_aliases':sorted(group['location_ids']),
                 'identity_key':key,
+                'profile_id':latest.get('resolved_profile_id'),
+                'profile_label':latest.get('profile_label'),
+                'analysis_type':latest.get('analysis_type'),
             }
             items.append(item)
         items.sort(key=lambda x:((x.get('location_name') or '').lower(),(x.get('source_name') or '').lower()))
@@ -706,11 +729,11 @@ class FlowDatabase:
         with self.connect() as c:return int(c.execute('SELECT COUNT(*) FROM environmental_measurements').fetchone()[0])
 
     def environmental_latest(self, source_id=None):
-        sql='SELECT event_id,source_event_id,source_id,source_name,location_id,location_name,occurred_at,temperature_c,humidity_pct,condition,comfort_score,confidence,battery_pct,linkquality,source_last_seen FROM environmental_measurements'
+        sql='SELECT event_id,source_event_id,source_id,source_name,location_id,location_name,occurred_at,temperature_c,humidity_pct,condition,comfort_score,environmental_score,analysis_type,operational_state,profile_id,resolved_profile_id,profile_label,profile_fallback,profile_customized,confidence,ruleset,ruleset_source,metric_scores_json,applied_ranges_json,reason_codes_json,battery_pct,linkquality,source_last_seen FROM environmental_measurements'
         params=()
         if source_id:sql+=' WHERE source_id=?';params=(source_id,)
         sql+=' ORDER BY occurred_at DESC LIMIT 1'
-        rows=self._rows(sql,params);return rows[0] if rows else None
+        rows=self._decode_environmental_rows(self._rows(sql,params));return rows[0] if rows else None
 
     def cleanup(self,days):
         cutoff=(datetime.now(timezone.utc)-timedelta(days=days)).isoformat()

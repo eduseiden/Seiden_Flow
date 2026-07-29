@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-VALID_CONDITIONS = {"comfortable", "attention", "uncomfortable"}
+VALID_CONDITIONS = {"comfortable", "attention", "uncomfortable", "critical", "optimal"}
 
 
 def _utc_iso(value: Any) -> str:
@@ -56,16 +56,19 @@ def extract_environmental_measurement(payload: dict[str, Any], ha_event_type: st
         raise ValueError("source_id ambiental ausente")
 
     temperature_c = _number(temperature.get("value"), "temperature", -100.0, 150.0)
-    humidity_pct = _number(humidity.get("value"), "humidity", 0.0, 100.0)
+    humidity_pct = None
+    if humidity and humidity.get("value") is not None:
+        humidity_pct = _number(humidity.get("value"), "humidity", 0.0, 100.0)
     if str(temperature.get("unit") or "").lower() not in {"celsius", "°c", "c"}:
         raise ValueError("unidade de temperatura ambiental não suportada")
-    if str(humidity.get("unit") or "").lower() not in {"percent", "%", "percentage"}:
+    if humidity_pct is not None and str(humidity.get("unit") or "").lower() not in {"percent", "%", "percentage"}:
         raise ValueError("unidade de umidade ambiental não suportada")
 
     condition = str(analysis.get("condition") or "").strip().lower()
     if condition not in VALID_CONDITIONS:
         raise ValueError("condition ambiental inválida")
-    comfort_score = _number(analysis.get("comfort_score"), "comfort_score", 0.0, 100.0)
+    environmental_score = _number(analysis.get("environmental_score", analysis.get("comfort_score")), "environmental_score", 0.0, 100.0)
+    comfort_score = _number(analysis.get("comfort_score", environmental_score), "comfort_score", 0.0, 100.0)
     confidence = _number(analysis.get("confidence"), "confidence", 0.0, 1.0)
 
     battery = source_health.get("battery_pct")
@@ -86,6 +89,18 @@ def extract_environmental_measurement(payload: dict[str, Any], ha_event_type: st
         "humidity_pct": humidity_pct,
         "condition": condition,
         "comfort_score": comfort_score,
+        "environmental_score": environmental_score,
+        "analysis_type": str(analysis.get("analysis_type") or "human_comfort").strip(),
+        "operational_state": str(analysis.get("operational_state") or condition).strip().lower(),
+        "profile_id": str(analysis.get("profile_id") or origin.get("profile_id") or "").strip() or None,
+        "resolved_profile_id": str(analysis.get("resolved_profile_id") or origin.get("resolved_profile_id") or analysis.get("profile_id") or origin.get("profile_id") or "").strip() or None,
+        "profile_label": str(analysis.get("profile_label") or "").strip() or None,
+        "profile_fallback": bool(analysis.get("profile_fallback", False)),
+        "profile_customized": bool(analysis.get("profile_customized", False)),
+        "ruleset_source": str(analysis.get("ruleset_source") or "").strip() or None,
+        "metric_scores": analysis.get("metric_scores") if isinstance(analysis.get("metric_scores"), dict) else {},
+        "applied_ranges": analysis.get("applied_ranges") if isinstance(analysis.get("applied_ranges"), dict) else {},
+        "reason_codes": analysis.get("reason_codes") if isinstance(analysis.get("reason_codes"), list) else [],
         "confidence": confidence,
         "ruleset": str(analysis.get("ruleset") or "").strip() or None,
         "battery_pct": float(battery) if battery is not None else None,

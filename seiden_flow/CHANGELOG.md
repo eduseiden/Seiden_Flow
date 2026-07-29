@@ -1,3 +1,16 @@
+# Changelog
+
+## 0.9.3
+
+- adiciona suporte aos perfis ambientais autoritativos do Seiden Vision 0.8.3.1;
+- armazena `analysis_type`, `environmental_score`, `operational_state`, perfil resolvido, faixas aplicadas, scores por métrica e motivos;
+- aceita a condição `critical` emitida pelo Vision;
+- diferencia conforto humano, conformidade ambiental e leitura informativa;
+- oculta umidade quando o perfil possui `humidity: null`;
+- apresenta barras visuais usando exclusivamente `applied_ranges`;
+- atualiza a visão de portfólio com perfil, condição e score ambiental;
+- migra o banco para o schema 9 sem recriar a base existente.
+
 # 0.9.2.3
 
 - adiciona escala visual progressiva ao EEA Index, de 0 a 100;

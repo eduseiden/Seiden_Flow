@@ -104,3 +104,8 @@ A visão inclui a assinatura discreta **Powered by Seiden One Intelligence**.
 - o Gunicorn opera com um worker e quatro threads, reciclando o worker periodicamente para conter crescimento de memória;
 - consultas ambientais com duração acima de 500 ms são registradas como warning.
 
+
+
+## Environmental Profiles — FLOW 0.9.3
+
+O FLOW consome os perfis resolvidos pelo Vision e não mantém faixas ambientais próprias. A interface usa `applied_ranges`, `metric_scores`, `analysis_type`, `environmental_score`, `profile_label` e `reason_codes` do evento `environment.observation`. Perfis com `humidity: null` não exibem avaliação de umidade.
