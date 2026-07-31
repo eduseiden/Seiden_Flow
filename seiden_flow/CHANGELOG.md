@@ -1,3 +1,11 @@
+## 0.10.3
+
+- Reposiciona o filtro de período junto ao resumo histórico do EEA.
+- Mantém Local e Sensor como filtros globais no topo da página.
+- Exibe o intervalo efetivamente analisado.
+- Inclui identidade visual discreta da Seiden One no cabeçalho.
+- Preserva a estrutura, o schema e a compatibilidade de publicação da versão anterior.
+
 # Changelog
 
 ## 0.10.2
