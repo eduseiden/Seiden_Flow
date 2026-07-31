@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.2
+
+- Hotfix: restaura `SCHEMA_VERSION = "2.0"` e `DATABASE_SCHEMA_VERSION = 9` em `app/version.py`.
+- Corrige a falha de boot do Gunicorn causada por `ImportError` na inicialização.
+- Mantém integralmente os ajustes de UX/UI da versão 0.10.1.
+- Nenhuma alteração no schema do banco de dados ou na estrutura de publicação.
+
 ## 0.10.1
 
 - Reorganiza o EEA para apresentar **Estado atual** no início da visão detalhada.

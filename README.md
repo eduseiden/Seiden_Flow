@@ -1,4 +1,4 @@
-# Seiden FLOW 0.10.1
+# Seiden FLOW 0.10.2
 
 Camada de compreensão do Seiden One. Transforma evidências em entendimento operacional.
 
