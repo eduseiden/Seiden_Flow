@@ -1,3 +1,9 @@
+## 0.10.3.1
+
+- Move a identidade visual da Seiden One do cabeçalho para o rodapé.
+- Mantém o texto “Powered by Seiden One Intelligence” à esquerda e posiciona o logo à direita.
+- Melhora o equilíbrio visual do cabeçalho sem alterar funcionalidades, dados ou estrutura de publicação.
+
 ## 0.10.3
 
 - Reposiciona o filtro de período junto ao resumo histórico do EEA.
