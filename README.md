@@ -1,4 +1,4 @@
-# Seiden FLOW 0.9.3.2
+# Seiden FLOW 0.10.0
 
 Camada de compreensão do Seiden One. Transforma evidências em entendimento operacional.
 
@@ -124,6 +124,6 @@ A versão 0.9.3.1 refina a apresentação dos perfis ambientais sem duplicar reg
 - inclui saúde da fonte, com bateria, sinal e último contato;
 - padroniza o rodapé como **Powered by Seiden One Intelligence**.
 
-## Refinamento de UX/UI — FLOW 0.9.3.2
+## Refinamento de UX/UI — FLOW 0.10.0
 
-A versão 0.9.3.2 prioriza clareza comercial e operacional: traduz estados positivos, contextualiza observações pelo período selecionado, trata leituras inválidas de bateria, reduz redundâncias na escala e move o contexto técnico para uma seção expansível. O ruleset passa a ser apresentado de forma curta, mantendo o identificador completo acessível ao usuário técnico.
+A versão 0.10.0 prioriza clareza comercial e operacional: traduz estados positivos, contextualiza observações pelo período selecionado, trata leituras inválidas de bateria, reduz redundâncias na escala e move o contexto técnico para uma seção expansível. O ruleset passa a ser apresentado de forma curta, mantendo o identificador completo acessível ao usuário técnico.

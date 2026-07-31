@@ -117,6 +117,6 @@ O portal Environmental Intelligence passa a priorizar interpretação operaciona
 
 O bloco Saúde da fonte usa `battery_pct`, `linkquality` e `source_last_seen` já armazenados pelo FLOW. O contexto técnico traduz `analysis_type`, `operational_state` e `ruleset_source`, preservando o ruleset completo. O rodapé é padronizado como **Powered by Seiden One Intelligence**.
 
-## Refinamento de UX/UI — FLOW 0.9.3.2
+## Refinamento de UX/UI — FLOW 0.10.0
 
-A versão 0.9.3.2 prioriza clareza comercial e operacional: traduz estados positivos, contextualiza observações pelo período selecionado, trata leituras inválidas de bateria, reduz redundâncias na escala e move o contexto técnico para uma seção expansível. O ruleset passa a ser apresentado de forma curta, mantendo o identificador completo acessível ao usuário técnico.
+A versão 0.10.0 prioriza clareza comercial e operacional: traduz estados positivos, contextualiza observações pelo período selecionado, trata leituras inválidas de bateria, reduz redundâncias na escala e move o contexto técnico para uma seção expansível. O ruleset passa a ser apresentado de forma curta, mantendo o identificador completo acessível ao usuário técnico.

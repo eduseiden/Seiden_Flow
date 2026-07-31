@@ -348,7 +348,9 @@ def environment_dashboard():
 
 @app.get('/api/v1/environment/analytics')
 def environment_analytics():
- return jsonify(_environment_analytics_payload(include_timeline=False))
+ # 0.10.0: analytics passa a entregar também a série temporal utilizada pelo portal.
+ # Campo aditivo, mantendo compatibilidade com consumidores das versões anteriores.
+ return jsonify(_environment_analytics_payload(include_timeline=True))
 
 @app.get('/api/v1/environment/timeline')
 def environment_timeline():

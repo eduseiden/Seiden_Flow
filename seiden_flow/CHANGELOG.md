@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.10.0
+
+- EEA evolui de fotografia instantânea para **Environmental Experience Analytics** histórico.
+- Mantém o bloco de estado atual e adiciona resumo real do período selecionado.
+- Exibe EEA médio, mínimo e máximo no período.
+- Exibe temperatura e umidade médias, mínimas e máximas.
+- Exibe cobertura, quantidade de amostras e comparação determinística com o período anterior.
+- Adiciona evolução temporal de temperatura, umidade e EEA Index.
+- Adiciona distribuição percentual por faixa de experiência ambiental.
+- O endpoint `/api/v1/environment/analytics` passa a incluir a timeline de forma aditiva e retrocompatível.
+- Nenhuma alteração na estrutura do add-on, no banco de dados ou no formato de publicação.
+
 ## 0.9.3.2
 
 - traduz estados positivos como `within_optimal_range` para “Dentro da faixa ideal”;
