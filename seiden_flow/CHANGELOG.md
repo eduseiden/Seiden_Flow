@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.10.1
+
+- Reorganiza o EEA para apresentar **Estado atual** no início da visão detalhada.
+- Mantém a leitura instantânea e suas faixas antes da análise histórica.
+- Substitui o gráfico combinado por três cards independentes: EEA Index, temperatura e umidade.
+- Aplica escala e unidade próprias a cada gráfico, eliminando sobreposição e ambiguidade visual.
+- Exibe a média do período no cabeçalho de cada gráfico.
+- Adapta os três gráficos para uma coluna em telas menores.
+- Oculta o gráfico de umidade quando o perfil não avalia essa métrica.
+- Preserva estrutura do add-on, banco, endpoints e compatibilidade de publicação.
+
 ## 0.10.0
 
 - EEA evolui de fotografia instantânea para **Environmental Experience Analytics** histórico.
