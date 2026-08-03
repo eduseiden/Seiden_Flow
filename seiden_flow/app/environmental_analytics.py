@@ -5,6 +5,8 @@ from datetime import datetime, timedelta, timezone
 from statistics import fmean
 from typing import Any, Iterable
 
+from profile_classification import classify_profile_value, validate_envelopes
+
 VALID_PERIODS = {
     "1h": timedelta(hours=1),
     "6h": timedelta(hours=6),
@@ -224,6 +226,24 @@ def calculate_environmental_analytics(
             "battery_pct": _round(latest.get("battery_pct")),
             "linkquality": _round(latest.get("linkquality")),
             "source_last_seen": latest.get("source_last_seen"),
+            "metric_classifications": {
+                "temperature": classify_profile_value(
+                    latest.get("temperature_c"),
+                    (latest.get("applied_ranges") or {}).get("temperature"),
+                ),
+                "humidity": classify_profile_value(
+                    latest.get("humidity_pct"),
+                    (latest.get("applied_ranges") or {}).get("humidity"),
+                ) if (latest.get("applied_ranges") or {}).get("humidity") is not None else None,
+            },
+            "profile_validation": {
+                "temperature": validate_envelopes(
+                    (latest.get("applied_ranges") or {}).get("temperature")
+                ),
+                "humidity": validate_envelopes(
+                    (latest.get("applied_ranges") or {}).get("humidity")
+                ) if (latest.get("applied_ranges") or {}).get("humidity") is not None else None,
+            },
         }
 
     return {

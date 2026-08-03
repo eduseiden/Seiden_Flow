@@ -1,6 +1,18 @@
-# Seiden FLOW 0.11.5.1
+# Seiden FLOW 0.11.6
 
 Camada de compreensão do **Seiden One**. O FLOW recebe eventos e evidências normalizadas, preserva o histórico e transforma dados operacionais em análises para pessoas, ambientes e ativos térmicos.
+
+
+## Classificação progressiva dos perfis
+
+O Flow preserva integralmente as chaves autoritativas `optimal`, `attention` e `critical`, mas traduz seus envelopes em quatro estados operacionais:
+
+- **Ideal:** dentro da faixa recomendada (`optimal`);
+- **Atenção:** fora da faixa recomendada, mas dentro da tolerância temporária (`attention`);
+- **Alerta elevado:** fora da tolerância temporária, mas ainda dentro dos limites operacionais (`critical`);
+- **Crítico:** fora dos limites operacionais definidos por `critical`.
+
+A mesma interpretação é utilizada no EEA e no TCA para temperatura e, quando aplicável, umidade. O JSON autoritativo não é alterado.
 
 ## Módulos analíticos
 
@@ -36,7 +48,7 @@ Portal:
 
 Introduzido na linha 0.11.x para analisar ativos que mantêm itens em condições térmicas controladas, como geladeiras, freezers, adegas, cervejeiras e câmaras frias.
 
-A versão 0.11.5.1 oferece:
+A versão 0.11.6 oferece:
 
 - cadastro genérico de ativos térmicos;
 - perfis TCA carregados do `environmental_profiles.json` autoritativo;
@@ -128,7 +140,7 @@ O Vision permanece como autoridade dos perfis. Customizações específicas de a
 
 ## Persistência e compatibilidade
 
-- versão do FLOW: `0.11.5.1`;
+- versão do FLOW: `0.11.6`;
 - Platform Schema: `2.0`;
 - Database Schema: `11`;
 - migrações aditivas;

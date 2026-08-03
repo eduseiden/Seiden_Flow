@@ -257,9 +257,11 @@ def calculate_tca(rows, asset, bindings, start, end):
     current_door = latest["door"]["text_value"] if latest["door"] else "unknown"
     current_temp = latest["temperature"]["numeric_value"] if latest["temperature"] else None
     trend, slope = _temperature_trend(temp_rows)
-    in_optimal = current_temp is not None and _in_range(float(current_temp), optimal.get("min"), optimal.get("max"))
-    in_attention = current_temp is not None and _in_range(float(current_temp), attention.get("min"), attention.get("max"))
-    in_critical = current_temp is not None and _in_range(float(current_temp), critical.get("min"), critical.get("max"))
+    thermal_classification = classify_profile_value(current_temp, ranges)
+    profile_validation = validate_envelopes(ranges)
+    in_optimal = thermal_classification.get("level") == "ideal"
+    in_attention = thermal_classification.get("level") in {"ideal", "attention"}
+    in_critical = thermal_classification.get("level") in {"ideal", "attention", "elevated_alert"}
     recovering_direction = False
     if current_temp is not None:
         if optimal.get("max") is not None and float(current_temp) > float(optimal["max"]):
@@ -274,8 +276,10 @@ def calculate_tca(rows, asset, bindings, start, end):
         state = "stable"
     elif in_attention and recovering_direction:
         state = "recovering"
-    elif in_attention:
+    elif thermal_classification.get("level") == "attention":
         state = "attention"
+    elif thermal_classification.get("level") == "elevated_alert":
+        state = "elevated_alert"
     else:
         state = "critical"
 
@@ -315,6 +319,8 @@ def calculate_tca(rows, asset, bindings, start, end):
             "in_critical": in_critical,
             "trend": trend,
             "trend_c_per_min": rnd(slope, 3),
+            "thermal_classification": thermal_classification,
+            "profile_validation": profile_validation,
             "last_update": max((r["occurred_at"] for r in rows), default=None),
         },
         "summary": {

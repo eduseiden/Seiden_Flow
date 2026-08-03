@@ -1,9 +1,9 @@
-# Seiden FLOW 0.11.5.1 — Documentação técnica
+# Seiden FLOW 0.11.6 — Documentação técnica
 
 ## Identificação
 
 - Serviço: `seiden_flow`
-- Versão: `0.11.5.1`
+- Versão: `0.11.6`
 - Platform Schema: `2.0`
 - Database Schema: `11`
 - Porta interna: `8100`
@@ -14,6 +14,28 @@
 O FLOW é a camada de entendimento operacional do Seiden One. Ele recebe eventos normalizados, preserva medições, agrega períodos, correlaciona fontes e expõe portais e APIs analíticas.
 
 O módulo não deve depender de marcas ou devices específicos. A origem pode ser MQTT, Home Assistant, APIs, bancos ou outras conexões do Bridge.
+
+
+## Classificador compartilhado de perfis
+
+O módulo `profile_classification.py` centraliza a interpretação dos envelopes ambientais para EEA e TCA. Ele não altera o contrato do Vision nem o `environmental_profiles.json`.
+
+Semântica:
+
+- `optimal`: faixa recomendada;
+- `attention`: envelope de tolerância temporária;
+- `critical`: limites operacionais externos;
+- valor fora de `critical`: condição crítica.
+
+Estados derivados: `ideal`, `attention`, `elevated_alert` e `critical`.
+
+O classificador também valida a ordem:
+
+```text
+critical.min <= attention.min <= optimal.min <= optimal.max <= attention.max <= critical.max
+```
+
+Perfis incompletos ou fora dessa ordem são marcados como inválidos, sem classificação silenciosa.
 
 ## HEA
 

@@ -1,3 +1,16 @@
+## 0.11.6
+
+- Cria um classificador compartilhado de perfis ambientais para EEA e TCA.
+- Preserva as chaves autoritativas `optimal`, `attention` e `critical` sem alterar o JSON do Vision.
+- Traduz os três envelopes em quatro estados: Ideal, Atenção, Alerta elevado e Crítico.
+- Define `critical` como limite operacional externo; a condição crítica ocorre fora desses limites.
+- Adiciona direção da ocorrência: abaixo ou acima das faixas e limites.
+- Valida a ordem e a integridade dos envelopes antes de classificar.
+- EEA passa a mostrar a classificação progressiva individual de temperatura e umidade, com linguagem de faixa recomendada, tolerância temporária e limites operacionais.
+- TCA passa a usar a mesma classificação progressiva no estado térmico e na visão consolidada.
+- Adiciona régua visual de sete zonas e marcador da leitura atual no perfil TCA.
+- Mantém HEA, schemas e banco de dados sem alteração.
+
 ## 0.11.5.1
 
 - Corrige a abertura do editor em lote de sensores.
