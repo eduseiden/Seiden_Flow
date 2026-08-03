@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.2.1
+
+- Corrige o botão **Cancelar** do cadastro de ativo TCA, que era bloqueado pela validação HTML do campo obrigatório.
+- Corrige o botão **Fechar** da associação de sensores pelo mesmo motivo.
+- Os dois controles agora são botões explícitos de interface e fecham seus respectivos diálogos sem submeter formulários.
+
 ## 0.11.2
 
 - Cataloga eventos MQTT genéricos usando identidade estável derivada de conexão e tópico.
