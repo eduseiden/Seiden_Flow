@@ -9,6 +9,8 @@ from ha_client import HomeAssistantClient
 from service import FlowService
 from version import VERSION,SCHEMA_VERSION,DATABASE_SCHEMA_VERSION
 from environmental_analytics import calculate_environmental_analytics, period_bounds, utc_iso
+from tca import extract_tca_measurements
+from tca_analytics import calculate_tca
 settings=load_settings();logging.basicConfig(level=getattr(logging,settings.log_level.upper(),logging.INFO),format='%(asctime)s [%(levelname)s] %(name)s: %(message)s');LOGGER=logging.getLogger('seiden_flow')
 
 _ENV_CACHE_TTL_SECONDS=30
@@ -133,6 +135,12 @@ def environment_portal():
 @app.get('/intelligence/environment')
 def environment_intelligence_alias():
  return environment_portal()
+
+@app.get('/tca')
+def tca_portal():return render_template('tca_portal.html',version=VERSION,ingress_path=_ingress_path(),display_timezone=settings.timezone)
+
+@app.get('/intelligence/tca')
+def tca_intelligence_alias():return tca_portal()
 
 @app.get('/hea')
 def hea_portal():
@@ -356,6 +364,52 @@ def environment_analytics():
 def environment_timeline():
  payload=_environment_analytics_payload(include_timeline=True)
  return jsonify({'period':payload['period'],'scope':payload['scope'],'data_quality':payload['data_quality'],'items':payload['timeline']})
+
+@app.get('/api/v1/tca/assets')
+def tca_assets():return jsonify({'items':db.tca_assets()})
+@app.post('/api/v1/tca/assets')
+def tca_create_asset():
+ try:return jsonify(db.tca_upsert_asset(request.get_json(force=True))),201
+ except ValueError as exc:abort(400,description=str(exc))
+@app.get('/api/v1/tca/assets/<asset_id>')
+def tca_asset(asset_id):
+ item=db.tca_asset(asset_id)
+ if not item:abort(404)
+ return jsonify(item)
+@app.put('/api/v1/tca/assets/<asset_id>')
+def tca_update_asset(asset_id):
+ data=request.get_json(force=True);data['asset_id']=asset_id
+ try:return jsonify(db.tca_upsert_asset(data))
+ except ValueError as exc:abort(400,description=str(exc))
+@app.delete('/api/v1/tca/assets/<asset_id>')
+def tca_remove_asset(asset_id):return ('',204) if db.tca_delete_asset(asset_id) else abort(404)
+@app.post('/api/v1/tca/assets/<asset_id>/bindings')
+def tca_add_binding(asset_id):
+ try:return jsonify({'items':db.tca_upsert_binding(asset_id,request.get_json(force=True))}),201
+ except ValueError as exc:abort(400,description=str(exc))
+@app.delete('/api/v1/tca/bindings/<binding_id>')
+def tca_remove_binding(binding_id):return ('',204) if db.tca_delete_binding(binding_id) else abort(404)
+@app.get('/api/v1/tca/sources')
+def tca_sources():return jsonify({'items':db.tca_source_catalog()})
+@app.post('/api/v1/tca/measurements')
+def tca_measurement_ingest():
+ payload=request.get_json(force=True);items=extract_tca_measurements(payload)
+ if not items:abort(400,description='Nenhuma medição TCA reconhecida')
+ return jsonify({'accepted':db.insert_tca_measurements(items),'recognized':len(items)}),201
+@app.get('/api/v1/tca/assets/<asset_id>/analytics')
+def tca_asset_analytics(asset_id):
+ asset=db.tca_asset(asset_id)
+ if not asset:abort(404)
+ try:start,end,period=period_bounds(period=(request.args.get('period') or '24h'),start=request.args.get('start'),end=request.args.get('end'))
+ except ValueError as exc:abort(400,description=str(exc))
+ rows=db.tca_measurements(asset_id,utc_iso(start),utc_iso(end));result=calculate_tca(rows,asset,asset.get('bindings') or [],start,end);result['period']['preset']=period
+ return jsonify(result)
+@app.get('/api/v1/tca/dashboard')
+def tca_dashboard():
+ assets=db.tca_assets();items=[]
+ for asset in assets:
+  end=datetime.now(timezone.utc);start=end-timedelta(hours=24);rows=db.tca_measurements(asset['asset_id'],utc_iso(start),utc_iso(end));result=calculate_tca(rows,asset,asset.get('bindings') or [],start,end);items.append({'asset':asset,'current':result['current'],'summary':result['summary']})
+ return jsonify({'items':items,'version':VERSION})
 
 @app.get('/api/v1/hea/summary')
 def hea_summary():

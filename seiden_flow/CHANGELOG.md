@@ -1,3 +1,12 @@
+## 0.11.0
+
+- Introduz o Thermal Control Analytics (TCA 0.1).
+- Cadastro genérico de ativos térmicos e associação dinâmica de fontes.
+- Suporte a múltiplos sensores de temperatura, umidade opcional, portas e métricas elétricas.
+- Episódios de abertura, impacto térmico, recuperação e energia estimada.
+- Novo portal `/tca` e API `/api/v1/tca`.
+- Nenhum acoplamento a fabricante, protocolo ou entidade específica.
+
 ## 0.10.3.1
 
 - Move a identidade visual da Seiden One do cabeçalho para o rodapé.

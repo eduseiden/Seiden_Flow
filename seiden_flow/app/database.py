@@ -106,6 +106,26 @@ class FlowDatabase:
             CREATE INDEX IF NOT EXISTS idx_environmental_time ON environmental_measurements(occurred_at DESC);
             CREATE INDEX IF NOT EXISTS idx_environmental_source_time ON environmental_measurements(source_id,occurred_at DESC);
             CREATE INDEX IF NOT EXISTS idx_environmental_location_time ON environmental_measurements(location_id,occurred_at DESC);
+            CREATE TABLE IF NOT EXISTS tca_assets(
+                asset_id TEXT PRIMARY KEY, organization_id TEXT NOT NULL, site_id TEXT NOT NULL,
+                name TEXT NOT NULL, asset_type TEXT NOT NULL DEFAULT 'custom', profile_id TEXT NOT NULL DEFAULT 'custom',
+                min_temperature_c REAL, max_temperature_c REAL, humidity_enabled INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'active', metadata_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS tca_bindings(
+                binding_id TEXT PRIMARY KEY, asset_id TEXT NOT NULL, source_id TEXT NOT NULL, source_name TEXT,
+                kind TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'main', is_primary INTEGER NOT NULL DEFAULT 0,
+                enabled INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                FOREIGN KEY(asset_id) REFERENCES tca_assets(asset_id) ON DELETE CASCADE
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_tca_binding_unique ON tca_bindings(asset_id,source_id,kind,role);
+            CREATE TABLE IF NOT EXISTS tca_measurements(
+                id INTEGER PRIMARY KEY AUTOINCREMENT, measurement_id TEXT NOT NULL UNIQUE, event_id TEXT,
+                asset_id TEXT, source_id TEXT NOT NULL, source_name TEXT, kind TEXT NOT NULL, role TEXT,
+                occurred_at TEXT NOT NULL, numeric_value REAL, text_value TEXT, unit TEXT, payload_json TEXT NOT NULL, created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_tca_asset_time ON tca_measurements(asset_id,occurred_at);
+            CREATE INDEX IF NOT EXISTS idx_tca_source_time ON tca_measurements(source_id,occurred_at);
             CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,value TEXT NOT NULL);
             """)
             env_cols={r['name'] for r in c.execute("PRAGMA table_info(environmental_measurements)")}
@@ -734,6 +754,74 @@ class FlowDatabase:
         if source_id:sql+=' WHERE source_id=?';params=(source_id,)
         sql+=' ORDER BY occurred_at DESC LIMIT 1'
         rows=self._decode_environmental_rows(self._rows(sql,params));return rows[0] if rows else None
+
+
+    def tca_upsert_asset(self,data):
+        now=datetime.now(timezone.utc).isoformat();asset_id=self._slug(data.get('asset_id') or data.get('name'))
+        if not asset_id or not data.get('name'):raise ValueError('asset_id e nome são obrigatórios')
+        with self._lock,self.connect() as c:
+            c.execute("""INSERT INTO tca_assets(asset_id,organization_id,site_id,name,asset_type,profile_id,min_temperature_c,max_temperature_c,humidity_enabled,status,metadata_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(asset_id) DO UPDATE SET name=excluded.name,asset_type=excluded.asset_type,profile_id=excluded.profile_id,min_temperature_c=excluded.min_temperature_c,max_temperature_c=excluded.max_temperature_c,humidity_enabled=excluded.humidity_enabled,status=excluded.status,metadata_json=excluded.metadata_json,updated_at=excluded.updated_at""",(asset_id,self.organization_id,self.site_id,str(data['name']),str(data.get('asset_type') or 'custom'),str(data.get('profile_id') or data.get('asset_type') or 'custom'),data.get('min_temperature_c'),data.get('max_temperature_c'),int(bool(data.get('humidity_enabled'))),str(data.get('status') or 'active'),json.dumps(data.get('metadata') or {},ensure_ascii=False),now,now))
+        return self.tca_asset(asset_id)
+
+    def tca_assets(self):
+        rows=self._rows("SELECT * FROM tca_assets ORDER BY name")
+        for r in rows:r['humidity_enabled']=bool(r['humidity_enabled']);r['metadata']=json.loads(r.pop('metadata_json') or '{}');r['bindings']=self.tca_bindings(r['asset_id'])
+        return rows
+
+    def tca_asset(self,asset_id):
+        rows=self._rows("SELECT * FROM tca_assets WHERE asset_id=?",(asset_id,))
+        if not rows:return None
+        r=rows[0];r['humidity_enabled']=bool(r['humidity_enabled']);r['metadata']=json.loads(r.pop('metadata_json') or '{}');r['bindings']=self.tca_bindings(asset_id);return r
+
+    def tca_delete_asset(self,asset_id):
+        with self._lock,self.connect() as c:return c.execute('DELETE FROM tca_assets WHERE asset_id=?',(asset_id,)).rowcount>0
+
+    def tca_upsert_binding(self,asset_id,data):
+        import uuid
+        if not self.tca_asset(asset_id):raise ValueError('ativo TCA inexistente')
+        kind=str(data.get('kind') or '').lower();source_id=str(data.get('source_id') or '').strip();role=str(data.get('role') or 'main').strip()
+        if kind not in {'temperature','humidity','door','power','voltage','current','energy'} or not source_id:raise ValueError('source_id/kind inválido')
+        binding_id=str(data.get('binding_id') or f'bnd_{uuid.uuid4().hex}')
+        now=datetime.now(timezone.utc).isoformat()
+        with self._lock,self.connect() as c:
+            c.execute("""INSERT INTO tca_bindings(binding_id,asset_id,source_id,source_name,kind,role,is_primary,enabled,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(asset_id,source_id,kind,role) DO UPDATE SET source_name=excluded.source_name,is_primary=excluded.is_primary,enabled=excluded.enabled,updated_at=excluded.updated_at""",(binding_id,asset_id,source_id,data.get('source_name'),kind,role,int(bool(data.get('is_primary'))),int(data.get('enabled',True)),now,now))
+        return self.tca_bindings(asset_id)
+
+    def tca_bindings(self,asset_id=None):
+        sql='SELECT * FROM tca_bindings';params=()
+        if asset_id:sql+=' WHERE asset_id=?';params=(asset_id,)
+        sql+=' ORDER BY kind,role,source_id';rows=self._rows(sql,params)
+        for r in rows:r['is_primary']=bool(r['is_primary']);r['enabled']=bool(r['enabled'])
+        return rows
+
+    def tca_delete_binding(self,binding_id):
+        with self._lock,self.connect() as c:return c.execute('DELETE FROM tca_bindings WHERE binding_id=?',(binding_id,)).rowcount>0
+
+    def insert_tca_measurements(self,measurements):
+        count=0;now=datetime.now(timezone.utc).isoformat()
+        with self._lock,self.connect() as c:
+            for m in measurements:
+                asset_id=m.get('asset_id');role=m.get('role') or 'main'
+                if not asset_id:
+                    b=c.execute("SELECT asset_id,role FROM tca_bindings WHERE source_id=? AND kind=? AND enabled=1 ORDER BY is_primary DESC LIMIT 1",(m['source_id'],m['kind'])).fetchone()
+                    if not b:continue
+                    asset_id=b['asset_id'];role=b['role']
+                cur=c.execute("""INSERT OR IGNORE INTO tca_measurements(measurement_id,event_id,asset_id,source_id,source_name,kind,role,occurred_at,numeric_value,text_value,unit,payload_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",(m['measurement_id'],m.get('event_id'),asset_id,m['source_id'],m.get('source_name'),m['kind'],role,m['occurred_at'],m.get('numeric_value'),m.get('text_value'),m.get('unit'),json.dumps(m.get('payload') or {},ensure_ascii=False),now))
+                count+=cur.rowcount
+        return count
+
+    def tca_measurements(self,asset_id,start_at,end_at,limit=100000):
+        return self._rows("SELECT measurement_id,event_id,asset_id,source_id,source_name,kind,role,occurred_at,numeric_value,text_value,unit FROM tca_measurements WHERE asset_id=? AND occurred_at>=? AND occurred_at<? ORDER BY occurred_at ASC LIMIT ?",(asset_id,start_at,end_at,limit))
+
+    def tca_source_catalog(self):
+        catalog={}
+        for r in self._rows("SELECT source_id,MAX(source_name) source_name,MAX(occurred_at) last_seen FROM tca_measurements GROUP BY source_id"):
+            catalog[r['source_id']]={'source_id':r['source_id'],'source_name':r.get('source_name') or r['source_id'],'last_seen':r['last_seen'],'kinds':[]}
+        for r in self._rows("SELECT source_id,kind FROM tca_measurements GROUP BY source_id,kind"):
+            catalog.setdefault(r['source_id'],{'source_id':r['source_id'],'source_name':r['source_id'],'last_seen':None,'kinds':[]})['kinds'].append(r['kind'])
+        for r in self.environmental_sources_catalog().get('items',[]):
+            key=r.get('source_id');catalog.setdefault(key,{'source_id':key,'source_name':r.get('source_name') or key,'last_seen':r.get('latest_occurred_at'),'kinds':['temperature','humidity']})
+        return sorted(catalog.values(),key=lambda x:x['source_name'])
 
     def cleanup(self,days):
         cutoff=(datetime.now(timezone.utc)-timedelta(days=days)).isoformat()

@@ -6,6 +6,7 @@ from ha_client import HomeAssistantClient
 from normalizer import normalize_event
 from observation import extract_vision_observation, sanitize_vision_event
 from environmental import extract_environmental_measurement
+from tca import extract_tca_measurements
 from experience import DEFAULT_EMOTION_WEIGHTS
 LOGGER=logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ class FlowService:
         original=dict(payload)
         observation=extract_vision_observation(original) if self.settings.observation_engine_enabled and self.settings.human_experience_enabled else None
         environmental=extract_environmental_measurement(original,ha_event_type) if self.settings.environmental_storage_enabled else None
+        tca_measurements=extract_tca_measurements(original,ha_event_type)
         if observation:
             payload=sanitize_vision_event(original)
         event=normalize_event(payload,transport=transport,ha_event_type=ha_event_type)
@@ -44,6 +46,9 @@ class FlowService:
                         LOGGER.info('Medição ambiental armazenada: %s | %.2f °C | %.2f%% | %s',environmental['source_id'],environmental['temperature_c'],environmental['humidity_pct'],environmental['condition'])
                     else:
                         LOGGER.info('Medição ambiental duplicada ignorada: %s',environmental['source_event_id'])
+                if tca_measurements:
+                    tca_inserted=self.db.insert_tca_measurements(tca_measurements)
+                    if tca_inserted:LOGGER.info('TCA armazenou %s medição(ões)',tca_inserted)
                 self.publish_summary();LOGGER.info('Evento ingerido: %s | %s | %s',event['event_type'],event['event_id'],event['source'])
             else:LOGGER.info('Evento duplicado ignorado: %s',event['event_id'])
         event.pop('_flat',None)
