@@ -1,4 +1,11 @@
-## 0.11.6.1
+## 0.11.6.2
+
+- Simplifica a apresentação das faixas no EEA e no TCA.
+- EEA usa linguagem de conforto para perfis humanos e linguagem técnica para os demais perfis.
+- Faixas aninhadas passam a ser exibidas como zonas reais, recolhidas em detalhes.
+- Estado atual e posição na faixa ganham prioridade visual.
+
+## 0.11.6.2
 
 - Corrige falha 500 nas APIs do TCA causada pela ausência da importação do classificador compartilhado em `tca_analytics.py`.
 - Mantém inalterada a classificação progressiva de quatro estados no EEA e no TCA.
