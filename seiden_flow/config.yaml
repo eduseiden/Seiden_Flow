@@ -1,5 +1,5 @@
 name: Seiden FLOW
-version: 0.11.0
+version: 0.11.1
 slug: seiden_flow
 description: Motor de entendimento operacional do Seiden One, conforme Platform Standard
   v1.0
@@ -25,6 +25,8 @@ panel_title: Seiden FLOW
 map:
 - type: addon_config
   read_only: false
+- type: homeassistant_config
+  read_only: true
 options:
   log_level: info
   api_key: ''

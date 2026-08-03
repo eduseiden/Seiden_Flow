@@ -1,76 +1,88 @@
-# Seiden FLOW 0.10.3.1
+# Seiden FLOW 0.11.1
 
-Camada de compreensão do Seiden One. Transforma evidências em entendimento operacional.
+Camada de compreensão do **Seiden One**. O FLOW recebe eventos e evidências normalizadas, preserva o histórico e transforma dados operacionais em análises para pessoas, ambientes e ativos térmicos.
 
-## Environmental Experience Analytics — EEA
+## Módulos analíticos
 
-A versão 0.9.2.3 consolida o primeiro motor analítico ambiental do FLOW. As medições brutas continuam preservadas integralmente no banco; para os cálculos, o EEA mantém somente a última leitura de cada fonte em cada janela temporal, evitando que republicações MQTT distorçam médias, tendências e distribuição das condições.
+### HEA — Human Experience Analytics
 
-O fluxo ambiental é:
-
-```text
-MQTT → Seiden Bridge → Seiden Vision → environment.observation → Seiden FLOW → EEA
-```
-
-### Indicadores calculados
-
-- EEA Index médio de 0 a 100;
-- condição e leitura ambiental atuais;
-- médias, mínimos e máximos de temperatura, umidade e Comfort Score;
-- distribuição entre `comfortable`, `attention` e `uncomfortable`;
-- comparação com o período imediatamente anterior;
-- tendência `improving`, `stable`, `worsening` ou `insufficient_data`;
-- melhor e pior intervalo analítico;
-- qualidade dos dados, cobertura, confiança e amostras brutas/normalizadas.
-
-### APIs ambientais
-
-- `GET /api/v1/environment/measurements`
-- `GET /api/v1/environment/latest`
-- `GET /api/v1/environment/summary`
-- `GET /api/v1/environment/analytics`
-- `GET /api/v1/environment/timeline`
-
-### Filtros do EEA
-
-Os endpoints analíticos aceitam:
-
-- `period`: `1h`, `6h`, `12h`, `24h`, `7d` ou `30d`;
-- `start` e `end`: intervalo UTC personalizado em ISO 8601;
-- `source_id` e `location_id`;
-- `sampling_minutes`: janela de normalização, de 1 a 60 minutos;
-- `bucket_minutes`: agrupamento da timeline, de 1 a 1440 minutos.
-
-Exemplos:
+Analisa sinais humanos agregados e anônimos produzidos pelo Seiden Vision. O portal permanece disponível em:
 
 ```text
-/api/v1/environment/analytics?period=24h
-/api/v1/environment/analytics?location_id=escritorio&period=7d
-/api/v1/environment/timeline?period=24h&bucket_minutes=15
+/hea
 ```
 
-O dashboard público do EEA permanece planejado para uma versão posterior.
+### EEA — Environmental Experience Analytics
 
-## Environmental Storage
+Analisa conforto e experiência ambiental para pessoas, combinando temperatura, umidade, perfis ambientais e evolução histórica.
 
-O armazenamento nativo do evento `environment.observation` preserva:
+Principais recursos:
 
-- temperatura em Celsius e umidade relativa;
-- condição ambiental, Comfort Score, confiança e ruleset;
-- fonte, local, conexão e tópico MQTT;
-- bateria, qualidade do enlace e último contato;
-- correlação por `source_event_id`.
+- estado ambiental atual;
+- médias, mínimos e máximos do período;
+- EEA Index e distribuição das condições;
+- comparação com o período anterior;
+- gráficos independentes de índice, temperatura e umidade;
+- filtros por local, sensor e período;
+- uso dos perfis ambientais resolvidos pelo Seiden Vision.
 
-O FLOW impede duplicidades técnicas por `event_id` e `source_event_id`.
+Portal:
 
-## Operação e Inteligência
+```text
+/environment
+```
 
-O painel principal permanece separado em:
+### TCA — Thermal Control Analytics
 
-- **Operação**: ocorrências, pessoas no local, fontes e enriquecimentos do Vision;
-- **Inteligência**: catálogo das soluções analíticas, incluindo HEA e EEA.
+Introduzido na linha 0.11.x para analisar ativos que mantêm itens em condições térmicas controladas, como geladeiras, freezers, adegas, cervejeiras e câmaras frias.
 
-O portal público do HEA permanece disponível em `/hea`.
+A versão 0.11.1 oferece:
+
+- cadastro genérico de ativos térmicos;
+- perfis TCA carregados do `environmental_profiles.json` autoritativo;
+- seleção de perfis com `analysis_type: environmental_compliance`;
+- associação visual de fontes já observadas pelo Bridge;
+- suporte a múltiplos sensores de temperatura e umidade;
+- associação de porta, potência, tensão, corrente e energia;
+- papéis por fonte, como fundo, porta, centro, produto e ambiente externo;
+- fonte principal de temperatura;
+- episódios de abertura, impacto térmico e recuperação;
+- catálogo persistente de fontes ainda não associadas.
+
+Portal:
+
+```text
+/tca
+```
+
+## Arquitetura
+
+```text
+Devices e sistemas
+        ↓
+Seiden Bridge
+        ↓
+Seiden Vision, quando houver enriquecimento
+        ↓
+Seiden FLOW
+        ├── HEA
+        ├── EEA
+        └── TCA
+```
+
+O FLOW trabalha com eventos, capacidades e contexto. Regras analíticas não ficam presas a marcas, protocolos, tópicos MQTT ou nomes de entidades.
+
+## Perfis ambientais e térmicos
+
+O FLOW lê, em modo somente leitura, o arquivo mantido pelo Seiden Vision:
+
+```text
+/homeassistant/seiden_vision/environmental_profiles.json
+```
+
+Dentro do contêiner do add-on, a configuração do Home Assistant é montada em `/homeassistant`. Caso o arquivo não esteja disponível, o TCA usa perfis internos de contingência para geladeira, freezer, adega e cervejeira.
+
+O Vision permanece como autoridade dos perfis. Customizações específicas de ativos ficam no banco do FLOW.
 
 ## Eventos consumidos
 
@@ -80,50 +92,59 @@ O portal público do HEA permanece disponível em `/hea`.
 - `vision.analysis_completed`
 - `environment.observation`
 
-## Consistência dos indicadores agregados
+## Principais rotas
 
-Na versão 0.9.2.3, a condição exibida nos períodos agregados é derivada do `comfort_score` médio: `comfortable` (85–100), `attention` (70–84,99), `uncomfortable` (50–69,99) e `critical` (0–49,99). A distribuição usa as mesmas faixas. O campo `observed_minutes` representa somente minutos com amostras normalizadas; intervalos sem dados não são tratados como tempo medido.
+### Portais
 
-### Consistência da condição atual
+- `/` — dashboard principal;
+- `/hea` — Human Experience Analytics;
+- `/environment` — Environmental Experience Analytics;
+- `/tca` — Thermal Control Analytics.
 
-No endpoint `/api/v1/environment/analytics`, o bloco `current` aplica o mesmo ruleset do EEA usado na timeline e nos agregados. O valor original recebido do Vision é preservado em `source_condition`, enquanto `condition_source` identifica a classificação oficial como `eea_ruleset`.
+### APIs TCA
 
-## Environmental Experience Analytics 0.9.2.3
+- `GET /api/v1/tca/profiles`
+- `GET /api/v1/tca/sources`
+- `GET|POST /api/v1/tca/assets`
+- `GET|POST /api/v1/tca/assets/{asset_id}/bindings`
+- `GET /api/v1/tca/assets/{asset_id}/analytics`
+- `POST /api/v1/tca/measurements`
+- `GET /api/v1/tca/dashboard`
 
-O dashboard EEA agora permite filtrar as análises por local e por fonte ambiental já observada. Os nomes amigáveis recebidos nos eventos normalizados são preservados pelo FLOW e apresentados no seletor e no resumo de fontes. A rota `GET /api/v1/environment/sources` expõe o catálogo de leitura sem alterar o schema do banco.
+### APIs ambientais
 
-A visão inclui a assinatura discreta **Powered by Seiden One Intelligence**.
+- `GET /api/v1/environment/sources`
+- `GET /api/v1/environment/measurements`
+- `GET /api/v1/environment/latest`
+- `GET /api/v1/environment/summary`
+- `GET /api/v1/environment/analytics`
+- `GET /api/v1/environment/timeline`
+- `GET /api/v1/environment/dashboard`
 
-### Proteções de desempenho
+## Persistência e compatibilidade
 
-- o dashboard ambiental usa uma única chamada a `GET /api/v1/environment/dashboard`;
-- analytics, timeline e catálogo compartilham cache em memória de 30 segundos;
-- apenas uma atualização pode permanecer ativa por aba;
-- requisições anteriores são canceladas quando o usuário altera filtros;
-- a atualização automática é pausada quando a aba fica oculta;
-- o Gunicorn opera com um worker e quatro threads, reciclando o worker periodicamente para conter crescimento de memória;
-- consultas ambientais com duração acima de 500 ms são registradas como warning.
+- versão do FLOW: `0.11.1`;
+- Platform Schema: `2.0`;
+- Database Schema: `11`;
+- migrações aditivas;
+- ativos e associações criados na 0.11.0 são preservados;
+- HEA e EEA permanecem independentes do TCA;
+- dados históricos existentes não são recriados ou apagados.
 
+## Instalação e atualização
 
+O repositório segue o formato de add-on do Home Assistant. Após publicar os arquivos no GitHub, atualize o repositório de add-ons e instale ou atualize o **Seiden FLOW**.
 
-## Environmental Profiles — FLOW 0.9.3
+Antes de substituir uma versão em produção, mantenha backup da pasta de dados do add-on. Após a atualização, valide:
 
-O FLOW consome os perfis resolvidos pelo Vision e não mantém faixas ambientais próprias. A interface usa `applied_ranges`, `metric_scores`, `analysis_type`, `environmental_score`, `profile_label` e `reason_codes` do evento `environment.observation`. Perfis com `humidity: null` não exibem avaliação de umidade.
+1. inicialização sem erros;
+2. dashboard principal;
+3. `/hea`;
+4. `/environment`;
+5. `/tca`;
+6. preservação dos dados históricos.
 
+## Seiden One
 
-## Refinamento operacional — FLOW 0.9.3.1
-
-A versão 0.9.3.1 refina a apresentação dos perfis ambientais sem duplicar regras do Vision:
-
-- substitui a porcentagem ambígua de qualidade por quantidade de observações no período;
-- traduz todos os motivos conhecidos de classificação e mantém fallback legível;
-- apresenta o motivo principal diretamente na condição atual;
-- exibe ideal, atenção e limites críticos sob cada barra;
-- sinaliza leituras que extrapolam a escala;
-- traduz o contexto técnico e preserva o identificador completo do ruleset sem truncamento;
-- inclui saúde da fonte, com bateria, sinal e último contato;
-- padroniza o rodapé como **Powered by Seiden One Intelligence**.
-
-## Refinamento de UX/UI — FLOW 0.10.0
-
-A versão 0.10.0 prioriza clareza comercial e operacional: traduz estados positivos, contextualiza observações pelo período selecionado, trata leituras inválidas de bateria, reduz redundâncias na escala e move o contexto técnico para uma seção expansível. O ruleset passa a ser apresentado de forma curta, mantendo o identificador completo acessível ao usuário técnico.
+**Every Operation Tells a Story.**  
+*From events to operational intelligence.*

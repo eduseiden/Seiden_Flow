@@ -1,10 +1,11 @@
 # 0.11.1
 
-- Perfis TCA carregados do environmental_profiles.json autoritativo.
-- Cadastro simplificado por nome e perfil térmico.
-- Catálogo persistente de fontes observadas pelo Bridge, inclusive antes da associação.
-- Associação visual de fontes por capacidades, sem digitação de Source ID.
-- Suporte simplificado a múltiplas métricas e múltiplos sensores por ativo.
+- Cadastro TCA orientado por perfis e capacidades, sem digitação obrigatória de Source ID.
+- Perfis `environmental_compliance` lidos do arquivo autoritativo do Seiden Vision, com fallback interno.
+- Catálogo persistente de fontes observadas e associação visual de múltiplas métricas.
+- Manifesto corrigido para `version: 0.11.1`.
+- Montagem `homeassistant_config` adicionada em modo somente leitura para acesso aos perfis do Vision.
+- README e documentação técnica atualizados para HEA, EEA e TCA.
 - Compatibilidade preservada com ativos e bindings da 0.11.0.
 
 ## 0.11.0
