@@ -1,3 +1,9 @@
+## 0.11.6.1
+
+- Corrige falha 500 nas APIs do TCA causada pela ausência da importação do classificador compartilhado em `tca_analytics.py`.
+- Mantém inalterada a classificação progressiva de quatro estados no EEA e no TCA.
+- Não altera banco de dados, schemas ou configuração dos ativos.
+
 ## 0.11.6
 
 - Cria um classificador compartilhado de perfis ambientais para EEA e TCA.

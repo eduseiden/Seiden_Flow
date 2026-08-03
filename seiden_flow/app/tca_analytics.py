@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone, timedelta
 from statistics import fmean
 
+from profile_classification import classify_profile_value, validate_envelopes
+
 OBSERVATION_WINDOW_MINUTES = 30
 MEASURABLE_IMPACT_C = 0.2
 ACCESS_SESSION_GAP_SECONDS = 60
