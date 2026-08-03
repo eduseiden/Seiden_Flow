@@ -1,6 +1,11 @@
+## 0.11.5.1
+
+- Corrige a abertura do editor em lote de sensores.
+- Amplia o filtro TCA para 1h, 6h, 12h, 24h, 7d e 30d.
+
 # Changelog
 
-## 0.11.5
+## 0.11.5.1
 
 - TCA adaptativo por capacidades: a interface exibe apenas análises compatíveis com os sensores conectados.
 - Recuperação térmica geral sem sensor de porta, com causa explicitamente não identificada.
