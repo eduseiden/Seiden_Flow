@@ -1,9 +1,9 @@
-# Seiden FLOW 0.11.2.1 — Documentação técnica
+# Seiden FLOW 0.11.3 — Documentação técnica
 
 ## Identificação
 
 - Serviço: `seiden_flow`
-- Versão: `0.11.2.1`
+- Versão: `0.11.3`
 - Platform Schema: `2.0`
 - Database Schema: `11`
 - Porta interna: `8100`

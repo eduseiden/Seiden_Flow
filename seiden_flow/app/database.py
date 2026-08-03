@@ -812,7 +812,12 @@ class FlowDatabase:
         binding_id=str(data.get('binding_id') or f'bnd_{uuid.uuid4().hex}')
         now=datetime.now(timezone.utc).isoformat()
         with self._lock,self.connect() as c:
-            c.execute("""INSERT INTO tca_bindings(binding_id,asset_id,source_id,source_name,kind,role,is_primary,enabled,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(asset_id,source_id,kind,role) DO UPDATE SET source_name=excluded.source_name,is_primary=excluded.is_primary,enabled=excluded.enabled,updated_at=excluded.updated_at""",(binding_id,asset_id,source_id,data.get('source_name'),kind,role,int(bool(data.get('is_primary'))),int(data.get('enabled',True)),now,now))
+            is_primary=bool(data.get('is_primary'))
+            if kind=='temperature':
+                existing_primary=c.execute("SELECT 1 FROM tca_bindings WHERE asset_id=? AND kind='temperature' AND is_primary=1 AND enabled=1 LIMIT 1",(asset_id,)).fetchone()
+                if not existing_primary:is_primary=True
+                if is_primary:c.execute("UPDATE tca_bindings SET is_primary=0,updated_at=? WHERE asset_id=? AND kind='temperature'",(now,asset_id))
+            c.execute("""INSERT INTO tca_bindings(binding_id,asset_id,source_id,source_name,kind,role,is_primary,enabled,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(asset_id,source_id,kind,role) DO UPDATE SET source_name=excluded.source_name,is_primary=excluded.is_primary,enabled=excluded.enabled,updated_at=excluded.updated_at""",(binding_id,asset_id,source_id,data.get('source_name'),kind,role,int(is_primary),int(data.get('enabled',True)),now,now))
         return self.tca_bindings(asset_id)
 
     def tca_bindings(self,asset_id=None):

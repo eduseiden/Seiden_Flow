@@ -404,6 +404,14 @@ def tca_measurement_ingest():
 def tca_asset_analytics(asset_id):
  asset=db.tca_asset(asset_id)
  if not asset:abort(404)
+ # Reapply the authoritative profile on read unless explicit overrides exist.
+ # This also repairs assets created by the technical MVP with legacy manual limits.
+ if not (asset.get('metadata') or {}).get('profile_overrides'):
+  try:
+   refreshed=resolve_tca_asset({'asset_id':asset_id,'name':asset['name'],'asset_type':asset.get('asset_type'),'profile_id':asset.get('profile_id'),'status':asset.get('status'),'metadata':asset.get('metadata') or {}},settings.config_dir)
+   asset=db.tca_upsert_asset(refreshed)
+  except ValueError:
+   LOGGER.warning('Perfil autoritativo indisponível para ativo TCA %s; usando snapshot persistido',asset_id)
  try:start,end,period=period_bounds(period=(request.args.get('period') or '24h'),start=request.args.get('start'),end=request.args.get('end'))
  except ValueError as exc:abort(400,description=str(exc))
  rows=db.tca_measurements(asset_id,utc_iso(start),utc_iso(end));result=calculate_tca(rows,asset,asset.get('bindings') or [],start,end);result['period']['preset']=period
