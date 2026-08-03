@@ -11,6 +11,7 @@ from version import VERSION,SCHEMA_VERSION,DATABASE_SCHEMA_VERSION
 from environmental_analytics import calculate_environmental_analytics, period_bounds, utc_iso
 from tca import extract_tca_measurements
 from tca_analytics import calculate_tca
+from tca_profiles import load_tca_profiles,resolve_tca_asset
 settings=load_settings();logging.basicConfig(level=getattr(logging,settings.log_level.upper(),logging.INFO),format='%(asctime)s [%(levelname)s] %(name)s: %(message)s');LOGGER=logging.getLogger('seiden_flow')
 
 _ENV_CACHE_TTL_SECONDS=30
@@ -365,11 +366,14 @@ def environment_timeline():
  payload=_environment_analytics_payload(include_timeline=True)
  return jsonify({'period':payload['period'],'scope':payload['scope'],'data_quality':payload['data_quality'],'items':payload['timeline']})
 
+@app.get('/api/v1/tca/profiles')
+def tca_profiles():return jsonify(load_tca_profiles(settings.config_dir))
+
 @app.get('/api/v1/tca/assets')
 def tca_assets():return jsonify({'items':db.tca_assets()})
 @app.post('/api/v1/tca/assets')
 def tca_create_asset():
- try:return jsonify(db.tca_upsert_asset(request.get_json(force=True))),201
+ try:return jsonify(db.tca_upsert_asset(resolve_tca_asset(request.get_json(force=True),settings.config_dir))),201
  except ValueError as exc:abort(400,description=str(exc))
 @app.get('/api/v1/tca/assets/<asset_id>')
 def tca_asset(asset_id):
@@ -379,7 +383,7 @@ def tca_asset(asset_id):
 @app.put('/api/v1/tca/assets/<asset_id>')
 def tca_update_asset(asset_id):
  data=request.get_json(force=True);data['asset_id']=asset_id
- try:return jsonify(db.tca_upsert_asset(data))
+ try:return jsonify(db.tca_upsert_asset(resolve_tca_asset(data,settings.config_dir)))
  except ValueError as exc:abort(400,description=str(exc))
 @app.delete('/api/v1/tca/assets/<asset_id>')
 def tca_remove_asset(asset_id):return ('',204) if db.tca_delete_asset(asset_id) else abort(404)

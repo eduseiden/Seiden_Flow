@@ -126,6 +126,10 @@ class FlowDatabase:
             );
             CREATE INDEX IF NOT EXISTS idx_tca_asset_time ON tca_measurements(asset_id,occurred_at);
             CREATE INDEX IF NOT EXISTS idx_tca_source_time ON tca_measurements(source_id,occurred_at);
+            CREATE TABLE IF NOT EXISTS tca_sources(
+                source_id TEXT PRIMARY KEY, source_name TEXT, kinds_json TEXT NOT NULL DEFAULT '[]',
+                last_seen TEXT, sample_payload_json TEXT NOT NULL DEFAULT '{}', updated_at TEXT NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,value TEXT NOT NULL);
             """)
             env_cols={r['name'] for r in c.execute("PRAGMA table_info(environmental_measurements)")}
@@ -801,6 +805,9 @@ class FlowDatabase:
         count=0;now=datetime.now(timezone.utc).isoformat()
         with self._lock,self.connect() as c:
             for m in measurements:
+                existing=c.execute("SELECT kinds_json FROM tca_sources WHERE source_id=?",(m['source_id'],)).fetchone()
+                kinds=set(json.loads(existing['kinds_json'] or '[]')) if existing else set();kinds.add(m['kind'])
+                c.execute("""INSERT INTO tca_sources(source_id,source_name,kinds_json,last_seen,sample_payload_json,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(source_id) DO UPDATE SET source_name=excluded.source_name,kinds_json=excluded.kinds_json,last_seen=excluded.last_seen,sample_payload_json=excluded.sample_payload_json,updated_at=excluded.updated_at""",(m['source_id'],m.get('source_name') or m['source_id'],json.dumps(sorted(kinds)),m['occurred_at'],json.dumps(m.get('payload') or {},ensure_ascii=False),now))
                 asset_id=m.get('asset_id');role=m.get('role') or 'main'
                 if not asset_id:
                     b=c.execute("SELECT asset_id,role FROM tca_bindings WHERE source_id=? AND kind=? AND enabled=1 ORDER BY is_primary DESC LIMIT 1",(m['source_id'],m['kind'])).fetchone()
@@ -815,13 +822,19 @@ class FlowDatabase:
 
     def tca_source_catalog(self):
         catalog={}
+        for r in self._rows("SELECT source_id,source_name,kinds_json,last_seen FROM tca_sources"):
+            catalog[r['source_id']]={'source_id':r['source_id'],'source_name':r.get('source_name') or r['source_id'],'last_seen':r.get('last_seen'),'kinds':json.loads(r.get('kinds_json') or '[]')}
         for r in self._rows("SELECT source_id,MAX(source_name) source_name,MAX(occurred_at) last_seen FROM tca_measurements GROUP BY source_id"):
-            catalog[r['source_id']]={'source_id':r['source_id'],'source_name':r.get('source_name') or r['source_id'],'last_seen':r['last_seen'],'kinds':[]}
+            catalog.setdefault(r['source_id'],{'source_id':r['source_id'],'source_name':r.get('source_name') or r['source_id'],'last_seen':r['last_seen'],'kinds':[]})
         for r in self._rows("SELECT source_id,kind FROM tca_measurements GROUP BY source_id,kind"):
-            catalog.setdefault(r['source_id'],{'source_id':r['source_id'],'source_name':r['source_id'],'last_seen':None,'kinds':[]})['kinds'].append(r['kind'])
+            item=catalog.setdefault(r['source_id'],{'source_id':r['source_id'],'source_name':r['source_id'],'last_seen':None,'kinds':[]})
+            if r['kind'] not in item['kinds']:item['kinds'].append(r['kind'])
         for r in self.environmental_sources_catalog().get('items',[]):
-            key=r.get('source_id');catalog.setdefault(key,{'source_id':key,'source_name':r.get('source_name') or key,'last_seen':r.get('latest_occurred_at'),'kinds':['temperature','humidity']})
-        return sorted(catalog.values(),key=lambda x:x['source_name'])
+            key=r.get('source_id');item=catalog.setdefault(key,{'source_id':key,'source_name':r.get('source_name') or key,'last_seen':r.get('latest_occurred_at'),'kinds':[]})
+            for kind in ('temperature','humidity'):
+                if kind not in item['kinds']:item['kinds'].append(kind)
+        for item in catalog.values():item['kinds']=sorted(item['kinds'])
+        return sorted(catalog.values(),key=lambda x:(x['source_name'] or x['source_id']).lower())
 
     def cleanup(self,days):
         cutoff=(datetime.now(timezone.utc)-timedelta(days=days)).isoformat()

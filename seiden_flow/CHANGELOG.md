@@ -1,3 +1,12 @@
+# 0.11.1
+
+- Perfis TCA carregados do environmental_profiles.json autoritativo.
+- Cadastro simplificado por nome e perfil térmico.
+- Catálogo persistente de fontes observadas pelo Bridge, inclusive antes da associação.
+- Associação visual de fontes por capacidades, sem digitação de Source ID.
+- Suporte simplificado a múltiplas métricas e múltiplos sensores por ativo.
+- Compatibilidade preservada com ativos e bindings da 0.11.0.
+
 ## 0.11.0
 
 - Introduz o Thermal Control Analytics (TCA 0.1).
