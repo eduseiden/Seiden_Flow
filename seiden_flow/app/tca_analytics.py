@@ -5,6 +5,7 @@ from statistics import fmean
 
 OBSERVATION_WINDOW_MINUTES = 30
 MEASURABLE_IMPACT_C = 0.2
+ACCESS_SESSION_GAP_SECONDS = 60
 
 
 def parse(value):
@@ -20,166 +21,286 @@ def _in_range(value, minimum, maximum):
     return (minimum is None or value >= float(minimum)) and (maximum is None or value <= float(maximum))
 
 
-def _integrated_power_wh(rows, start, finish):
+def _profile_ranges(asset):
+    snap = ((asset.get("metadata") or {}).get("profile_snapshot") or {})
+    temperature = snap.get("temperature") or {}
+    return {
+        "optimal": temperature.get("optimal") or {
+            "min": asset.get("min_temperature_c"),
+            "max": asset.get("max_temperature_c"),
+        },
+        "attention": temperature.get("attention") or {},
+        "critical": temperature.get("critical") or {},
+    }
+
+
+def _power_wh(rows, start, finish):
+    """Integrate instantaneous power with the trapezoidal rule.
+
+    The accumulated-energy entity is intentionally not used for short episodes because
+    many consumer devices update it in coarse, delayed steps.
+    """
     points = [r for r in rows if start <= parse(r["occurred_at"]) <= finish and r.get("numeric_value") is not None]
     if len(points) < 2:
         return None
     total = 0.0
     for current, following in zip(points, points[1:]):
         seconds = max(0.0, (parse(following["occurred_at"]) - parse(current["occurred_at"])).total_seconds())
-        total += float(current["numeric_value"]) * seconds / 3600.0
+        average_power = (float(current["numeric_value"]) + float(following["numeric_value"])) / 2.0
+        total += average_power * seconds / 3600.0
     return total
 
 
-def _energy_delta_wh(rows, start, finish):
-    points = [r for r in rows if start <= parse(r["occurred_at"]) <= finish and r.get("numeric_value") is not None]
-    if len(points) < 2:
-        return None
-    delta_kwh = float(points[-1]["numeric_value"]) - float(points[0]["numeric_value"])
-    return max(0.0, delta_kwh * 1000.0)
+def _temperature_trend(rows):
+    values = [r for r in rows if r.get("numeric_value") is not None]
+    if len(values) < 2:
+        return "unknown", None
+    recent = values[-4:]
+    first, last = recent[0], recent[-1]
+    minutes = max((parse(last["occurred_at"]) - parse(first["occurred_at"])).total_seconds() / 60.0, 0.01)
+    slope = (float(last["numeric_value"]) - float(first["numeric_value"])) / minutes
+    if abs(slope) < 0.02:
+        return "stable", slope
+    return ("rising" if slope > 0 else "falling"), slope
+
+
+def _build_access_sessions(door_events, end):
+    raw = []
+    opened = None
+    for event in door_events:
+        state = event.get("text_value")
+        when = parse(event["occurred_at"])
+        if state == "open" and opened is None:
+            opened = event
+        elif state == "closed" and opened is not None:
+            raw.append({
+                "opened_at": parse(opened["occurred_at"]),
+                "closed_at": when,
+                "open_seconds": max(0, round((when - parse(opened["occurred_at"])).total_seconds())),
+                "access_count": 1,
+            })
+            opened = None
+    if opened is not None:
+        raw.append({
+            "opened_at": parse(opened["occurred_at"]),
+            "closed_at": None,
+            "open_seconds": max(0, round((end - parse(opened["occurred_at"])).total_seconds())),
+            "access_count": 1,
+        })
+
+    sessions = []
+    for item in raw:
+        if not sessions:
+            sessions.append(item)
+            continue
+        previous = sessions[-1]
+        if previous["closed_at"] and item["opened_at"] and (item["opened_at"] - previous["closed_at"]).total_seconds() <= ACCESS_SESSION_GAP_SECONDS:
+            previous["closed_at"] = item["closed_at"]
+            previous["open_seconds"] += item["open_seconds"]
+            previous["access_count"] += 1
+        else:
+            sessions.append(item)
+    return sessions
+
+
+def _thermal_excursions(temp_rows, optimal, end):
+    excursions = []
+    current = None
+    for row in temp_rows:
+        value = float(row["numeric_value"])
+        inside = _in_range(value, optimal.get("min"), optimal.get("max"))
+        when = parse(row["occurred_at"])
+        if not inside and current is None:
+            current = {"started_at": when, "start_value": value, "values": [(when, value)]}
+        elif current is not None:
+            current["values"].append((when, value))
+            if inside:
+                current["ended_at"] = when
+                excursions.append(current)
+                current = None
+    if current is not None:
+        current["ended_at"] = None
+        current["observation_end"] = end
+        excursions.append(current)
+    return excursions
 
 
 def calculate_tca(rows, asset, bindings, start, end):
-    by = {k: [] for k in ("temperature", "humidity", "door", "power", "voltage", "current", "energy")}
+    kinds = ("temperature", "humidity", "door", "power", "voltage", "current", "energy")
+    by = {kind: [] for kind in kinds}
     for row in rows:
         if row["kind"] in by:
             by[row["kind"]].append(row)
     for values in by.values():
         values.sort(key=lambda row: row["occurred_at"])
 
+    bound_kinds = {b["kind"] for b in bindings if b.get("enabled", True)}
+    capabilities = {
+        "temperature": bool(by["temperature"] or "temperature" in bound_kinds),
+        "humidity": bool(by["humidity"] or "humidity" in bound_kinds),
+        "door": bool(by["door"] or "door" in bound_kinds),
+        "power": bool(by["power"] or "power" in bound_kinds),
+        "voltage": bool(by["voltage"] or "voltage" in bound_kinds),
+        "current": bool(by["current"] or "current" in bound_kinds),
+        "energy_total": bool(by["energy"] or "energy" in bound_kinds),
+    }
+    capabilities.update({
+        "thermal_monitoring": capabilities["temperature"],
+        "thermal_excursion_analysis": capabilities["temperature"],
+        "door_event_analysis": capabilities["door"],
+        "door_correlated_recovery": capabilities["temperature"] and capabilities["door"],
+        "energy_analysis": capabilities["power"],
+        "energy_correlated_recovery": capabilities["temperature"] and capabilities["power"],
+        "multi_zone_analysis": len({b["source_id"] for b in bindings if b["kind"] == "temperature" and b.get("enabled", True)}) > 1,
+    })
+
     latest = {kind: (values[-1] if values else None) for kind, values in by.items()}
     temps = [float(r["numeric_value"]) for r in by["temperature"] if r.get("numeric_value") is not None]
     powers = [float(r["numeric_value"]) for r in by["power"] if r.get("numeric_value") is not None]
+    ranges = _profile_ranges(asset)
+    optimal, attention, critical = ranges["optimal"], ranges["attention"], ranges["critical"]
 
-    min_t = asset.get("min_temperature_c")
-    max_t = asset.get("max_temperature_c")
     primary_ids = [b["source_id"] for b in bindings if b["kind"] == "temperature" and b.get("is_primary")]
     temp_rows = [r for r in by["temperature"] if not primary_ids or r["source_id"] in primary_ids]
     if not temp_rows:
         temp_rows = by["temperature"]
 
-    door_events = by["door"]
+    access_sessions = _build_access_sessions(by["door"], end) if capabilities["door"] else []
     episodes = []
-    opened = None
-    for index, door_event in enumerate(door_events):
-        state = door_event.get("text_value")
-        if state == "open" and opened is None:
-            opened = door_event
+    for idx, session in enumerate(access_sessions):
+        opened_at, closed_at = session["opened_at"], session["closed_at"]
+        if closed_at is None:
+            episodes.append({
+                "event_type": "access_session",
+                "opened_at": opened_at.isoformat(),
+                "closed_at": None,
+                "open_seconds": session["open_seconds"],
+                "access_count": session["access_count"],
+                "status": "open",
+                "energy_final": False,
+                "temperature_samples": 0,
+                "correlation": "door",
+            })
             continue
-        if state != "closed" or opened is None:
-            continue
-
-        opened_at = parse(opened["occurred_at"])
-        closed_at = parse(door_event["occurred_at"])
-        next_open = next(
-            (parse(item["occurred_at"]) for item in door_events[index + 1 :] if item.get("text_value") == "open"),
-            None,
-        )
+        next_open = access_sessions[idx + 1]["opened_at"] if idx + 1 < len(access_sessions) else None
         observation_limit = min(end, closed_at + timedelta(minutes=OBSERVATION_WINDOW_MINUTES))
         analysis_end = min(observation_limit, next_open) if next_open else observation_limit
-
         before = [t for t in temp_rows if parse(t["occurred_at"]) <= opened_at]
         baseline = float(before[-1]["numeric_value"]) if before else None
         observed = [t for t in temp_rows if closed_at <= parse(t["occurred_at"]) <= analysis_end]
         values = [float(t["numeric_value"]) for t in observed if t.get("numeric_value") is not None]
-
-        peak = max(values) if values else None
-        low = min(values) if values else None
         impact = max((abs(value - baseline) for value in values), default=None) if baseline is not None else None
-        out_of_range_seen = any(not _in_range(value, min_t, max_t) for value in values)
-
+        out_of_optimal_seen = any(not _in_range(value, optimal.get("min"), optimal.get("max")) for value in values)
         recovered = None
-        if out_of_range_seen:
+        if out_of_optimal_seen:
             for item in observed:
-                value = float(item["numeric_value"])
-                if _in_range(value, min_t, max_t):
+                if _in_range(float(item["numeric_value"]), optimal.get("min"), optimal.get("max")):
                     recovered = item
                     break
-
         elapsed_since_close = max(0.0, (end - closed_at).total_seconds())
         interrupted = bool(next_open and next_open <= observation_limit and not recovered)
         enough_time = elapsed_since_close >= OBSERVATION_WINDOW_MINUTES * 60
-
         if recovered:
-            status = "recovered"
-            final_at = parse(recovered["occurred_at"])
+            status, final_at = "recovered", parse(recovered["occurred_at"])
         elif interrupted:
-            status = "interrupted"
-            final_at = next_open
+            status, final_at = "interrupted", next_open
         elif not observed:
-            status = "insufficient_data" if enough_time else "observing"
-            final_at = analysis_end
-        elif not out_of_range_seen and (impact is None or impact < MEASURABLE_IMPACT_C):
-            status = "no_measurable_impact"
-            final_at = analysis_end
+            status, final_at = ("insufficient_data" if enough_time else "observing"), analysis_end
+        elif not out_of_optimal_seen and (impact is None or impact < MEASURABLE_IMPACT_C):
+            status, final_at = "no_measurable_impact", analysis_end
         elif enough_time:
-            status = "not_recovered"
-            final_at = observation_limit
+            status, final_at = "not_recovered", observation_limit
         else:
-            status = "observing"
-            final_at = analysis_end
+            status, final_at = "observing", analysis_end
+        recovery_minutes = (parse(recovered["occurred_at"]) - closed_at).total_seconds() / 60.0 if recovered else None
+        energy_wh = _power_wh(by["power"], closed_at, final_at) if capabilities["power"] else None
+        episodes.append({
+            "event_type": "access_session",
+            "opened_at": opened_at.isoformat(),
+            "closed_at": closed_at.isoformat(),
+            "open_seconds": session["open_seconds"],
+            "access_count": session["access_count"],
+            "baseline_temperature_c": rnd(baseline),
+            "maximum_temperature_c": rnd(max(values)) if values else None,
+            "minimum_temperature_c": rnd(min(values)) if values else None,
+            "thermal_impact_c": rnd(impact),
+            "recovered_at": recovered["occurred_at"] if recovered else None,
+            "recovery_minutes": rnd(recovery_minutes),
+            "recovery_energy_wh": rnd(energy_wh, 3),
+            "energy_final": status in {"recovered", "interrupted", "no_measurable_impact", "not_recovered"},
+            "temperature_samples": len(values),
+            "status": status,
+            "correlation": "door",
+        })
 
-        recovery_minutes = (
-            (parse(recovered["occurred_at"]) - closed_at).total_seconds() / 60.0 if recovered else None
-        )
-        energy_wh = _energy_delta_wh(by["energy"], closed_at, final_at)
-        if energy_wh is None:
-            energy_wh = _integrated_power_wh(by["power"], closed_at, final_at)
-        energy_final = status in {"recovered", "interrupted", "no_measurable_impact", "not_recovered"}
-
-        episodes.append(
-            {
-                "opened_at": opened["occurred_at"],
-                "closed_at": door_event["occurred_at"],
-                "open_seconds": round((closed_at - opened_at).total_seconds()),
-                "baseline_temperature_c": rnd(baseline),
-                "maximum_temperature_c": rnd(peak),
-                "minimum_temperature_c": rnd(low),
-                "thermal_impact_c": rnd(impact),
-                "recovered_at": recovered["occurred_at"] if recovered else None,
-                "recovery_minutes": rnd(recovery_minutes),
+    # When no door exists, recovery is still a valid thermal concept; only its cause is unknown.
+    thermal_excursions = []
+    if capabilities["temperature"] and not capabilities["door"]:
+        for exc in _thermal_excursions(temp_rows, optimal, end):
+            started = exc["started_at"]
+            finished = exc.get("ended_at") or end
+            values = [v for _, v in exc["values"]]
+            energy_wh = _power_wh(by["power"], started, finished) if capabilities["power"] else None
+            thermal_excursions.append({
+                "event_type": "thermal_excursion",
+                "started_at": started.isoformat(),
+                "ended_at": exc.get("ended_at").isoformat() if exc.get("ended_at") else None,
+                "duration_minutes": rnd((finished - started).total_seconds() / 60.0),
+                "maximum_temperature_c": rnd(max(values)) if values else None,
+                "minimum_temperature_c": rnd(min(values)) if values else None,
                 "recovery_energy_wh": rnd(energy_wh, 3),
-                "energy_final": energy_final,
-                "temperature_samples": len(values),
-                "status": status,
-            }
-        )
-        opened = None
+                "energy_final": bool(exc.get("ended_at")),
+                "status": "recovered" if exc.get("ended_at") else "observing",
+                "correlation": "unidentified",
+            })
 
-    if opened:
-        episodes.append(
-            {
-                "opened_at": opened["occurred_at"],
-                "closed_at": None,
-                "open_seconds": round((end - parse(opened["occurred_at"])).total_seconds()),
-                "status": "open",
-                "energy_final": False,
-                "temperature_samples": 0,
-            }
-        )
-
-    recoveries = [e["recovery_minutes"] for e in episodes if e.get("recovery_minutes") is not None]
     current_door = latest["door"]["text_value"] if latest["door"] else "unknown"
     current_temp = latest["temperature"]["numeric_value"] if latest["temperature"] else None
-    in_range = current_temp is not None and _in_range(float(current_temp), min_t, max_t)
-    state = "door_open" if current_door == "open" else ("stable" if in_range else "out_of_range" if current_temp is not None else "no_data")
+    trend, slope = _temperature_trend(temp_rows)
+    in_optimal = current_temp is not None and _in_range(float(current_temp), optimal.get("min"), optimal.get("max"))
+    in_attention = current_temp is not None and _in_range(float(current_temp), attention.get("min"), attention.get("max"))
+    in_critical = current_temp is not None and _in_range(float(current_temp), critical.get("min"), critical.get("max"))
+    recovering_direction = False
+    if current_temp is not None:
+        if optimal.get("max") is not None and float(current_temp) > float(optimal["max"]):
+            recovering_direction = trend == "falling"
+        elif optimal.get("min") is not None and float(current_temp) < float(optimal["min"]):
+            recovering_direction = trend == "rising"
+    if current_temp is None:
+        state = "no_data"
+    elif capabilities["door"] and current_door == "open":
+        state = "door_open"
+    elif in_optimal:
+        state = "stable"
+    elif in_attention and recovering_direction:
+        state = "recovering"
+    elif in_attention:
+        state = "attention"
+    else:
+        state = "critical"
 
-    timeline = [
-        {
-            "occurred_at": r["occurred_at"],
-            "source_id": r["source_id"],
-            "source_name": r.get("source_name"),
-            "kind": r["kind"],
-            "role": r.get("role"),
-            "value": r.get("text_value") if r["kind"] == "door" else r.get("numeric_value"),
-            "unit": r.get("unit"),
-        }
-        for r in rows
-    ]
+    timeline = [{
+        "occurred_at": r["occurred_at"],
+        "source_id": r["source_id"],
+        "source_name": r.get("source_name"),
+        "kind": r["kind"],
+        "role": r.get("role"),
+        "value": r.get("text_value") if r["kind"] == "door" else r.get("numeric_value"),
+        "unit": r.get("unit"),
+    } for r in rows]
 
+    recoveries = [e["recovery_minutes"] for e in episodes if e.get("recovery_minutes") is not None]
+    metadata = asset.get("metadata") or {}
     return {
         "asset": asset,
+        "scope": {
+            "organization": metadata.get("organization"),
+            "site": metadata.get("site"),
+            "area": metadata.get("area"),
+        },
         "period": {"start": start.isoformat().replace("+00:00", "Z"), "end": end.isoformat().replace("+00:00", "Z")},
+        "capabilities": capabilities,
+        "profile_ranges": ranges,
         "current": {
             "state": state,
             "temperature_c": rnd(current_temp),
@@ -188,7 +309,12 @@ def calculate_tca(rows, asset, bindings, start, end):
             "power_w": rnd(latest["power"]["numeric_value"]) if latest["power"] else None,
             "voltage_v": rnd(latest["voltage"]["numeric_value"]) if latest["voltage"] else None,
             "current_a": rnd(latest["current"]["numeric_value"]) if latest["current"] else None,
-            "in_range": in_range,
+            "in_range": in_optimal,
+            "in_optimal": in_optimal,
+            "in_attention": in_attention,
+            "in_critical": in_critical,
+            "trend": trend,
+            "trend_c_per_min": rnd(slope, 3),
             "last_update": max((r["occurred_at"] for r in rows), default=None),
         },
         "summary": {
@@ -199,14 +325,17 @@ def calculate_tca(rows, asset, bindings, start, end):
             "temperature_minimum_c": rnd(min(temps)) if temps else None,
             "temperature_maximum_c": rnd(max(temps)) if temps else None,
             "power_average_w": rnd(fmean(powers)) if powers else None,
-            "door_openings": len([e for e in episodes if e.get("closed_at")]),
+            "door_openings": sum(e.get("access_count", 0) for e in episodes),
+            "access_sessions": len([e for e in episodes if e.get("closed_at")]),
             "door_open_seconds": sum(e.get("open_seconds", 0) for e in episodes),
             "average_recovery_minutes": rnd(fmean(recoveries)) if recoveries else None,
             "recovered_episodes": len(recoveries),
             "observing_episodes": len([e for e in episodes if e.get("status") == "observing"]),
-            "incomplete_episodes": len([e for e in episodes if e.get("status") in {"insufficient_data", "not_recovered"}]),
+            "interrupted_episodes": len([e for e in episodes if e.get("status") == "interrupted"]),
+            "thermal_excursions": len(thermal_excursions),
         },
         "episodes": episodes,
+        "thermal_excursions": thermal_excursions,
         "bindings": bindings,
         "timeline": timeline,
     }

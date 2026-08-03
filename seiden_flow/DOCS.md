@@ -1,9 +1,9 @@
-# Seiden FLOW 0.11.3 — Documentação técnica
+# Seiden FLOW 0.11.4 — Documentação técnica
 
 ## Identificação
 
 - Serviço: `seiden_flow`
-- Versão: `0.11.3`
+- Versão: `0.11.4`
 - Platform Schema: `2.0`
 - Database Schema: `11`
 - Porta interna: `8100`
@@ -31,7 +31,7 @@ O Environmental Experience Analytics analisa ambientes voltados a pessoas. O por
 
 O EEA preserva medições ambientais e usa os campos enriquecidos pelo Vision, incluindo perfil, faixas aplicadas, pontuações, condições e motivos.
 
-## TCA 0.1
+## TCA 0.2
 
 O Thermal Control Analytics analisa ativos térmicos.
 
@@ -72,7 +72,7 @@ Cada binding pode declarar um papel operacional e a referência principal de tem
 
 ### Episódios
 
-O motor TCA correlaciona eventos de abertura, medições térmicas e energia para produzir episódios com duração, impacto e recuperação. A linha 0.11.x ainda não afirma diagnóstico de falha nem manutenção preditiva por AI.
+O motor TCA correlaciona eventos de abertura, medições térmicas e potência para produzir sessões com duração, impacto, recuperação e energia integrada. Sem sensor de porta, identifica excursões térmicas e recuperação sem atribuir causalidade. A interface é adaptativa às capacidades disponíveis e o cadastro aceita unidade/filial e área para preparar operações distribuídas. A linha 0.11.x ainda não afirma diagnóstico de falha nem manutenção preditiva por AI.
 
 ## Montagens do add-on
 

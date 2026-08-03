@@ -6,7 +6,7 @@ from typing import Any
 _FALLBACK = {
  "schema_version":"1.0","configuration_mode":"fallback","managed_by":"seiden_flow",
  "profiles":{
-  "refrigerator":{"label":"Geladeira","analysis_type":"environmental_compliance","ruleset":"seiden_environmental_profile_refrigerator_v1","temperature":{"optimal":{"min":2.0,"max":5.0},"attention":{"min":0.0,"max":8.0},"critical":{"min":-2.0,"max":10.0},"weight":1.0},"humidity":None},
+  "refrigerator":{"label":"Geladeira","analysis_type":"environmental_compliance","ruleset":"seiden_environmental_profile_refrigerator_v1","temperature":{"optimal":{"min":1.0,"max":5.0},"attention":{"min":-1.0,"max":8.0},"critical":{"min":-3.0,"max":10.0},"weight":1.0},"humidity":None},
   "freezer":{"label":"Freezer","analysis_type":"environmental_compliance","ruleset":"seiden_environmental_profile_freezer_v1","temperature":{"optimal":{"min":-22.0,"max":-18.0},"attention":{"min":-25.0,"max":-15.0},"critical":{"min":-30.0,"max":-10.0},"weight":1.0},"humidity":None},
   "wine_cellar":{"label":"Adega de vinhos","analysis_type":"environmental_compliance","ruleset":"seiden_environmental_profile_wine_cellar_v1","temperature":{"optimal":{"min":12.0,"max":16.0},"attention":{"min":10.0,"max":18.0},"critical":{"min":7.0,"max":22.0},"weight":0.6},"humidity":{"optimal":{"min":55.0,"max":75.0},"attention":{"min":45.0,"max":80.0},"critical":{"min":35.0,"max":90.0},"weight":0.4}},
   "beer_cooler":{"label":"Cervejeira","analysis_type":"environmental_compliance","ruleset":"seiden_environmental_profile_beer_cooler_v1","temperature":{"optimal":{"min":2.0,"max":6.0},"attention":{"min":0.0,"max":8.0},"critical":{"min":-2.0,"max":10.0},"weight":1.0},"humidity":None}

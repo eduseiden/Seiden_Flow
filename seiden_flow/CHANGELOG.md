@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.11.4
+
+- TCA adaptativo por capacidades: a interface exibe apenas análises compatíveis com os sensores conectados.
+- Recuperação térmica geral sem sensor de porta, com causa explicitamente não identificada.
+- Aberturas próximas passam a ser agrupadas em sessões operacionais.
+- Energia por episódio calculada pela integração trapezoidal da potência instantânea; o acumulado Tuya não é usado em episódios curtos.
+- Classificação contextual: faixa de atenção em retorno ao ideal é apresentada como recuperação normal.
+- Timeline vertical sincronizada de temperatura, porta e potência, ajustada ao intervalo real com dados.
+- Visão geral dos ativos para operações com múltiplas geladeiras, freezers e outros ativos térmicos.
+- Cadastro preparado para unidade/filial e área, persistidos como metadados do ativo.
+- Rodapé com assinatura visual Seiden One e refinamento do espaçamento do cabeçalho.
+- TCA interno evoluído para 0.2, sem AI e sem manutenção preditiva.
+
 ## 0.11.3
 
 - Corrige o botão **Cancelar** do cadastro de ativo TCA, que era bloqueado pela validação HTML do campo obrigatório.

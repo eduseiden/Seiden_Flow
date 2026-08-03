@@ -1,4 +1,4 @@
-# Seiden FLOW 0.11.3
+# Seiden FLOW 0.11.4
 
 Camada de compreensão do **Seiden One**. O FLOW recebe eventos e evidências normalizadas, preserva o histórico e transforma dados operacionais em análises para pessoas, ambientes e ativos térmicos.
 
@@ -36,7 +36,7 @@ Portal:
 
 Introduzido na linha 0.11.x para analisar ativos que mantêm itens em condições térmicas controladas, como geladeiras, freezers, adegas, cervejeiras e câmaras frias.
 
-A versão 0.11.3 oferece:
+A versão 0.11.4 oferece:
 
 - cadastro genérico de ativos térmicos;
 - perfis TCA carregados do `environmental_profiles.json` autoritativo;
@@ -46,7 +46,12 @@ A versão 0.11.3 oferece:
 - associação de porta, potência, tensão, corrente e energia;
 - papéis por fonte, como fundo, porta, centro, produto e ambiente externo;
 - fonte principal de temperatura;
-- episódios de abertura, impacto térmico e recuperação;
+- agrupamento de aberturas próximas em sessões operacionais;
+- recuperação térmica geral mesmo sem sensor de porta, sem inferir causa;
+- energia por episódio calculada pela integração da potência instantânea;
+- interface adaptativa às capacidades disponíveis;
+- visão geral para múltiplos ativos e cadastro por unidade/filial e área;
+- timeline sincronizada de temperatura, porta e potência;
 - catálogo persistente de fontes ainda não associadas.
 
 Portal:
@@ -123,7 +128,7 @@ O Vision permanece como autoridade dos perfis. Customizações específicas de a
 
 ## Persistência e compatibilidade
 
-- versão do FLOW: `0.11.3`;
+- versão do FLOW: `0.11.4`;
 - Platform Schema: `2.0`;
 - Database Schema: `11`;
 - migrações aditivas;
