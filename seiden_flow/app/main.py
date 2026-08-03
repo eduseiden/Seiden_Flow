@@ -393,6 +393,10 @@ def tca_add_binding(asset_id):
  except ValueError as exc:abort(400,description=str(exc))
 @app.delete('/api/v1/tca/bindings/<binding_id>')
 def tca_remove_binding(binding_id):return ('',204) if db.tca_delete_binding(binding_id) else abort(404)
+@app.put('/api/v1/tca/assets/<asset_id>/bindings')
+def tca_replace_bindings(asset_id):
+ try:return jsonify({'items':db.tca_replace_bindings(asset_id,(request.get_json(force=True) or {}).get('items') or [])})
+ except ValueError as exc:abort(400,description=str(exc))
 @app.get('/api/v1/tca/sources')
 def tca_sources():return jsonify({'items':db.tca_source_catalog()})
 @app.post('/api/v1/tca/measurements')

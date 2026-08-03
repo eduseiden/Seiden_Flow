@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.11.4
+## 0.11.5
 
 - TCA adaptativo por capacidades: a interface exibe apenas análises compatíveis com os sensores conectados.
 - Recuperação térmica geral sem sensor de porta, com causa explicitamente não identificada.

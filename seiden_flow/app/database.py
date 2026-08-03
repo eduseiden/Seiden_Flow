@@ -830,6 +830,31 @@ class FlowDatabase:
     def tca_delete_binding(self,binding_id):
         with self._lock,self.connect() as c:return c.execute('DELETE FROM tca_bindings WHERE binding_id=?',(binding_id,)).rowcount>0
 
+    def tca_replace_bindings(self,asset_id,items):
+        """Replace the active binding configuration atomically without deleting history."""
+        import uuid
+        if not self.tca_asset(asset_id):raise ValueError('ativo TCA inexistente')
+        allowed={'temperature','humidity','door','power','voltage','current','energy'}
+        normalized=[]
+        primary_seen=False
+        now=datetime.now(timezone.utc).isoformat()
+        for data in items or []:
+            kind=str(data.get('kind') or '').lower();source_id=str(data.get('source_id') or '').strip();role=str(data.get('role') or 'main').strip()
+            if kind not in allowed or not source_id:raise ValueError('source_id/kind inválido')
+            is_primary=bool(data.get('is_primary')) if kind=='temperature' else False
+            if is_primary:
+                if primary_seen:raise ValueError('Somente uma referência térmica principal é permitida')
+                primary_seen=True
+            normalized.append((str(data.get('binding_id') or f'bnd_{uuid.uuid4().hex}'),source_id,data.get('source_name'),kind,role,is_primary,bool(data.get('enabled',True))))
+        temps=[x for x in normalized if x[3]=='temperature' and x[6]]
+        if temps and not any(x[5] for x in temps):
+            first=temps[0]; normalized[normalized.index(first)]=first[:5]+(True,)+first[6:]
+        with self._lock,self.connect() as c:
+            c.execute('DELETE FROM tca_bindings WHERE asset_id=?',(asset_id,))
+            for binding_id,source_id,source_name,kind,role,is_primary,enabled in normalized:
+                c.execute("""INSERT INTO tca_bindings(binding_id,asset_id,source_id,source_name,kind,role,is_primary,enabled,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)""",(binding_id,asset_id,source_id,source_name,kind,role,int(is_primary),int(enabled),now,now))
+        return self.tca_bindings(asset_id)
+
     def insert_tca_measurements(self,measurements):
         count=0;now=datetime.now(timezone.utc).isoformat()
         with self._lock,self.connect() as c:
@@ -837,13 +862,16 @@ class FlowDatabase:
                 existing=c.execute("SELECT kinds_json FROM tca_sources WHERE source_id=?",(m['source_id'],)).fetchone()
                 kinds=set(json.loads(existing['kinds_json'] or '[]')) if existing else set();kinds.add(m['kind'])
                 c.execute("""INSERT INTO tca_sources(source_id,source_name,kinds_json,last_seen,sample_payload_json,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(source_id) DO UPDATE SET source_name=excluded.source_name,kinds_json=excluded.kinds_json,last_seen=excluded.last_seen,sample_payload_json=excluded.sample_payload_json,updated_at=excluded.updated_at""",(m['source_id'],m.get('source_name') or m['source_id'],json.dumps(sorted(kinds)),m['occurred_at'],json.dumps(m.get('payload') or {},ensure_ascii=False),now))
-                asset_id=m.get('asset_id');role=m.get('role') or 'main'
-                if not asset_id:
-                    b=c.execute("SELECT asset_id,role FROM tca_bindings WHERE source_id=? AND kind=? AND enabled=1 ORDER BY is_primary DESC LIMIT 1",(m['source_id'],m['kind'])).fetchone()
-                    if not b:continue
-                    asset_id=b['asset_id'];role=b['role']
-                cur=c.execute("""INSERT OR IGNORE INTO tca_measurements(measurement_id,event_id,asset_id,source_id,source_name,kind,role,occurred_at,numeric_value,text_value,unit,payload_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",(m['measurement_id'],m.get('event_id'),asset_id,m['source_id'],m.get('source_name'),m['kind'],role,m['occurred_at'],m.get('numeric_value'),m.get('text_value'),m.get('unit'),json.dumps(m.get('payload') or {},ensure_ascii=False),now))
-                count+=cur.rowcount
+                explicit_asset=m.get('asset_id');default_role=m.get('role') or 'main'
+                targets=[]
+                if explicit_asset:
+                    targets=[(explicit_asset,default_role)]
+                else:
+                    targets=[(b['asset_id'],b['role']) for b in c.execute("SELECT asset_id,role FROM tca_bindings WHERE source_id=? AND kind=? AND enabled=1 ORDER BY is_primary DESC,asset_id",(m['source_id'],m['kind'])).fetchall()]
+                for asset_id,role in targets:
+                    measurement_id=f"{m['measurement_id']}:{asset_id}"
+                    cur=c.execute("""INSERT OR IGNORE INTO tca_measurements(measurement_id,event_id,asset_id,source_id,source_name,kind,role,occurred_at,numeric_value,text_value,unit,payload_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",(measurement_id,m.get('event_id'),asset_id,m['source_id'],m.get('source_name'),m['kind'],role,m['occurred_at'],m.get('numeric_value'),m.get('text_value'),m.get('unit'),json.dumps(m.get('payload') or {},ensure_ascii=False),now))
+                    count+=cur.rowcount
         return count
 
     def tca_measurements(self,asset_id,start_at,end_at,limit=100000):
