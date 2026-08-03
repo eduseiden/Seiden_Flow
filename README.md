@@ -1,4 +1,4 @@
-# Seiden FLOW 0.11.1
+# Seiden FLOW 0.11.2
 
 Camada de compreensão do **Seiden One**. O FLOW recebe eventos e evidências normalizadas, preserva o histórico e transforma dados operacionais em análises para pessoas, ambientes e ativos térmicos.
 
@@ -36,7 +36,7 @@ Portal:
 
 Introduzido na linha 0.11.x para analisar ativos que mantêm itens em condições térmicas controladas, como geladeiras, freezers, adegas, cervejeiras e câmaras frias.
 
-A versão 0.11.1 oferece:
+A versão 0.11.2 oferece:
 
 - cadastro genérico de ativos térmicos;
 - perfis TCA carregados do `environmental_profiles.json` autoritativo;
@@ -123,7 +123,7 @@ O Vision permanece como autoridade dos perfis. Customizações específicas de a
 
 ## Persistência e compatibilidade
 
-- versão do FLOW: `0.11.1`;
+- versão do FLOW: `0.11.2`;
 - Platform Schema: `2.0`;
 - Database Schema: `11`;
 - migrações aditivas;

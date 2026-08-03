@@ -12,7 +12,7 @@ from experience import calculate_stats, compare_periods
 class FlowDatabase:
     def __init__(self,path:str,organization_id="default_organization",organization_name="Organização padrão",site_id="default_site",site_name="Site padrão"):
         self.path=path;self.organization_id=organization_id;self.site_id=site_id;self._lock=threading.RLock();Path(path).parent.mkdir(parents=True,exist_ok=True)
-        self._init_schema(organization_name,site_name);self._migrate_legacy();self._reconcile_vision_sources();self._deduplicate_locations();self._deduplicate_sources();self._deduplicate_hea_sources()
+        self._init_schema(organization_name,site_name);self._migrate_legacy();self._reconcile_vision_sources();self._deduplicate_locations();self._deduplicate_sources();self._deduplicate_hea_sources();self._sanitize_tca_catalog()
     @contextmanager
     def connect(self)->Iterator[sqlite3.Connection]:
         c=sqlite3.connect(self.path,timeout=30);c.row_factory=sqlite3.Row;c.execute("PRAGMA foreign_keys=ON")
@@ -184,6 +184,30 @@ class FlowDatabase:
                     if r['location_id']:
                         used=c.execute("SELECT 1 FROM sources WHERE location_id=? UNION SELECT 1 FROM presences WHERE current_location_id=? LIMIT 1",(r['location_id'],r['location_id'])).fetchone()
                         if not used:c.execute("DELETE FROM locations WHERE id=?",(r['location_id'],))
+
+    def _sanitize_tca_catalog(self):
+        """Remove electrical false positives produced by pre-0.11.2 extraction.
+
+        Earlier versions accepted a generic ``voltage`` field. Zigbee temperature
+        sensors commonly expose that field as battery voltage, which is not mains
+        voltage for TCA. Only sources whose sample payload contains the canonical
+        ``voltage_v`` field retain the electrical-voltage capability.
+        """
+        with self._lock,self.connect() as c:
+            rows=c.execute("SELECT source_id,kinds_json,sample_payload_json FROM tca_sources").fetchall()
+            for row in rows:
+                try:
+                    kinds=set(json.loads(row['kinds_json'] or '[]'))
+                    sample=json.loads(row['sample_payload_json'] or '{}')
+                except (TypeError,ValueError,json.JSONDecodeError):
+                    continue
+                data=sample.get('data') if isinstance(sample,dict) and isinstance(sample.get('data'),dict) else {}
+                has_canonical_voltage=(isinstance(sample,dict) and sample.get('voltage_v') is not None) or data.get('voltage_v') is not None
+                if 'voltage' in kinds and not has_canonical_voltage:
+                    kinds.discard('voltage')
+                    c.execute("UPDATE tca_sources SET kinds_json=? WHERE source_id=?",(json.dumps(sorted(kinds)),row['source_id']))
+                    c.execute("DELETE FROM tca_bindings WHERE source_id=? AND kind='voltage'",(row['source_id'],))
+                    c.execute("DELETE FROM tca_measurements WHERE source_id=? AND kind='voltage'",(row['source_id'],))
 
     def _canonical_location_id(self,c,site_id,name,preferred_id=None):
         """Resolve um local canônico por site + nome normalizado.

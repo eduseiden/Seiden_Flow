@@ -1,3 +1,14 @@
+# Changelog
+
+## 0.11.2
+
+- Cataloga eventos MQTT genéricos usando identidade estável derivada de conexão e tópico.
+- Reconhece payloads TCA aninhados em `data`, incluindo potência, corrente, tensão e energia acumulada.
+- Reconhece sensores Zigbee2MQTT de porta pelo campo `contact`, respeitando `true = fechada` e `false = aberta`.
+- Exige campos elétricos canônicos com unidade (`power_w`, `voltage_v`, `current_a`, `energy_total_kwh`), evitando confundir tensão de bateria Zigbee com tensão da alimentação do ativo.
+- Limpa automaticamente capacidades, vínculos e medições de tensão incorretas criadas por versões anteriores.
+- Mantém HEA e EEA sem alterações funcionais.
+
 # 0.11.1
 
 - Cadastro TCA orientado por perfis e capacidades, sem digitação obrigatória de Source ID.
