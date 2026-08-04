@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.7.1
+
+- Corrige a régua térmica do TCA para usar uma única escala numérica proporcional.
+- Faixas coloridas agora respeitam a largura real de cada intervalo em graus.
+- Limites da escala passam a ser posicionados exatamente sobre seus valores.
+- A leitura atual é exibida sobre o marcador, mantendo o valor visível sem interação.
+- As extremidades internas da régua representam corretamente “Alerta elevado”; o estado crítico permanece reservado a valores fora dos limites operacionais.
+- Não altera perfis, classificação, banco de dados, APIs ou análise de recuperação.
+
 ## 0.11.7
 
 - Sessões de acesso agrupadas em janela de 90 segundos.
