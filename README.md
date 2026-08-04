@@ -165,3 +165,27 @@ Antes de substituir uma versão em produção, mantenha backup da pasta de dados
 
 **Every Operation Tells a Story.**  
 *From events to operational intelligence.*
+
+## Arquitetura modular — 0.12.0
+
+A versão 0.12.0 inaugura a fundação modular do Seiden Flow sem descartar a implementação existente. HEA, EEA e TCA passam a possuir manifestos registrados em um catálogo central. O núcleo expõe os módulos carregados e as composições de solução por API, enquanto todas as rotas, bancos e dashboards da versão 0.11.7.1 permanecem compatíveis.
+
+Estrutura inicial:
+
+```text
+app/
+├── core/                 # contrato, registro e API da plataforma
+├── modules/
+│   ├── hea/              # Human Experience Analytics
+│   ├── eea/              # Environmental Experience Analytics
+│   └── tca/              # Thermal Control Analytics
+└── solutions/            # composições ativas e planejadas
+```
+
+Endpoints de fundação:
+
+- `GET /api/v1/platform`
+- `GET /api/v1/platform/modules`
+- `GET /api/v1/platform/modules/<module_id>`
+- `GET /api/v1/platform/solutions`
+

@@ -12,6 +12,8 @@ from environmental_analytics import calculate_environmental_analytics, period_bo
 from tca import extract_tca_measurements
 from tca_analytics import calculate_tca
 from tca_profiles import load_tca_profiles,resolve_tca_asset
+from modules.catalog import build_module_registry
+from core.platform_api import create_platform_blueprint
 settings=load_settings();logging.basicConfig(level=getattr(logging,settings.log_level.upper(),logging.INFO),format='%(asctime)s [%(levelname)s] %(name)s: %(message)s');LOGGER=logging.getLogger('seiden_flow')
 
 _ENV_CACHE_TTL_SECONDS=30
@@ -47,6 +49,8 @@ def _timed_environment_call(label,fn):
   log=LOGGER.warning if elapsed>=0.5 else LOGGER.debug
   log('%s concluído em %.3f s',label,elapsed)
 app=Flask(__name__);app.config['MAX_CONTENT_LENGTH']=settings.webhook_max_body_mb*1024*1024
+module_registry=build_module_registry()
+app.register_blueprint(create_platform_blueprint(module_registry,VERSION,SCHEMA_VERSION))
 db=FlowDatabase(os.path.join(settings.config_dir,'seiden_flow.db'),settings.organization_id,settings.organization_name,settings.site_id,settings.site_name)
 ha=HomeAssistantClient();service=FlowService(db,ha,settings.publish_summary_to_home_assistant,settings);service.publish_summary();service.start_cleanup(settings.retention_days,settings.cleanup_interval_hours)
 if settings.subscribe_home_assistant_events:
@@ -168,7 +172,7 @@ def public_hea_dashboard():
 
 @app.get('/health')
 @app.get('/api/v1/health')
-def health():return jsonify({'status':'ok','service':'seiden_flow','version':VERSION,'schema_version':SCHEMA_VERSION,'database_schema_version':DATABASE_SCHEMA_VERSION,'home_assistant_connection':ha.connection_status})
+def health():return jsonify({'status':'ok','service':'seiden_flow','architecture':'modular_foundation','version':VERSION,'schema_version':SCHEMA_VERSION,'database_schema_version':DATABASE_SCHEMA_VERSION,'home_assistant_connection':ha.connection_status,'modules':module_registry.summary()})
 @app.post('/api/v1/events')
 @app.post('/api/v1/ingest')
 @require_api_key
@@ -465,4 +469,4 @@ def export_csv():
  return Response(out.getvalue(),mimetype='text/csv',headers={'Content-Disposition':'attachment; filename=seiden-flow-events.csv'})
 @app.errorhandler(413)
 def too_large(_):return jsonify({'error':'payload_too_large'}),413
-LOGGER.info('Seiden FLOW %s iniciado',VERSION)
+LOGGER.info('Seiden FLOW %s iniciado com %d módulos registrados',VERSION,module_registry.summary()['registered'])
