@@ -7,7 +7,7 @@
 - Registra HEA, EEA e TCA como módulos reutilizáveis, preservando integralmente suas rotas e comportamentos atuais.
 - Padroniza o nome TCA como **Thermal Control Analytics**.
 - Adiciona catálogo de capacidades, eventos consumidos, dependências, portais e prefixos de API por módulo.
-- Adiciona os endpoints `/api/v1/platform`, `/api/v1/platform/modules` e `/api/v1/platform/solutions`.
+- Adiciona os endpoints `/api/v1/platform`, `/api/v1/platform/modules`, `/api/v1/platform/modules/<module_id>` e `/api/v1/platform/solutions`.
 - Introduz o primeiro catálogo de composições, distinguindo claramente soluções ativas de soluções planejadas.
 - O endpoint de health passa a informar a arquitetura e os módulos carregados.
 - Mantém `DATABASE_SCHEMA_VERSION = 11`; não altera dados, perfis, analytics, dashboards ou integrações existentes.
