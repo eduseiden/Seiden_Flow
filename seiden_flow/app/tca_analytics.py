@@ -7,7 +7,7 @@ from profile_classification import classify_profile_value, validate_envelopes
 
 OBSERVATION_WINDOW_MINUTES = 30
 MEASURABLE_IMPACT_C = 0.2
-ACCESS_SESSION_GAP_SECONDS = 60
+ACCESS_SESSION_GAP_SECONDS = 90
 
 
 def parse(value):
@@ -194,22 +194,28 @@ def calculate_tca(rows, asset, bindings, start, end):
         impact = max((abs(value - baseline) for value in values), default=None) if baseline is not None else None
         out_of_optimal_seen = any(not _in_range(value, optimal.get("min"), optimal.get("max")) for value in values)
         recovered = None
-        if out_of_optimal_seen:
+        recovery_was_required = out_of_optimal_seen or (baseline is not None and not _in_range(baseline, optimal.get("min"), optimal.get("max")))
+        if recovery_was_required:
             for item in observed:
                 if _in_range(float(item["numeric_value"]), optimal.get("min"), optimal.get("max")):
                     recovered = item
                     break
         elapsed_since_close = max(0.0, (end - closed_at).total_seconds())
-        interrupted = bool(next_open and next_open <= observation_limit and not recovered)
+        new_session_before_limit = bool(next_open and next_open <= observation_limit and not recovered)
         enough_time = elapsed_since_close >= OBSERVATION_WINDOW_MINUTES * 60
+        negligible_impact = not out_of_optimal_seen and (impact is None or impact < MEASURABLE_IMPACT_C)
         if recovered:
             status, final_at = "recovered", parse(recovered["occurred_at"])
-        elif interrupted:
-            status, final_at = "interrupted", next_open
+        elif new_session_before_limit and negligible_impact:
+            status, final_at = "no_measurable_impact", next_open
+        elif new_session_before_limit:
+            # A later access started before the previous cycle returned to the target.
+            # This is common in normal operation and is not automatically an interruption/fault.
+            status, final_at = "recovery_not_completed", next_open
         elif not observed:
             status, final_at = ("insufficient_data" if enough_time else "observing"), analysis_end
-        elif not out_of_optimal_seen and (impact is None or impact < MEASURABLE_IMPACT_C):
-            status, final_at = "no_measurable_impact", analysis_end
+        elif enough_time and negligible_impact:
+            status, final_at = "no_measurable_impact", observation_limit
         elif enough_time:
             status, final_at = "not_recovered", observation_limit
         else:
@@ -229,7 +235,7 @@ def calculate_tca(rows, asset, bindings, start, end):
             "recovered_at": recovered["occurred_at"] if recovered else None,
             "recovery_minutes": rnd(recovery_minutes),
             "recovery_energy_wh": rnd(energy_wh, 3),
-            "energy_final": status in {"recovered", "interrupted", "no_measurable_impact", "not_recovered"},
+            "energy_final": status in {"recovered", "recovery_not_completed", "no_measurable_impact", "not_recovered"},
             "temperature_samples": len(values),
             "status": status,
             "correlation": "door",
@@ -339,7 +345,10 @@ def calculate_tca(rows, asset, bindings, start, end):
             "average_recovery_minutes": rnd(fmean(recoveries)) if recoveries else None,
             "recovered_episodes": len(recoveries),
             "observing_episodes": len([e for e in episodes if e.get("status") == "observing"]),
-            "interrupted_episodes": len([e for e in episodes if e.get("status") == "interrupted"]),
+            "not_completed_episodes": len([e for e in episodes if e.get("status") == "recovery_not_completed"]),
+            "no_impact_episodes": len([e for e in episodes if e.get("status") == "no_measurable_impact"]),
+            "insufficient_episodes": len([e for e in episodes if e.get("status") == "insufficient_data"]),
+            "not_recovered_episodes": len([e for e in episodes if e.get("status") == "not_recovered"]),
             "thermal_excursions": len(thermal_excursions),
         },
         "episodes": episodes,
