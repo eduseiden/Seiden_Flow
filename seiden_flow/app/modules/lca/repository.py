@@ -62,6 +62,10 @@ class LCARepository:
 
                 CREATE TABLE IF NOT EXISTS lca_metadata(
                   key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL);
+
+                CREATE TABLE IF NOT EXISTS lca_device_exclusions(
+                  device_id TEXT PRIMARY KEY, reason TEXT,
+                  created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
                 """
             )
 
@@ -94,6 +98,14 @@ class LCARepository:
                 now = datetime.now(timezone.utc).isoformat()
                 did = item["device_id"]
                 ch = item.get("channel")
+                blocked = c.execute(
+                    "SELECT 1 FROM lca_device_exclusions WHERE device_id=?", (did,)
+                ).fetchone()
+                ignored = c.execute(
+                    "SELECT 1 FROM lca_devices WHERE device_id=? AND status='ignored'", (did,)
+                ).fetchone()
+                if blocked or ignored:
+                    continue
                 self._upsert_device(c, item, now)
                 if ch:
                     self._upsert_channel(c, did, ch, now)
@@ -309,10 +321,11 @@ class LCARepository:
             status = "discovered"
         c.execute("UPDATE lca_devices SET status=? WHERE device_id=?", (status, did))
 
-    def devices(self):
+    def devices(self, include_ignored=False):
         with self.db.connect() as c:
+            where = "" if include_ignored else "WHERE d.status<>'ignored'"
             rows = c.execute(
-                """SELECT d.*,
+                f"""SELECT d.*,
                           (SELECT COUNT(*) FROM lca_channels x WHERE x.device_id=d.device_id) channel_count,
                           (SELECT COUNT(*) FROM lca_channels x WHERE x.device_id=d.device_id AND x.enabled=1
                              AND COALESCE(NULLIF(TRIM(x.name),''),NULLIF(TRIM(x.related_light_name),'')) IS NOT NULL
@@ -320,6 +333,7 @@ class LCARepository:
                                   OR NULLIF(TRIM(x.adjacent_location_name),'') IS NOT NULL
                                   OR NULLIF(TRIM(x.direction_hint),'') IS NOT NULL)) configured_channel_count
                    FROM lca_devices d
+                   {where}
                    ORDER BY CASE d.status WHEN 'discovered' THEN 0 WHEN 'incomplete' THEN 1 WHEN 'configured' THEN 2 ELSE 3 END,d.name"""
             ).fetchall()
             return [dict(r) for r in rows]
@@ -342,10 +356,66 @@ class LCARepository:
         if not fields:
             return self.device(did)
         with self.db.connect() as c:
-            vals = [p[k] for k in fields] + [datetime.now(timezone.utc).isoformat(), did]
+            exists = c.execute("SELECT 1 FROM lca_devices WHERE device_id=?", (did,)).fetchone()
+            if not exists:
+                return None
+            now = datetime.now(timezone.utc).isoformat()
+            vals = [p[k] for k in fields] + [now, did]
             c.execute(f"UPDATE lca_devices SET {','.join(k+'=?' for k in fields)},updated_at=? WHERE device_id=?", vals)
+            if p.get("status") == "ignored":
+                c.execute(
+                    "INSERT INTO lca_device_exclusions(device_id,reason,created_at,updated_at) VALUES(?,?,?,?) "
+                    "ON CONFLICT(device_id) DO UPDATE SET reason=excluded.reason,updated_at=excluded.updated_at",
+                    (did, "ignored_by_user", now, now),
+                )
+            elif "status" in p and p.get("status") != "ignored":
+                c.execute("DELETE FROM lca_device_exclusions WHERE device_id=?", (did,))
             self._refresh_configuration_status(c, did)
         return self.device(did)
+
+    def ignored_devices(self):
+        with self.db.connect() as c:
+            rows = c.execute(
+                """SELECT d.*,
+                          (SELECT COUNT(*) FROM lca_channels x WHERE x.device_id=d.device_id) channel_count,
+                          (SELECT COUNT(*) FROM lca_events e WHERE e.device_id=d.device_id) historical_event_count
+                   FROM lca_devices d WHERE d.status='ignored' ORDER BY d.name"""
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def reactivate_device(self, did):
+        with self.db.connect() as c:
+            exists = c.execute("SELECT 1 FROM lca_devices WHERE device_id=?", (did,)).fetchone()
+            if not exists:
+                return None
+            now = datetime.now(timezone.utc).isoformat()
+            c.execute("DELETE FROM lca_device_exclusions WHERE device_id=?", (did,))
+            c.execute("UPDATE lca_devices SET status='discovered',updated_at=? WHERE device_id=?", (now, did))
+            self._refresh_configuration_status(c, did)
+        return self.device(did)
+
+    def remove_device(self, did, preserve_history=True, ignore_future=False):
+        with self.db.connect() as c:
+            exists = c.execute("SELECT 1 FROM lca_devices WHERE device_id=?", (did,)).fetchone()
+            if not exists:
+                return False
+            now = datetime.now(timezone.utc).isoformat()
+            if ignore_future:
+                c.execute(
+                    "INSERT INTO lca_device_exclusions(device_id,reason,created_at,updated_at) VALUES(?,?,?,?) "
+                    "ON CONFLICT(device_id) DO UPDATE SET reason=excluded.reason,updated_at=excluded.updated_at",
+                    (did, "removed_and_blocked", now, now),
+                )
+            else:
+                c.execute("DELETE FROM lca_device_exclusions WHERE device_id=?", (did,))
+            c.execute("DELETE FROM lca_sessions WHERE device_id=?", (did,))
+            c.execute("DELETE FROM lca_channel_state WHERE device_id=?", (did,))
+            c.execute("DELETE FROM lca_messages WHERE device_id=?", (did,))
+            c.execute("DELETE FROM lca_channels WHERE device_id=?", (did,))
+            if not preserve_history:
+                c.execute("DELETE FROM lca_events WHERE device_id=?", (did,))
+            c.execute("DELETE FROM lca_devices WHERE device_id=?", (did,))
+        return True
 
     def update_channel(self, did, ch, p):
         allowed = ["name", "interaction_point", "location_id", "location_name", "adjacent_location_id", "adjacent_location_name", "direction_hint", "related_light_id", "related_light_name", "virtual_parallel_group", "enabled"]
@@ -368,20 +438,37 @@ class LCARepository:
             params.append(device_id)
         params.append(limit)
         with self.db.connect() as c:
-            return [dict(r) for r in c.execute(f"SELECT * FROM lca_events WHERE {' AND '.join(where)} ORDER BY occurred_at DESC LIMIT ?", params).fetchall()]
+            query = f"""SELECT e.* FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
+                        WHERE {' AND '.join('e.'+w if w.startswith('occurred_at') or w.startswith('device_id') else w for w in where)}
+                          AND d.status<>'ignored' ORDER BY e.occurred_at DESC LIMIT ?"""
+            return [dict(r) for r in c.execute(query, params).fetchall()]
 
     def dashboard(self, hours=24):
         since = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
         with self.db.connect() as c:
-            totals = dict(c.execute("SELECT COUNT(*) events,COUNT(DISTINCT device_id) active_devices FROM lca_events WHERE occurred_at>=?", (since,)).fetchone())
+            totals = dict(c.execute("""SELECT COUNT(*) events,COUNT(DISTINCT e.device_id) active_devices
+                FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
+                WHERE e.occurred_at>=? AND d.status<>'ignored'""", (since,)).fetchone())
             totals["messages_received"] = c.execute("SELECT COUNT(*) FROM lca_messages WHERE occurred_at>=?", (since,)).fetchone()[0]
-            totals["discovered_devices"] = c.execute("SELECT COUNT(*) FROM lca_devices").fetchone()[0]
+            totals["discovered_devices"] = c.execute("SELECT COUNT(*) FROM lca_devices WHERE status<>'ignored'").fetchone()[0]
+            totals["ignored_devices"] = c.execute("SELECT COUNT(*) FROM lca_devices WHERE status='ignored'").fetchone()[0]
             totals["unconfigured_devices"] = c.execute("SELECT COUNT(*) FROM lca_devices WHERE status IN ('discovered','incomplete')").fetchone()[0]
-            totals["interactions"] = c.execute("SELECT COUNT(*) FROM lca_events WHERE occurred_at>=? AND kind='interaction'", (since,)).fetchone()[0]
-            totals["state_changes"] = c.execute("SELECT COUNT(*) FROM lca_events WHERE occurred_at>=? AND kind='state_change'", (since,)).fetchone()[0]
-            totals["open_sessions"] = c.execute("SELECT COUNT(*) FROM lca_sessions WHERE status='open'").fetchone()[0]
-            by_hour = [dict(r) for r in c.execute("SELECT substr(occurred_at,1,13)||':00' bucket,COUNT(*) value FROM lca_events WHERE occurred_at>=? GROUP BY bucket ORDER BY bucket", (since,)).fetchall()]
-            top = [dict(r) for r in c.execute("SELECT COALESCE(d.name,e.device_id) name,e.device_id,COUNT(*) events FROM lca_events e LEFT JOIN lca_devices d ON d.device_id=e.device_id WHERE e.occurred_at>=? GROUP BY e.device_id ORDER BY events DESC LIMIT 10", (since,)).fetchall()]
-            routes = [dict(r) for r in c.execute("SELECT origin_location_name,adjacent_location_name,direction_hint,COUNT(*) evidence_count,MAX(occurred_at) last_seen FROM lca_events WHERE occurred_at>=? AND kind='interaction' AND (direction_hint IS NOT NULL OR adjacent_location_name IS NOT NULL) GROUP BY origin_location_name,adjacent_location_name,direction_hint ORDER BY evidence_count DESC LIMIT 10", (since,)).fetchall()]
-            recent = [dict(r) for r in c.execute("SELECT e.*,d.name device_name FROM lca_events e LEFT JOIN lca_devices d ON d.device_id=e.device_id WHERE e.occurred_at>=? ORDER BY e.occurred_at DESC LIMIT 30", (since,)).fetchall()]
+            totals["interactions"] = c.execute("""SELECT COUNT(*) FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
+                WHERE e.occurred_at>=? AND e.kind='interaction' AND d.status<>'ignored'""", (since,)).fetchone()[0]
+            totals["state_changes"] = c.execute("""SELECT COUNT(*) FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
+                WHERE e.occurred_at>=? AND e.kind='state_change' AND d.status<>'ignored'""", (since,)).fetchone()[0]
+            totals["open_sessions"] = c.execute("""SELECT COUNT(*) FROM lca_sessions s JOIN lca_devices d ON d.device_id=s.device_id
+                WHERE s.status='open' AND d.status<>'ignored'""").fetchone()[0]
+            by_hour = [dict(r) for r in c.execute("""SELECT substr(e.occurred_at,1,13)||':00' bucket,COUNT(*) value
+                FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
+                WHERE e.occurred_at>=? AND d.status<>'ignored' GROUP BY bucket ORDER BY bucket""", (since,)).fetchall()]
+            top = [dict(r) for r in c.execute("SELECT COALESCE(d.name,e.device_id) name,e.device_id,COUNT(*) events FROM lca_events e LEFT JOIN lca_devices d ON d.device_id=e.device_id WHERE e.occurred_at>=? AND d.status<>'ignored' GROUP BY e.device_id ORDER BY events DESC LIMIT 10", (since,)).fetchall()]
+            routes = [dict(r) for r in c.execute("""SELECT e.origin_location_name,e.adjacent_location_name,e.direction_hint,
+                COUNT(*) evidence_count,MAX(e.occurred_at) last_seen
+                FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
+                WHERE e.occurred_at>=? AND e.kind='interaction' AND d.status<>'ignored'
+                  AND (e.direction_hint IS NOT NULL OR e.adjacent_location_name IS NOT NULL)
+                GROUP BY e.origin_location_name,e.adjacent_location_name,e.direction_hint
+                ORDER BY evidence_count DESC LIMIT 10""", (since,)).fetchall()]
+            recent = [dict(r) for r in c.execute("SELECT e.*,d.name device_name FROM lca_events e LEFT JOIN lca_devices d ON d.device_id=e.device_id WHERE e.occurred_at>=? AND d.status<>'ignored' ORDER BY e.occurred_at DESC LIMIT 30", (since,)).fetchall()]
         return {"period_hours": hours, "summary": totals, "by_hour": by_hour, "top_devices": top, "route_evidence": routes, "recent_events": recent, "updated_at": datetime.now(timezone.utc).isoformat()}

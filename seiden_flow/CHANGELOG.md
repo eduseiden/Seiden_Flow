@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.14.1 — LCA 0.2.1: Device Lifecycle Management
+
+- permite ignorar dispositivos e descartar novos eventos antes de qualquer processamento analítico;
+- adiciona lista de dispositivos ignorados e reativação;
+- adiciona remoção com opção de preservar ou apagar histórico;
+- permite bloquear nova descoberta quando a assinatura MQTT por prefixo continuar ativa;
+- exclui ignorados dos contadores, rankings e eventos recentes;
+- adiciona os endpoints de ciclo de vida do dispositivo;
+- atualiza o Database Schema para 13 por meio de tabela aditiva de exclusões;
+- mantém HEA, EEA e TCA sem alterações funcionais.
+
 ## 0.14.0 — LCA 0.2.0: Device and Spatial Configuration
 
 - adiciona configuração visual dos dispositivos descobertos diretamente no portal LCA;

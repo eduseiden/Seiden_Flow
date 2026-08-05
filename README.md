@@ -1,9 +1,9 @@
-# Seiden FLOW 0.14.0
+# Seiden FLOW 0.14.1
 
 Camada de compreensão do **Seiden One**. O FLOW recebe eventos e evidências normalizadas, preserva o histórico e transforma dados operacionais em análises para pessoas, ambientes e ativos térmicos.
 
 
-## LCA 0.2.0 — configuração espacial assistida
+## LCA 0.2.1 — configuração espacial assistida
 
 O LCA diferencia telemetria MQTT de eventos analíticos. A primeira observação estabelece o estado inicial; publicações repetidas sem mudança são mantidas apenas como telemetria técnica. Eventos e sessões são criados somente em transições reais, enquanto interações físicas explícitas permanecem registradas separadamente.
 
@@ -83,7 +83,7 @@ Portal:
 
 Primeiro módulo nativo da arquitetura modular. O LCA não controla iluminação: ele interpreta eventos de acionamento e mudança de estado, descobre automaticamente dispositivos MQTT compatíveis e permite enriquecer manualmente o contexto espacial de interruptores, teclas e paralelos virtuais.
 
-Base funcional consolidada até o LCA 0.2.0:
+Base funcional consolidada até o LCA 0.2.1:
 
 - descoberta automática por prefixos MQTT configuráveis;
 - configuração visual de dispositivo, ambiente, posição e ambiente adjacente;
@@ -166,9 +166,9 @@ O Vision permanece como autoridade dos perfis. Customizações específicas de a
 
 ## Persistência e compatibilidade
 
-- versão do FLOW: `0.14.0`;
+- versão do FLOW: `0.14.1`;
 - Platform Schema: `2.0`;
-- Database Schema: `12`;
+- Database Schema: `13`;
 - migrações aditivas;
 - ativos e associações criados na 0.11.0 são preservados;
 - HEA e EEA permanecem independentes do TCA;
@@ -216,3 +216,7 @@ Endpoints de fundação:
 - `GET /api/v1/platform/modules/<module_id>`
 - `GET /api/v1/platform/solutions`
 
+
+## LCA 0.2.1 — ciclo de vida de dispositivos
+
+O LCA permite ignorar, reativar e remover dispositivos. A opção **Ignorar** é indicada quando o Bridge assina um prefixo amplo, mas um dispositivo específico não deve participar da análise. Dispositivos ignorados são descartados antes do registro de mensagens, estados, sessões ou eventos. A remoção pode preservar o histórico e, opcionalmente, bloquear uma nova descoberta.

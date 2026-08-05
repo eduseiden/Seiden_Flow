@@ -9,7 +9,20 @@ def create_lca_blueprint(repo,version,ingress_path_fn,timezone_name):
     @bp.get('/api/v1/lca/dashboard')
     def dashboard():return jsonify(repo.dashboard(max(1,min(720,int(request.args.get('hours',24))))))
     @bp.get('/api/v1/lca/devices')
-    def devices():return jsonify({'items':repo.devices()})
+    def devices():return jsonify({'items':repo.devices(request.args.get('include_ignored','false').lower()=='true')})
+    @bp.get('/api/v1/lca/devices/ignored')
+    def ignored_devices():return jsonify({'items':repo.ignored_devices()})
+    @bp.post('/api/v1/lca/devices/<path:device_id>/reactivate')
+    def reactivate_device(device_id):
+        item=repo.reactivate_device(device_id)
+        if not item:abort(404)
+        return jsonify(item)
+    @bp.delete('/api/v1/lca/devices/<path:device_id>')
+    def delete_device(device_id):
+        payload=request.get_json(silent=True) or {}
+        ok=repo.remove_device(device_id,bool(payload.get('preserve_history',True)),bool(payload.get('ignore_future',False)))
+        if not ok:abort(404)
+        return jsonify({'removed':True,'device_id':device_id,'preserve_history':bool(payload.get('preserve_history',True)),'ignore_future':bool(payload.get('ignore_future',False))})
     @bp.get('/api/v1/lca/devices/<path:device_id>')
     def device(device_id):
         item=repo.device(device_id)

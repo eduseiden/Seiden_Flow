@@ -1,11 +1,11 @@
-# Seiden FLOW 0.14.0 — Documentação técnica
+# Seiden FLOW 0.14.1 — Documentação técnica
 
 ## Identificação
 
 - Serviço: `seiden_flow`
-- Versão: `0.14.0`
+- Versão: `0.14.1`
 - Platform Schema: `2.0`
-- Database Schema: `12`
+- Database Schema: `13`
 - Porta interna: `8100`
 - Persistência: SQLite na pasta de configuração do add-on
 
@@ -120,7 +120,7 @@ O catálogo de soluções diferencia composições `active` e `planned`; uma com
 
 O Lighting Context Analytics consome eventos normalizados pelo Bridge, descobre dispositivos sob os prefixos MQTT configurados e cria contexto analítico de iluminação. Não possui APIs de comando. Portal: `/lca`. Prefixo de API: `/api/v1/lca`.
 
-## LCA 0.2.0 — configuração espacial assistida
+## LCA 0.2.1 — configuração espacial assistida
 
 - portal com edição de dispositivo e teclas;
 - enriquecimento de ambiente, posição, adjacência e direção;
@@ -130,3 +130,15 @@ O Lighting Context Analytics consome eventos normalizados pelo Bridge, descobre 
 - nenhuma função de comando ou controle de iluminação.
 
 O LCA mantém o último estado observado de cada canal. A primeira publicação estabelece a linha de base e não gera evento. Publicações seguintes com o mesmo valor contam apenas como mensagens técnicas. Uma mudança real gera `state_change`; ações explícitas do dispositivo geram `interaction`. Sessões são abertas e fechadas somente por transições reais.
+
+## LCA 0.2.1 — ciclo de vida de dispositivos
+
+O LCA permite ignorar, reativar e remover dispositivos. A opção **Ignorar** é indicada quando o Bridge assina um prefixo amplo, mas um dispositivo específico não deve participar da análise. Dispositivos ignorados são descartados antes do registro de mensagens, estados, sessões ou eventos. A remoção pode preservar o histórico e, opcionalmente, bloquear uma nova descoberta.
+
+### Ciclo de vida de dispositivos LCA
+
+- `GET /api/v1/lca/devices/ignored`
+- `POST /api/v1/lca/devices/{device_id}/reactivate`
+- `DELETE /api/v1/lca/devices/{device_id}`
+
+O `DELETE` aceita `preserve_history` e `ignore_future` no corpo JSON.
