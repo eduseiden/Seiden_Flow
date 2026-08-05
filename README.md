@@ -1,4 +1,4 @@
-# Seiden FLOW 0.13.0
+# Seiden FLOW 0.13.0.1
 
 Camada de compreensão do **Seiden One**. O FLOW recebe eventos e evidências normalizadas, preserva o histórico e transforma dados operacionais em análises para pessoas, ambientes e ativos térmicos.
 
@@ -159,7 +159,7 @@ O Vision permanece como autoridade dos perfis. Customizações específicas de a
 
 ## Persistência e compatibilidade
 
-- versão do FLOW: `0.13.0`;
+- versão do FLOW: `0.13.0.1`;
 - Platform Schema: `2.0`;
 - Database Schema: `12`;
 - migrações aditivas;

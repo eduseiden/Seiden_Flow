@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.0.1 — Correção de navegação do LCA
+
+- adiciona o card e o link do LCA à página inicial do Flow;
+- corrige os links TCA e LCA para respeitar o ingress path;
+- mantém HEA, EEA, TCA e todas as APIs sem alteração funcional.
+
 ## 0.13.0 — LCA 0.1.0
 
 - Introduz o **LCA — Lighting Context Analytics**, primeiro módulo desenvolvido nativamente sobre a arquitetura modular.
