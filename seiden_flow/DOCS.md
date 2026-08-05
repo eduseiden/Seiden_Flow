@@ -1,10 +1,18 @@
-# Seiden FLOW 0.15.2 — Documentação técnica
+# Seiden FLOW 0.15.3 — Documentação técnica
 
-## LCA 0.3.2 — Event Consolidation & UX Refinement
+## LCA 0.3.3 — Logical State & Experience Redesign
 
 O dashboard separa ações de negócio de telemetria técnica. Interações são exibidas como eventos-pai e carregam os efeitos correlacionados em `effects`; mudanças brutas permanecem em `technical_events` e somente aparecem no modo avançado. Nenhuma estrutura de banco foi alterada.
 
 O endpoint `/api/v1/lca/dashboard` passa a expor também `recent_actions`, `technical_events`, `confirmed_interactions` e `unconfirmed_interactions`, preservando `recent_events` para compatibilidade.
+
+### Estado lógico consolidado e experiência visual
+
+- `active_lights` é calculado por `light_asset_id`, usando o estado mais recente entre os pontos ativos associados;
+- gangs diretos e paralelos não são somados como luzes distintas;
+- `current_lights` expõe estado, ambiente, quantidade de pontos e última atualização por circuito;
+- `origin_breakdown` e `role_breakdown` alimentam as análises do período;
+- o portal utiliza terminologia comercial na visão padrão e reserva identificadores técnicos ao modo avançado.
 
 ## LCA 0.3.1 — Interaction Origin Attribution
 
@@ -15,8 +23,8 @@ Campos suportados: `source_entity`, `source_device`, `source_channel`, `requeste
 ## Identificação
 
 - Serviço: `seiden_flow`
-- Versão: `0.15.2`
-- LCA: `0.3.2`
+- Versão: `0.15.3`
+- LCA: `0.3.3`
 - Platform Schema: `2.0`
 - Database Schema: `15`
 - Porta interna: `8100`

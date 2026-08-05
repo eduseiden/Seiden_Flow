@@ -1,4 +1,21 @@
-# Seiden FLOW 0.15.2
+# Seiden FLOW 0.15.3
+
+## LCA 0.3.3 — estado lógico e identidade visual Seiden One
+
+O painel do LCA passa a contar **circuitos lógicos**, e não gangs individuais. Pontos diretos e paralelos associados à mesma luz são consolidados em um único estado operacional.
+
+Principais recursos:
+
+- correção de **Luzes ativas** para contabilizar cada circuito lógico uma única vez;
+- visão de estado atual com circuitos ligados e total monitorado;
+- painel redesenhado no padrão visual da família Seiden One, com azul institucional e âmbar característico do LCA;
+- resumo do período orientado a ações, confirmação, acionamentos locais e cenas;
+- análise da origem dos acionamentos com terminologia comercial: local, remoto, automação e não identificada;
+- circuitos monitorados em destaque, com estado consolidado e quantidade de pontos associados;
+- dispositivos deslocados para a área de infraestrutura e configuração;
+- nomes de tecnologias internas ocultos da visão padrão e preservados apenas em informações avançadas;
+- Database Schema 15 preservado, sem migração;
+- HEA, EEA e TCA preservados.
 
 ## LCA 0.3.2 — consolidação de ações e refinamento de UX
 

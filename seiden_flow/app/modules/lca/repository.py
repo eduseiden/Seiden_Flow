@@ -639,10 +639,45 @@ class LCARepository:
                 LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
                 WHERE e.occurred_at>=? AND e.kind='state_change' AND d.status<>'ignored'
                   AND (e.channel_key IS NULL OR ch.enabled=1)""", (since,)).fetchone()[0]
-            totals["open_sessions"] = c.execute("""SELECT COUNT(*) FROM lca_sessions s JOIN lca_devices d ON d.device_id=s.device_id
-                LEFT JOIN lca_channels ch ON ch.device_id=s.device_id AND ch.channel_key=s.channel_key
-                WHERE s.status='open' AND d.status<>'ignored'
-                  AND (s.channel_key IS NULL OR ch.enabled=1)""").fetchone()[0]
+            # Estado lógico consolidado: cada luz é contada uma única vez,
+            # independentemente da quantidade de gangs diretos ou paralelos.
+            current_lights = [dict(r) for r in c.execute("""
+                SELECT l.light_id,l.name,l.location_name,
+                       COUNT(DISTINCT CASE WHEN d.device_id IS NOT NULL THEN ch.channel_id END) point_count,
+                       (
+                         SELECT cs.state
+                         FROM lca_channels ch2
+                         JOIN lca_channel_state cs
+                           ON cs.device_id=ch2.device_id AND cs.channel_key=ch2.channel_key
+                         JOIN lca_devices d2 ON d2.device_id=ch2.device_id
+                         WHERE ch2.light_asset_id=l.light_id
+                           AND ch2.enabled=1 AND d2.status<>'ignored'
+                         ORDER BY COALESCE(cs.last_changed_at,cs.last_observed_at) DESC
+                         LIMIT 1
+                       ) state,
+                       (
+                         SELECT COALESCE(cs.last_changed_at,cs.last_observed_at)
+                         FROM lca_channels ch2
+                         JOIN lca_channel_state cs
+                           ON cs.device_id=ch2.device_id AND cs.channel_key=ch2.channel_key
+                         JOIN lca_devices d2 ON d2.device_id=ch2.device_id
+                         WHERE ch2.light_asset_id=l.light_id
+                           AND ch2.enabled=1 AND d2.status<>'ignored'
+                         ORDER BY COALESCE(cs.last_changed_at,cs.last_observed_at) DESC
+                         LIMIT 1
+                       ) last_updated_at
+                FROM lca_light_assets l
+                LEFT JOIN lca_channels ch ON ch.light_asset_id=l.light_id AND ch.enabled=1
+                LEFT JOIN lca_devices d ON d.device_id=ch.device_id AND d.status<>'ignored'
+                GROUP BY l.light_id,l.name,l.location_name
+                HAVING COUNT(DISTINCT CASE WHEN d.device_id IS NOT NULL THEN ch.channel_id END)>0
+                ORDER BY l.location_name,l.name
+            """).fetchall()]
+            totals["monitored_lights"] = len(current_lights)
+            totals["active_lights"] = sum(1 for light in current_lights if str(light.get("state") or "").upper() == "ON")
+            totals["unknown_lights"] = sum(1 for light in current_lights if not light.get("state"))
+            # Mantido para compatibilidade com clientes antigos da API.
+            totals["open_sessions"] = totals["active_lights"]
             totals["confirmed_interactions"] = c.execute("""SELECT COUNT(*) FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
                 LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
                 WHERE e.occurred_at>=? AND e.kind='interaction' AND e.interaction_status='confirmed'
@@ -696,7 +731,25 @@ class LCARepository:
                 WHERE e.occurred_at>=? AND e.kind<>'interaction' AND d.status<>'ignored'
                   AND (e.channel_key IS NULL OR ch.enabled=1)
                 ORDER BY e.occurred_at DESC LIMIT 30""", (since,)).fetchall()]
+            origin_breakdown = [dict(r) for r in c.execute("""
+                SELECT COALESCE(e.origin_mode,'unknown') key,COUNT(*) value
+                FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
+                LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+                WHERE e.occurred_at>=? AND e.kind='interaction' AND d.status<>'ignored'
+                  AND (e.channel_key IS NULL OR ch.enabled=1)
+                GROUP BY COALESCE(e.origin_mode,'unknown') ORDER BY value DESC
+            """, (since,)).fetchall()]
+            role_breakdown = [dict(r) for r in c.execute("""
+                SELECT COALESCE(ch.relationship_type,'unassigned') key,COUNT(*) value
+                FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
+                LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+                WHERE e.occurred_at>=? AND e.kind='interaction' AND d.status<>'ignored'
+                  AND (e.channel_key IS NULL OR ch.enabled=1)
+                GROUP BY COALESCE(ch.relationship_type,'unassigned') ORDER BY value DESC
+            """, (since,)).fetchall()]
             recent=(actions+technical)[:30]
         return {"period_hours": hours, "summary": totals, "by_hour": by_hour, "top_devices": top,
                 "route_evidence": routes, "recent_actions": actions, "technical_events": technical,
-                "recent_events": recent[:30], "updated_at": datetime.now(timezone.utc).isoformat()}
+                "current_lights": current_lights, "origin_breakdown": origin_breakdown,
+                "role_breakdown": role_breakdown, "recent_events": recent[:30],
+                "updated_at": datetime.now(timezone.utc).isoformat()}

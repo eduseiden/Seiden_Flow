@@ -1,3 +1,14 @@
+## 0.15.3 — LCA 0.3.3: Logical State & Experience Redesign
+
+- Corrige o indicador de luzes ativas para contar circuitos lógicos únicos.
+- Consolida o estado atual por `light_asset_id`, deduplicando pontos diretos e paralelos.
+- Adiciona `current_lights`, `active_lights`, `monitored_lights` e `unknown_lights` à API do dashboard.
+- Adiciona distribuições de origem e papel dos pontos no período.
+- Redesenha o portal segundo a identidade visual Seiden One, com assinatura âmbar do LCA.
+- Oculta nomes de tecnologias internas da visão padrão; dados técnicos permanecem no modo avançado.
+- Reorganiza o painel em Estado atual, Resumo, Uso da iluminação, Operação e Configuração.
+- Mantém Database Schema 15 e preserva HEA, EEA e TCA.
+
 ## 0.15.2 — LCA 0.3.2: Event Consolidation & UX Refinement
 
 - Consolida interação e efeitos técnicos em uma única ação compreensível no histórico principal.
