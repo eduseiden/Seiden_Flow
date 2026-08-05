@@ -14,6 +14,8 @@ from tca_analytics import calculate_tca
 from tca_profiles import load_tca_profiles,resolve_tca_asset
 from modules.catalog import build_module_registry
 from core.platform_api import create_platform_blueprint
+from modules.lca.repository import LCARepository
+from modules.lca.api import create_lca_blueprint
 settings=load_settings();logging.basicConfig(level=getattr(logging,settings.log_level.upper(),logging.INFO),format='%(asctime)s [%(levelname)s] %(name)s: %(message)s');LOGGER=logging.getLogger('seiden_flow')
 
 _ENV_CACHE_TTL_SECONDS=30
@@ -52,7 +54,8 @@ app=Flask(__name__);app.config['MAX_CONTENT_LENGTH']=settings.webhook_max_body_m
 module_registry=build_module_registry()
 app.register_blueprint(create_platform_blueprint(module_registry,VERSION,SCHEMA_VERSION))
 db=FlowDatabase(os.path.join(settings.config_dir,'seiden_flow.db'),settings.organization_id,settings.organization_name,settings.site_id,settings.site_name)
-ha=HomeAssistantClient();service=FlowService(db,ha,settings.publish_summary_to_home_assistant,settings);service.publish_summary();service.start_cleanup(settings.retention_days,settings.cleanup_interval_hours)
+lca_repository=LCARepository(db)
+ha=HomeAssistantClient();service=FlowService(db,ha,settings.publish_summary_to_home_assistant,settings);service.lca_repository=lca_repository;service.publish_summary();service.start_cleanup(settings.retention_days,settings.cleanup_interval_hours)
 if settings.subscribe_home_assistant_events:
  event_types=[settings.bridge_event,settings.connection_online_event,settings.connection_offline_event]
  if settings.vision_event:
@@ -75,6 +78,8 @@ def _request_hostname() -> str:
 
 def _is_public_hea_host() -> bool:
  return bool(settings.hea_public_hostname and _request_hostname()==settings.hea_public_hostname)
+
+app.register_blueprint(create_lca_blueprint(lca_repository,VERSION,_ingress_path,settings.timezone))
 
 @app.before_request
 def restrict_public_hea_host():

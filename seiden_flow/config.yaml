@@ -1,5 +1,5 @@
 name: Seiden FLOW
-version: 0.12.0
+version: 0.13.0
 slug: seiden_flow
 description: Motor de entendimento operacional do Seiden One, conforme Platform Standard
   v1.0
@@ -68,6 +68,9 @@ options:
   hea_portal_allowed_origins: []
   hea_public_hostname: ''
   hea_public_restrict_routes: false
+  lca_enabled: true
+  lca_topic_prefixes:
+  - zigbee2mqtt/Interruptor
   datetime_format: YYYY-MM-DD HH:mm:ss
 schema:
   log_level: list(debug|info|warning|error|critical)
@@ -111,4 +114,7 @@ schema:
   - str
   hea_public_hostname: str?
   hea_public_restrict_routes: bool
+  lca_enabled: bool
+  lca_topic_prefixes:
+  - str
   datetime_format: str

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.13.0 — LCA 0.1.0
+
+- Introduz o **LCA — Lighting Context Analytics**, primeiro módulo desenvolvido nativamente sobre a arquitetura modular.
+- O LCA compreende eventos de iluminação e não envia comandos a dispositivos.
+- Adiciona descoberta automática de dispositivos MQTT por prefixos configuráveis.
+- Preserva dispositivo, canal/tecla, ação, estado, brilho, tópico e horário.
+- Adiciona enriquecimento manual de localização, posição, ambiente adjacente, direção provável, luz relacionada e grupo de paralelo virtual.
+- Cria sessões liga/desliga e indicadores de atividade.
+- Introduz evidências de rota, sempre apresentadas como sinais contextuais e não como localização confirmada de pessoas.
+- Adiciona portal `/lca` e APIs `/api/v1/lca`.
+- Incrementa o Database Schema para `12` com migração exclusivamente aditiva.
+- Preserva HEA, EEA e TCA sem alterações funcionais.
+
 ## 0.12.0 — Modular Foundation
 
 - Introduz o registro central de módulos do Seiden Flow.

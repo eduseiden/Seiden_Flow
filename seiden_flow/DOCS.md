@@ -1,11 +1,11 @@
-# Seiden FLOW 0.12.0 — Documentação técnica
+# Seiden FLOW 0.13.0 — Documentação técnica
 
 ## Identificação
 
 - Serviço: `seiden_flow`
-- Versão: `0.12.0`
+- Versão: `0.13.0`
 - Platform Schema: `2.0`
-- Database Schema: `11`
+- Database Schema: `12`
 - Porta interna: `8100`
 - Persistência: SQLite na pasta de configuração do add-on
 
@@ -107,10 +107,15 @@ O manifesto monta:
 
 A migração para Database Schema 11 é aditiva. Tabelas e dados anteriores são preservados. HEA e EEA continuam disponíveis mesmo sem ativos TCA cadastrados.
 
-## Modular Foundation (0.12.0)
+## Modular Foundation (0.13.0)
 
-A fundação modular usa `ModuleManifest` e `ModuleRegistry` para declarar e descobrir capacidades analíticas. A versão 0.12.0 não migra o banco nem altera contratos existentes: ela cria a fronteira arquitetural que permitirá extrair gradualmente rotas, repositórios, analytics e interfaces de cada módulo.
+A fundação modular usa `ModuleManifest` e `ModuleRegistry` para declarar e descobrir capacidades analíticas. A versão 0.13.0 não migra o banco nem altera contratos existentes: ela cria a fronteira arquitetural que permitirá extrair gradualmente rotas, repositórios, analytics e interfaces de cada módulo.
 
 Cada manifesto declara: identificador, nome, versão interna, estado, eventos consumidos, capacidades, portais, prefixos de API e dependências. Novos módulos devem ser registrados em `app/modules/catalog.py`.
 
 O catálogo de soluções diferencia composições `active` e `planned`; uma composição planejada não significa que seus módulos estejam implementados.
+
+
+## LCA 0.1.0
+
+O Lighting Context Analytics consome eventos normalizados pelo Bridge, descobre dispositivos sob os prefixos MQTT configurados e cria contexto analítico de iluminação. Não possui APIs de comando. Portal: `/lca`. Prefixo de API: `/api/v1/lca`.

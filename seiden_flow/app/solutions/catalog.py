@@ -8,8 +8,8 @@ def solution_catalog() -> list[dict]:
             "solution_id": "seiden_one_analytics",
             "name": "Seiden One Analytics",
             "status": "active",
-            "modules": ["hea", "eea", "tca"],
-            "description": "Composição atualmente disponível no Seiden Flow.",
+            "modules": ["hea", "eea", "tca", "lca"],
+            "description": "Composição atualmente disponível no Seiden Flow, incluindo o primeiro módulo nativo LCA.",
         },
         {
             "solution_id": "intelligent_living",

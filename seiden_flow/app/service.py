@@ -8,12 +8,14 @@ from observation import extract_vision_observation, sanitize_vision_event
 from environmental import extract_environmental_measurement
 from tca import extract_tca_measurements
 from experience import DEFAULT_EMOTION_WEIGHTS
+from modules.lca.extractor import extract_lca_events
 LOGGER=logging.getLogger(__name__)
 
 class FlowService:
     def __init__(self,db:FlowDatabase,ha:HomeAssistantClient,publish_to_ha:bool,settings):
         self.db=db;self.ha=ha;self.publish_to_ha=publish_to_ha;self.settings=settings;self._lock=threading.RLock()
         self.weights=dict(DEFAULT_EMOTION_WEIGHTS)
+        self.lca_repository=None
 
     def _source_enabled(self,source_id):
         enabled=self.settings.human_experience_enabled_sources
@@ -24,6 +26,7 @@ class FlowService:
         observation=extract_vision_observation(original) if self.settings.observation_engine_enabled and self.settings.human_experience_enabled else None
         environmental=extract_environmental_measurement(original,ha_event_type) if self.settings.environmental_storage_enabled else None
         tca_measurements=extract_tca_measurements(original,ha_event_type)
+        lca_events=extract_lca_events(original,ha_event_type,self.settings.lca_topic_prefixes) if self.settings.lca_enabled else []
         if observation:
             payload=sanitize_vision_event(original)
         event=normalize_event(payload,transport=transport,ha_event_type=ha_event_type)
@@ -49,6 +52,9 @@ class FlowService:
                 if tca_measurements:
                     tca_inserted=self.db.insert_tca_measurements(tca_measurements)
                     if tca_inserted:LOGGER.info('TCA armazenou %s medição(ões)',tca_inserted)
+                if lca_events and self.lca_repository:
+                    lca_inserted=self.lca_repository.ingest(lca_events)
+                    if lca_inserted:LOGGER.info('LCA armazenou %s evento(s)',lca_inserted)
                 self.publish_summary();LOGGER.info('Evento ingerido: %s | %s | %s',event['event_type'],event['event_id'],event['source'])
             else:LOGGER.info('Evento duplicado ignorado: %s',event['event_id'])
         event.pop('_flat',None)
