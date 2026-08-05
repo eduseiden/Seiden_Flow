@@ -1,9 +1,9 @@
-# Seiden FLOW 0.14.1 — Documentação técnica
+# Seiden FLOW 0.14.2 — Documentação técnica
 
 ## Identificação
 
 - Serviço: `seiden_flow`
-- Versão: `0.14.1`
+- Versão: `0.14.2`
 - Platform Schema: `2.0`
 - Database Schema: `13`
 - Porta interna: `8100`
@@ -120,7 +120,7 @@ O catálogo de soluções diferencia composições `active` e `planned`; uma com
 
 O Lighting Context Analytics consome eventos normalizados pelo Bridge, descobre dispositivos sob os prefixos MQTT configurados e cria contexto analítico de iluminação. Não possui APIs de comando. Portal: `/lca`. Prefixo de API: `/api/v1/lca`.
 
-## LCA 0.2.1 — configuração espacial assistida
+## LCA 0.2.2 — configuração espacial e escopo por canal
 
 - portal com edição de dispositivo e teclas;
 - enriquecimento de ambiente, posição, adjacência e direção;
@@ -130,6 +130,16 @@ O Lighting Context Analytics consome eventos normalizados pelo Bridge, descobre 
 - nenhuma função de comando ou controle de iluminação.
 
 O LCA mantém o último estado observado de cada canal. A primeira publicação estabelece a linha de base e não gera evento. Publicações seguintes com o mesmo valor contam apenas como mensagens técnicas. Uma mudança real gera `state_change`; ações explícitas do dispositivo geram `interaction`. Sessões são abertas e fechadas somente por transições reais.
+
+
+## LCA 0.2.2 — Channel Scope Management
+
+- `lca_channels.enabled` define o escopo analítico por canal.
+- Canais desativados são descartados antes de `lca_messages`, baseline, eventos e sessões.
+- Eventos históricos de canais desativados ficam preservados, mas são excluídos das consultas e dashboards atuais.
+- Alterar o estado de monitoramento remove a linha de base e qualquer sessão aberta do canal; a próxima publicação após reativação é apenas baseline.
+- O status de configuração considera exclusivamente canais ativos.
+- Database Schema permanece em `13`; não há migração estrutural.
 
 ## LCA 0.2.1 — ciclo de vida de dispositivos
 

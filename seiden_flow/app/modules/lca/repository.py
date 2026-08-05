@@ -109,7 +109,6 @@ class LCARepository:
                 self._upsert_device(c, item, now)
                 if ch:
                     self._upsert_channel(c, did, ch, now)
-                self._record_message(c, item, now)
                 cfg = (
                     c.execute(
                         "SELECT * FROM lca_channels WHERE device_id=? AND channel_key=?",
@@ -119,6 +118,15 @@ class LCARepository:
                     else None
                 )
 
+                # Devices may expose relays, outlets or auxiliary gangs that do
+                # not belong to the analytical scope of the LCA. Disabled
+                # channels are discarded before message storage, baselining,
+                # sessions and analytical events. Other channels in the same
+                # device continue to be processed normally.
+                if cfg is not None and not bool(cfg["enabled"]):
+                    continue
+
+                self._record_message(c, item, now)
                 kind = item["kind"]
                 if kind == "state":
                     if self._process_state(c, item, cfg, now):
@@ -311,9 +319,12 @@ class LCARepository:
         row = c.execute("SELECT status,location_name FROM lca_devices WHERE device_id=?", (did,)).fetchone()
         if not row or row["status"] == "ignored":
             return
+        total_channels = c.execute("SELECT COUNT(*) FROM lca_channels WHERE device_id=?", (did,)).fetchone()[0]
         total = c.execute("SELECT COUNT(*) FROM lca_channels WHERE device_id=? AND enabled=1", (did,)).fetchone()[0]
         configured = cls._configured_channel_count(c, did)
-        if row["location_name"] and total > 0 and configured == total:
+        if total_channels > 0 and total == 0:
+            status = "configured"
+        elif row["location_name"] and total > 0 and configured == total:
             status = "configured"
         elif row["location_name"] or configured > 0:
             status = "incomplete"
@@ -327,6 +338,8 @@ class LCARepository:
             rows = c.execute(
                 f"""SELECT d.*,
                           (SELECT COUNT(*) FROM lca_channels x WHERE x.device_id=d.device_id) channel_count,
+                          (SELECT COUNT(*) FROM lca_channels x WHERE x.device_id=d.device_id AND x.enabled=1) monitored_channel_count,
+                          (SELECT COUNT(*) FROM lca_channels x WHERE x.device_id=d.device_id AND x.enabled=0) excluded_channel_count,
                           (SELECT COUNT(*) FROM lca_channels x WHERE x.device_id=d.device_id AND x.enabled=1
                              AND COALESCE(NULLIF(TRIM(x.name),''),NULLIF(TRIM(x.related_light_name),'')) IS NOT NULL
                              AND (NULLIF(TRIM(x.interaction_point),'') IS NOT NULL
@@ -348,6 +361,8 @@ class LCARepository:
             out["channels"] = [dict(x) for x in channels]
             out["configured_channel_count"] = self._configured_channel_count(c, did)
             out["channel_count"] = len(channels)
+            out["monitored_channel_count"] = sum(1 for x in channels if bool(x["enabled"]))
+            out["excluded_channel_count"] = sum(1 for x in channels if not bool(x["enabled"]))
             return out
 
     def update_device(self, did, p):
@@ -424,9 +439,20 @@ class LCARepository:
             now = datetime.now(timezone.utc).isoformat()
             cid = f"{did}:{ch}"
             c.execute("INSERT OR IGNORE INTO lca_channels(channel_id,device_id,channel_key,created_at,updated_at) VALUES(?,?,?,?,?)", (cid, did, ch, now, now))
+            previous = c.execute(
+                "SELECT enabled FROM lca_channels WHERE device_id=? AND channel_key=?",
+                (did, ch),
+            ).fetchone()
             if fields:
                 vals = [1 if p[k] is True else 0 if p[k] is False else p[k] for k in fields] + [now, did, ch]
                 c.execute(f"UPDATE lca_channels SET {','.join(k+'=?' for k in fields)},updated_at=? WHERE device_id=? AND channel_key=?", vals)
+            current = c.execute(
+                "SELECT enabled FROM lca_channels WHERE device_id=? AND channel_key=?",
+                (did, ch),
+            ).fetchone()
+            if previous and current and bool(previous["enabled"]) != bool(current["enabled"]):
+                c.execute("DELETE FROM lca_channel_state WHERE device_id=? AND channel_key=?", (did, ch))
+                c.execute("DELETE FROM lca_sessions WHERE device_id=? AND channel_key=? AND status='open'", (did, ch))
             self._refresh_configuration_status(c, did)
         return self.device(did)
 
@@ -438,9 +464,13 @@ class LCARepository:
             params.append(device_id)
         params.append(limit)
         with self.db.connect() as c:
-            query = f"""SELECT e.* FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
+            query = f"""SELECT e.* FROM lca_events e
+                        JOIN lca_devices d ON d.device_id=e.device_id
+                        LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
                         WHERE {' AND '.join('e.'+w if w.startswith('occurred_at') or w.startswith('device_id') else w for w in where)}
-                          AND d.status<>'ignored' ORDER BY e.occurred_at DESC LIMIT ?"""
+                          AND d.status<>'ignored'
+                          AND (e.channel_key IS NULL OR ch.enabled=1)
+                        ORDER BY e.occurred_at DESC LIMIT ?"""
             return [dict(r) for r in c.execute(query, params).fetchall()]
 
     def dashboard(self, hours=24):
@@ -448,27 +478,39 @@ class LCARepository:
         with self.db.connect() as c:
             totals = dict(c.execute("""SELECT COUNT(*) events,COUNT(DISTINCT e.device_id) active_devices
                 FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
-                WHERE e.occurred_at>=? AND d.status<>'ignored'""", (since,)).fetchone())
+                LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+                WHERE e.occurred_at>=? AND d.status<>'ignored'
+                  AND (e.channel_key IS NULL OR ch.enabled=1)""", (since,)).fetchone())
             totals["messages_received"] = c.execute("SELECT COUNT(*) FROM lca_messages WHERE occurred_at>=?", (since,)).fetchone()[0]
             totals["discovered_devices"] = c.execute("SELECT COUNT(*) FROM lca_devices WHERE status<>'ignored'").fetchone()[0]
             totals["ignored_devices"] = c.execute("SELECT COUNT(*) FROM lca_devices WHERE status='ignored'").fetchone()[0]
             totals["unconfigured_devices"] = c.execute("SELECT COUNT(*) FROM lca_devices WHERE status IN ('discovered','incomplete')").fetchone()[0]
             totals["interactions"] = c.execute("""SELECT COUNT(*) FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
-                WHERE e.occurred_at>=? AND e.kind='interaction' AND d.status<>'ignored'""", (since,)).fetchone()[0]
+                LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+                WHERE e.occurred_at>=? AND e.kind='interaction' AND d.status<>'ignored'
+                  AND (e.channel_key IS NULL OR ch.enabled=1)""", (since,)).fetchone()[0]
             totals["state_changes"] = c.execute("""SELECT COUNT(*) FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
-                WHERE e.occurred_at>=? AND e.kind='state_change' AND d.status<>'ignored'""", (since,)).fetchone()[0]
+                LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+                WHERE e.occurred_at>=? AND e.kind='state_change' AND d.status<>'ignored'
+                  AND (e.channel_key IS NULL OR ch.enabled=1)""", (since,)).fetchone()[0]
             totals["open_sessions"] = c.execute("""SELECT COUNT(*) FROM lca_sessions s JOIN lca_devices d ON d.device_id=s.device_id
-                WHERE s.status='open' AND d.status<>'ignored'""").fetchone()[0]
+                LEFT JOIN lca_channels ch ON ch.device_id=s.device_id AND ch.channel_key=s.channel_key
+                WHERE s.status='open' AND d.status<>'ignored'
+                  AND (s.channel_key IS NULL OR ch.enabled=1)""").fetchone()[0]
             by_hour = [dict(r) for r in c.execute("""SELECT substr(e.occurred_at,1,13)||':00' bucket,COUNT(*) value
                 FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
-                WHERE e.occurred_at>=? AND d.status<>'ignored' GROUP BY bucket ORDER BY bucket""", (since,)).fetchall()]
-            top = [dict(r) for r in c.execute("SELECT COALESCE(d.name,e.device_id) name,e.device_id,COUNT(*) events FROM lca_events e LEFT JOIN lca_devices d ON d.device_id=e.device_id WHERE e.occurred_at>=? AND d.status<>'ignored' GROUP BY e.device_id ORDER BY events DESC LIMIT 10", (since,)).fetchall()]
+                LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+                WHERE e.occurred_at>=? AND d.status<>'ignored'
+                  AND (e.channel_key IS NULL OR ch.enabled=1) GROUP BY bucket ORDER BY bucket""", (since,)).fetchall()]
+            top = [dict(r) for r in c.execute("SELECT COALESCE(d.name,e.device_id) name,e.device_id,COUNT(*) events FROM lca_events e LEFT JOIN lca_devices d ON d.device_id=e.device_id LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key WHERE e.occurred_at>=? AND d.status<>'ignored' AND (e.channel_key IS NULL OR ch.enabled=1) GROUP BY e.device_id ORDER BY events DESC LIMIT 10", (since,)).fetchall()]
             routes = [dict(r) for r in c.execute("""SELECT e.origin_location_name,e.adjacent_location_name,e.direction_hint,
                 COUNT(*) evidence_count,MAX(e.occurred_at) last_seen
                 FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
+                LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
                 WHERE e.occurred_at>=? AND e.kind='interaction' AND d.status<>'ignored'
+                  AND (e.channel_key IS NULL OR ch.enabled=1)
                   AND (e.direction_hint IS NOT NULL OR e.adjacent_location_name IS NOT NULL)
                 GROUP BY e.origin_location_name,e.adjacent_location_name,e.direction_hint
                 ORDER BY evidence_count DESC LIMIT 10""", (since,)).fetchall()]
-            recent = [dict(r) for r in c.execute("SELECT e.*,d.name device_name FROM lca_events e LEFT JOIN lca_devices d ON d.device_id=e.device_id WHERE e.occurred_at>=? AND d.status<>'ignored' ORDER BY e.occurred_at DESC LIMIT 30", (since,)).fetchall()]
+            recent = [dict(r) for r in c.execute("SELECT e.*,d.name device_name FROM lca_events e LEFT JOIN lca_devices d ON d.device_id=e.device_id LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key WHERE e.occurred_at>=? AND d.status<>'ignored' AND (e.channel_key IS NULL OR ch.enabled=1) ORDER BY e.occurred_at DESC LIMIT 30", (since,)).fetchall()]
         return {"period_hours": hours, "summary": totals, "by_hour": by_hour, "top_devices": top, "route_evidence": routes, "recent_events": recent, "updated_at": datetime.now(timezone.utc).isoformat()}

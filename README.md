@@ -1,9 +1,9 @@
-# Seiden FLOW 0.14.1
+# Seiden FLOW 0.14.2
 
 Camada de compreensão do **Seiden One**. O FLOW recebe eventos e evidências normalizadas, preserva o histórico e transforma dados operacionais em análises para pessoas, ambientes e ativos térmicos.
 
 
-## LCA 0.2.1 — configuração espacial assistida
+## LCA 0.2.2 — configuração espacial e escopo por canal
 
 O LCA diferencia telemetria MQTT de eventos analíticos. A primeira observação estabelece o estado inicial; publicações repetidas sem mudança são mantidas apenas como telemetria técnica. Eventos e sessões são criados somente em transições reais, enquanto interações físicas explícitas permanecem registradas separadamente.
 
@@ -83,7 +83,7 @@ Portal:
 
 Primeiro módulo nativo da arquitetura modular. O LCA não controla iluminação: ele interpreta eventos de acionamento e mudança de estado, descobre automaticamente dispositivos MQTT compatíveis e permite enriquecer manualmente o contexto espacial de interruptores, teclas e paralelos virtuais.
 
-Base funcional consolidada até o LCA 0.2.1:
+Base funcional consolidada até o LCA 0.2.2:
 
 - descoberta automática por prefixos MQTT configuráveis;
 - configuração visual de dispositivo, ambiente, posição e ambiente adjacente;
@@ -166,7 +166,7 @@ O Vision permanece como autoridade dos perfis. Customizações específicas de a
 
 ## Persistência e compatibilidade
 
-- versão do FLOW: `0.14.1`;
+- versão do FLOW: `0.14.2`;
 - Platform Schema: `2.0`;
 - Database Schema: `13`;
 - migrações aditivas;
@@ -216,6 +216,11 @@ Endpoints de fundação:
 - `GET /api/v1/platform/modules/<module_id>`
 - `GET /api/v1/platform/solutions`
 
+
+
+## LCA 0.2.2 — escopo analítico por canal
+
+Um dispositivo pode expor vários gangs, relés ou tomadas, mas somente os canais selecionados participam da análise. Na configuração de cada tecla, desmarque **Monitorar este canal no LCA** para impedir novos eventos, sessões, métricas e evidências de rota daquele canal, preservando os demais canais e o histórico já coletado. Ao reativar, a próxima publicação estabelece uma nova linha de base e não cria uma transição artificial.
 
 ## LCA 0.2.1 — ciclo de vida de dispositivos
 

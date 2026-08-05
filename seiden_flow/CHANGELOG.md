@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.14.2 — LCA 0.2.2: Channel Scope Management
+
+- permite ativar ou desativar individualmente `state_l1`, `center` e demais canais descobertos;
+- canais desativados deixam de gerar mensagens armazenadas, baseline, mudanças, interações, sessões, métricas e evidências de rota;
+- os demais canais do mesmo dispositivo continuam sendo processados normalmente;
+- dashboard e APIs ocultam, por padrão, o histórico de canais atualmente desativados, sem apagá-lo;
+- reativação cria uma nova linha de base para evitar transição artificial;
+- sessões abertas de um canal são removidas ao alterar seu escopo;
+- status do dispositivo passa a considerar somente os canais monitorados;
+- portal exibe contagem de canais monitorados e ignorados;
+- HEA, EEA e TCA permanecem inalterados;
+- Database Schema permanece em `13`.
+
 ## 0.14.1 — LCA 0.2.1: Device Lifecycle Management
 
 - permite ignorar dispositivos e descartar novos eventos antes de qualquer processamento analítico;
