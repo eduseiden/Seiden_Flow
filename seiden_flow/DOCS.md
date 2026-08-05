@@ -1,25 +1,24 @@
-# Seiden FLOW 0.15.0 — Documentação técnica
+# Seiden FLOW 0.15.1 — Documentação técnica
 
+## LCA 0.3.1 — Interaction Origin Attribution
 
+O tópico canônico `seiden/lca/interactions` carrega a proveniência conhecida pelo Node-RED antes da sincronização de um paralelo ou da execução de uma cena. O Flow resolve o dispositivo e o gang cadastrados, registra a interação separadamente do efeito e correlaciona mudanças da mesma luz lógica em uma janela temporal curta.
 
-## LCA 0.3.0 — Simplified Configuration Experience
+Campos suportados: `source_entity`, `source_device`, `source_channel`, `requested_state`, `target_entity`, `circuit_id`, `interaction_kind`, `origin_mode`, `ha_context_id`, `ha_parent_id`, `ha_user_id` e `occurred_at`.
 
-A versão 0.2.3 altera apenas a experiência de configuração e o critério de conclusão do cadastro. O contexto básico de uma tecla passa a ser seu nome ou função relacionada; dados de ponto de interação, ambiente adjacente, direção e paralelo virtual são opcionais e utilizados apenas para evidências de circulação. O Database Schema permanece em 13.
 ## Identificação
 
 - Serviço: `seiden_flow`
-- Versão: `0.15.0`
+- Versão: `0.15.1`
+- LCA: `0.3.1`
 - Platform Schema: `2.0`
-- Database Schema: `13`
+- Database Schema: `15`
 - Porta interna: `8100`
 - Persistência: SQLite na pasta de configuração do add-on
 
 ## Responsabilidade do FLOW
 
-O FLOW é a camada de entendimento operacional do Seiden One. Ele recebe eventos normalizados, preserva medições, agrega períodos, correlaciona fontes e expõe portais e APIs analíticas.
-
-O módulo não deve depender de marcas ou devices específicos. A origem pode ser MQTT, Home Assistant, APIs, bancos ou outras conexões do Bridge.
-
+O FLOW é a camada de entendimento operacional do Seiden One. Ele recebe eventos normalizados, preserva medições, correlaciona causas e efeitos e expõe portais e APIs analíticas.
 
 ## Classificador compartilhado de perfis
 

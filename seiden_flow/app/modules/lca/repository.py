@@ -88,6 +88,23 @@ class LCARepository:
             self._ensure_column(c, "lca_events", "cause_type", "TEXT")
             self._ensure_column(c, "lca_events", "cause_id", "TEXT")
             self._ensure_column(c, "lca_events", "causal_confidence", "REAL")
+            self._ensure_column(c, "lca_events", "source_entity", "TEXT")
+            self._ensure_column(c, "lca_events", "source_device_ref", "TEXT")
+            self._ensure_column(c, "lca_events", "source_channel_ref", "TEXT")
+            self._ensure_column(c, "lca_events", "requested_state", "TEXT")
+            self._ensure_column(c, "lca_events", "target_entity", "TEXT")
+            self._ensure_column(c, "lca_events", "circuit_id", "TEXT")
+            self._ensure_column(c, "lca_events", "interaction_kind", "TEXT")
+            self._ensure_column(c, "lca_events", "origin_mode", "TEXT")
+            self._ensure_column(c, "lca_events", "ha_context_id", "TEXT")
+            self._ensure_column(c, "lca_events", "ha_parent_id", "TEXT")
+            self._ensure_column(c, "lca_events", "ha_user_id", "TEXT")
+            self._ensure_column(c, "lca_events", "point_role", "TEXT")
+            self._ensure_column(c, "lca_events", "point_position", "TEXT")
+            self._ensure_column(c, "lca_events", "effect_event_id", "TEXT")
+            self._ensure_column(c, "lca_events", "effect_confirmed_at", "TEXT")
+            self._ensure_column(c, "lca_events", "confirmation_latency_ms", "INTEGER")
+            self._ensure_column(c, "lca_events", "interaction_status", "TEXT")
 
     @staticmethod
     def _ensure_column(c, table, column, declaration):
@@ -122,6 +139,13 @@ class LCARepository:
         with self.db.connect() as c:
             for item in items:
                 now = datetime.now(timezone.utc).isoformat()
+                if item.get("kind") == "interaction" and item.get("source_device"):
+                    resolved = self._resolve_interaction_source(c, item)
+                    if resolved:
+                        item = dict(item)
+                        item["device_id"] = resolved["device_id"]
+                        item["device_name"] = resolved["name"]
+                        item["channel"] = item.get("source_channel") or item.get("channel")
                 did = item["device_id"]
                 ch = item.get("channel")
                 blocked = c.execute(
@@ -164,6 +188,20 @@ class LCARepository:
                     if self._process_interaction(c, item, cfg, now):
                         inserted_events += 1
         return inserted_events
+
+    @staticmethod
+    def _resolve_interaction_source(c, item):
+        ref=str(item.get("source_device") or "").strip().lower()
+        entity=str(item.get("source_entity") or "").strip().lower()
+        if not ref and entity.startswith("switch."):
+            ref=entity.split(".",1)[1]
+            ch=str(item.get("source_channel") or "").lower()
+            if ch and ref.endswith("_"+ch):ref=ref[:-(len(ch)+1)]
+        if not ref:return None
+        return c.execute("""SELECT * FROM lca_devices
+            WHERE lower(name)=? OR lower(device_id)=? OR lower(topic) LIKE ?
+            ORDER BY CASE WHEN lower(name)=? THEN 0 WHEN lower(device_id)=? THEN 1 ELSE 2 END
+            LIMIT 1""",(ref,ref,"%/"+ref,ref,ref)).fetchone()
 
     def _upsert_device(self, c, item, now):
         c.execute(
@@ -250,6 +288,8 @@ class LCARepository:
             (new_state, item.get("brightness"), item["occurred_at"], item["occurred_at"], now, did, ch),
         )
         self._update_session(c, event, cfg, now)
+        if not event.get("cause_type"):
+            self._correlate_pending_interaction(c,event,cfg,now)
         if event.get("cause_type") == "scene" and cfg and cfg["light_asset_id"]:
             self._learn_scene_effect(c,event["cause_id"],cfg["light_asset_id"],new_state,item["occurred_at"],now)
         return True
@@ -269,6 +309,14 @@ class LCARepository:
         return self._insert_event(c, event, cfg, now)
 
     def _process_interaction(self, c, item, cfg, now):
+        event=dict(item)
+        event["point_role"] = cfg["relationship_type"] if cfg else None
+        event["point_position"] = None
+        if cfg:
+            dev=c.execute("SELECT position_label FROM lca_devices WHERE device_id=?",(item["device_id"],)).fetchone()
+            event["point_position"] = dev["position_label"] if dev else None
+        event["interaction_status"] = "pending_confirmation"
+
         # Scene triggers are analytical parent events. Their downstream state
         # changes are grouped during a short observation window.
         if cfg is not None and cfg["relationship_type"] == "scene" and cfg["scene_id"]:
@@ -277,9 +325,9 @@ class LCARepository:
             until = (occurred + timedelta(seconds=3)).isoformat()
             c.execute("INSERT OR IGNORE INTO lca_scene_executions(execution_id,scene_id,trigger_device_id,trigger_channel_key,occurred_at,observation_until,created_at) VALUES(?,?,?,?,?,?,?)",
                       (execution_id,cfg["scene_id"],item["device_id"],item.get("channel") or "default",item["occurred_at"],until,now))
-            item = dict(item); item["cause_type"]="scene"; item["cause_id"]=cfg["scene_id"]; item["causal_confidence"]=1.0
-        # Some devices repeat the same action in consecutive reports. Ignore an
-        # identical interaction observed within a short anti-bounce window.
+            event["cause_type"]="scene"; event["cause_id"]=cfg["scene_id"]; event["causal_confidence"]=1.0
+            event["interaction_status"]="scene_observation"
+
         cutoff = self._parse_time(item["occurred_at"]) - timedelta(seconds=2)
         recent = c.execute(
             """SELECT occurred_at FROM lca_events
@@ -289,7 +337,38 @@ class LCARepository:
         ).fetchone()
         if recent and self._parse_time(recent["occurred_at"]) >= cutoff:
             return False
-        return self._insert_event(c, item, cfg, now)
+        inserted=self._insert_event(c,event,cfg,now)
+        if inserted:self._correlate_existing_effect(c,event,cfg,now)
+        return inserted
+
+    def _correlate_existing_effect(self,c,item,cfg,now):
+        if not cfg or not cfg["light_asset_id"] or item.get("requested_state") not in {"on","off"}:return
+        t=self._parse_time(item["occurred_at"])
+        lo=(t-timedelta(seconds=2)).isoformat(); hi=(t+timedelta(seconds=1)).isoformat()
+        effect=c.execute("""SELECT e.lca_event_id,e.occurred_at FROM lca_events e
+            LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+            WHERE e.kind='state_change' AND ch.light_asset_id=? AND e.state=? AND e.occurred_at BETWEEN ? AND ?
+            ORDER BY ABS(julianday(e.occurred_at)-julianday(?)) LIMIT 1""",
+            (cfg["light_asset_id"],item["requested_state"],lo,hi,item["occurred_at"])).fetchone()
+        if effect:self._confirm_interaction(c,item["lca_event_id"],effect["lca_event_id"],effect["occurred_at"],item["occurred_at"],now)
+
+    def _correlate_pending_interaction(self,c,event,cfg,now):
+        if not cfg or not cfg["light_asset_id"]:return
+        t=self._parse_time(event["occurred_at"]); lo=(t-timedelta(seconds=3)).isoformat()
+        interaction=c.execute("""SELECT e.lca_event_id,e.occurred_at FROM lca_events e
+            LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+            WHERE e.kind='interaction' AND ch.light_asset_id=? AND e.requested_state=?
+              AND e.occurred_at BETWEEN ? AND ? AND COALESCE(e.interaction_status,'pending_confirmation')='pending_confirmation'
+            ORDER BY e.occurred_at DESC LIMIT 1""",
+            (cfg["light_asset_id"],event["state"],lo,event["occurred_at"])).fetchone()
+        if interaction:self._confirm_interaction(c,interaction["lca_event_id"],event["lca_event_id"],event["occurred_at"],interaction["occurred_at"],now)
+
+    @classmethod
+    def _confirm_interaction(cls,c,interaction_id,effect_id,effect_at,interaction_at,now):
+        latency=max(0,int((cls._parse_time(effect_at)-cls._parse_time(interaction_at)).total_seconds()*1000))
+        c.execute("""UPDATE lca_events SET effect_event_id=?,effect_confirmed_at=?,confirmation_latency_ms=?,interaction_status='confirmed'
+            WHERE lca_event_id=?""",(effect_id,effect_at,latency,interaction_id))
+        c.execute("""UPDATE lca_events SET cause_type='interaction',cause_id=?,causal_confidence=1.0 WHERE lca_event_id=? AND cause_type IS NULL""",(interaction_id,effect_id))
 
     @staticmethod
     def _learn_scene_effect(c, scene_id, light_id, state, occurred_at, now):
@@ -312,8 +391,10 @@ class LCARepository:
             c.execute(
                 """INSERT INTO lca_events(lca_event_id,device_id,channel_key,kind,state,action,brightness,occurred_at,
                    origin_location_id,origin_location_name,adjacent_location_id,adjacent_location_name,direction_hint,
-                   related_light_id,related_light_name,virtual_parallel_group,cause_type,cause_id,causal_confidence,payload_json,created_at)
-                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                   related_light_id,related_light_name,virtual_parallel_group,cause_type,cause_id,causal_confidence,
+                   source_entity,source_device_ref,source_channel_ref,requested_state,target_entity,circuit_id,interaction_kind,
+                   origin_mode,ha_context_id,ha_parent_id,ha_user_id,point_role,point_position,interaction_status,payload_json,created_at)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     item["lca_event_id"], item["device_id"], item.get("channel"), item["kind"],
                     item.get("state"), item.get("action"), item.get("brightness"), item["occurred_at"],
@@ -322,7 +403,10 @@ class LCARepository:
                     cfg["direction_hint"] if cfg else None, cfg["related_light_id"] if cfg else None,
                     cfg["related_light_name"] if cfg else None, cfg["virtual_parallel_group"] if cfg else None,
                     item.get("cause_type"), item.get("cause_id"), item.get("causal_confidence"),
-                    json.dumps(item["payload"], ensure_ascii=False), now,
+                    item.get("source_entity"),item.get("source_device"),item.get("source_channel"),item.get("requested_state"),
+                    item.get("target_entity"),item.get("circuit_id"),item.get("interaction_kind"),item.get("origin_mode"),
+                    item.get("ha_context_id"),item.get("ha_parent_id"),item.get("ha_user_id"),item.get("point_role"),
+                    item.get("point_position"),item.get("interaction_status"),json.dumps(item["payload"], ensure_ascii=False), now,
                 ),
             )
             return True
@@ -574,5 +658,11 @@ class LCARepository:
                   AND (e.direction_hint IS NOT NULL OR e.adjacent_location_name IS NOT NULL)
                 GROUP BY e.origin_location_name,e.adjacent_location_name,e.direction_hint
                 ORDER BY evidence_count DESC LIMIT 10""", (since,)).fetchall()]
-            recent = [dict(r) for r in c.execute("SELECT e.*,d.name device_name FROM lca_events e LEFT JOIN lca_devices d ON d.device_id=e.device_id LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key WHERE e.occurred_at>=? AND d.status<>'ignored' AND (e.channel_key IS NULL OR ch.enabled=1) ORDER BY e.occurred_at DESC LIMIT 30", (since,)).fetchall()]
+            recent = [dict(r) for r in c.execute("""SELECT e.*,d.name device_name,d.position_label device_position,
+                COALESCE(l.name,e.related_light_name) light_name,ch.relationship_type point_relationship
+                FROM lca_events e LEFT JOIN lca_devices d ON d.device_id=e.device_id
+                LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+                LEFT JOIN lca_light_assets l ON l.light_id=ch.light_asset_id
+                WHERE e.occurred_at>=? AND d.status<>'ignored' AND (e.channel_key IS NULL OR ch.enabled=1)
+                ORDER BY e.occurred_at DESC LIMIT 30""", (since,)).fetchall()]
         return {"period_hours": hours, "summary": totals, "by_hour": by_hour, "top_devices": top, "route_evidence": routes, "recent_events": recent, "updated_at": datetime.now(timezone.utc).isoformat()}

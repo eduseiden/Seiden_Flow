@@ -1,3 +1,17 @@
+# Changelog
+
+## 0.15.1 — LCA 0.3.1: Interaction Origin Attribution
+
+- ingere eventos explícitos em `seiden/lca/interactions`;
+- resolve a origem para o dispositivo e gang já cadastrados, sem criar duplicatas por diferença de caixa;
+- registra modo de origem, entidade fonte, contexto do Home Assistant, circuito e alvo;
+- vincula a interação à luz lógica e identifica ponto direto, paralelo ou cena;
+- correlaciona interação e mudança de estado, registrando confirmação e latência;
+- aceita o tópico canônico independentemente dos prefixos Zigbee2MQTT configurados;
+- apresenta eventos recentes em linguagem orientada à luz e ao ponto utilizado;
+- inclui refresh Manual, 1 s, 5 s, 15 s, 30 s e 1 min, com preferência local e botão Atualizar;
+- Database Schema 15, apenas aditivo; HEA, EEA e TCA preservados.
+
 ## 0.15.0 — LCA 0.3.0: Lighting Relationship Model
 
 - gangs classificados como retorno direto, paralelo, cena ou ignorado;

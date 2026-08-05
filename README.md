@@ -1,22 +1,22 @@
-# Seiden FLOW 0.15.0
+# Seiden FLOW 0.15.1
 
+## LCA 0.3.1 — atribuição da origem da interação
 
-## LCA 0.3.0 — configuração simplificada
+O LCA passa a consumir eventos explícitos publicados em `seiden/lca/interactions`, preservando o ponto que iniciou a ação. A interação é vinculada ao gang cadastrado, à luz lógica e ao papel do ponto — direto, paralelo ou cena — e pode ser correlacionada com a mudança efetiva de estado.
 
-A configuração do LCA foi reorganizada para refletir a forma como o usuário descreve a instalação: primeiro o ambiente do interruptor, depois as teclas monitoradas. Campos espaciais e de circulação agora ficam em detalhes opcionais, o status é calculado automaticamente e o grupo de paralelo virtual deixa de ser exigido na configuração básica.
+Principais recursos:
 
-Principais ajustes:
+- diferencia acionamento local provável, usuário do Home Assistant, automação e origem desconhecida;
+- mostra a posição física do interruptor que iniciou a ação;
+- confirma o efeito observado e calcula o tempo entre interação e mudança de estado;
+- aceita o tópico de interações mesmo quando os prefixos normais do LCA estão restritos ao Zigbee2MQTT;
+- histórico com linguagem orientada ao significado: luz, estado e ponto utilizado;
+- atualização do portal configurável em Manual, 1 s, 5 s, 15 s, 30 s ou 1 min;
+- padrão de 15 segundos preservado e botão **Atualizar** disponível;
+- Database Schema 15, exclusivamente aditivo;
+- HEA, EEA e TCA preservados.
 
-- fluxo em duas etapas: localização do interruptor e seleção das teclas;
-- lista compacta de canais, com nome e opção de monitoramento;
-- ambiente herdado automaticamente do dispositivo;
-- detalhes de circulação exibidos apenas quando ativados;
-- configuração avançada recolhida por padrão;
-- dispositivo considerado configurado quando possui ambiente e todas as teclas monitoradas estão nomeadas;
-- nenhuma alteração no schema do banco, no processamento de eventos ou nos módulos HEA, EEA e TCA.
-
-Camada de compreensão do **Seiden One**. O FLOW recebe eventos e evidências normalizadas, preserva o histórico e transforma dados operacionais em análises para pessoas, ambientes e ativos térmicos.
-
+Camada de compreensão do **Seiden One**. O FLOW recebe eventos e evidências normalizadas, preserva o histórico e transforma dados operacionais em inteligência aplicada.
 
 ## LCA 0.3.0 — configuração espacial e escopo por canal
 

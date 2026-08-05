@@ -36,25 +36,61 @@ def _allowed(topic: str, prefixes: tuple[str,...]) -> bool:
 
 def extract_lca_events(payload: dict[str,Any], ha_event_type: str|None=None, topic_prefixes: tuple[str,...]=()) -> list[dict]:
     if not isinstance(payload,dict):return []
-    event_type=str(payload.get("event_type") or ha_event_type or "").lower()
-    topic=_topic(payload)
-    canonical=event_type.startswith("lighting.")
-    mqtt=("mqtt" in event_type or bool(topic) or str(payload.get("connector") or "").lower()=="mqtt")
-    if not canonical and (not mqtt or not _allowed(topic,topic_prefixes)):return []
     data=payload.get("data") if isinstance(payload.get("data"),dict) else {}
     raw_payload=payload.get("payload") if isinstance(payload.get("payload"),dict) else {}
     merged={**raw_payload,**data,**payload}
+    event_type=str(merged.get("event_type") or ha_event_type or "").lower()
+    topic=_topic(payload)
+
+    # Interaction-origin events are an explicit Seiden contract and must be
+    # accepted even when normal LCA MQTT prefixes only include Zigbee2MQTT.
+    explicit_interaction=(
+        event_type in {"lighting_interaction","lighting.interaction"}
+        or topic.rstrip("/").lower()=="seiden/lca/interactions"
+    )
+    canonical=event_type.startswith("lighting.") or explicit_interaction
+    mqtt=("mqtt" in event_type or bool(topic) or str(payload.get("connector") or "").lower()=="mqtt")
+    if not canonical and (not mqtt or not _allowed(topic,topic_prefixes)):return []
+
     leaf=topic.rstrip("/").split("/")[-1] if topic else str(payload.get("device_id") or payload.get("source_id") or "lighting_source")
     origin=payload.get("origin") if isinstance(payload.get("origin"),dict) else {}
-    device_id=str(origin.get("source_id") or origin.get("id") or payload.get("device_id") or payload.get("source_id") or f"mqtt_{_slug(topic)}").strip()
-    device_name=str(origin.get("source_name") or origin.get("name") or payload.get("source_name") or leaf or device_id).strip()
-    occurred=_utc(payload.get("timestamp") or payload.get("occurred_at"))
-    base_id=str(payload.get("event_id") or "") or "lca-"+hashlib.sha256(json.dumps(payload,sort_keys=True,ensure_ascii=False,default=str).encode()).hexdigest()[:28]
+    source_device=str(merged.get("source_device") or "").strip() or None
+    source_entity=str(merged.get("source_entity") or "").strip() or None
+    source_channel=str(merged.get("source_channel") or "").strip() or None
+    device_id=str(origin.get("source_id") or origin.get("id") or payload.get("device_id") or payload.get("source_id") or source_device or f"mqtt_{_slug(topic)}").strip()
+    device_name=str(origin.get("source_name") or origin.get("name") or payload.get("source_name") or source_device or leaf or device_id).strip()
+    occurred=_utc(merged.get("timestamp") or merged.get("occurred_at"))
+    base_id=str(payload.get("event_id") or merged.get("interaction_id") or "") or "lca-"+hashlib.sha256(json.dumps(payload,sort_keys=True,ensure_ascii=False,default=str).encode()).hexdigest()[:28]
     availability=str(merged.get("availability") or "").lower()
     model=str(merged.get("model") or origin.get("model") or "").strip() or None
     manufacturer=str(merged.get("manufacturer") or origin.get("manufacturer") or "").strip() or None
     result=[]
     common={"message_id":base_id,"device_id":device_id,"device_name":device_name,"topic":topic or None,"occurred_at":occurred,"model":model,"manufacturer":manufacturer,"payload":payload}
+
+    if explicit_interaction:
+        requested=_state(merged.get("requested_state")) or str(merged.get("requested_state") or "execute").lower()
+        result.append({
+            **common,
+            "lca_event_id":base_id+":interaction",
+            "kind":"interaction",
+            "state":None,
+            "channel":source_channel or str(merged.get("channel") or "default"),
+            "action":requested,
+            "brightness":None,
+            "source_entity":source_entity,
+            "source_device":source_device,
+            "source_channel":source_channel,
+            "requested_state":requested,
+            "target_entity":merged.get("target_entity"),
+            "circuit_id":merged.get("circuit_id"),
+            "interaction_kind":merged.get("interaction_kind") or "switch_trigger",
+            "origin_mode":merged.get("origin_mode") or "unknown",
+            "ha_context_id":merged.get("ha_context_id"),
+            "ha_parent_id":merged.get("ha_parent_id"),
+            "ha_user_id":merged.get("ha_user_id"),
+        })
+        return result
+
     if availability in {"online","offline"}:
         result.append({**common,"lca_event_id":base_id+":availability","kind":"availability","state":availability,"channel":None,"action":None,"brightness":None})
     action=merged.get("action") or merged.get("button_action") or merged.get("click")
