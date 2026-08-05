@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.14.3 — LCA 0.2.3: Simplified Configuration Experience
+
+- reorganiza a configuração em localização do interruptor e seleção das teclas;
+- substitui formulários extensos por uma lista compacta de canais;
+- mantém campos de circulação e contexto avançado recolhidos por padrão;
+- herda o ambiente do dispositivo para as teclas;
+- remove da interface a seleção manual de situação/status;
+- considera uma tecla básica configurada quando possui nome ou função relacionada;
+- mantém paralelos virtuais e evidências de circulação como configuração opcional;
+- preserva Database Schema 13 e toda a lógica de ingestão do LCA 0.2.2;
+- não altera HEA, EEA ou TCA.
+
 ## 0.14.2 — LCA 0.2.2: Channel Scope Management
 
 - permite ativar ou desativar individualmente `state_l1`, `center` e demais canais descobertos;

@@ -307,10 +307,7 @@ class LCARepository:
         return c.execute(
             """SELECT COUNT(*) FROM lca_channels
                WHERE device_id=? AND enabled=1
-                 AND COALESCE(NULLIF(TRIM(name),''),NULLIF(TRIM(related_light_name),'')) IS NOT NULL
-                 AND (NULLIF(TRIM(interaction_point),'') IS NOT NULL
-                      OR NULLIF(TRIM(adjacent_location_name),'') IS NOT NULL
-                      OR NULLIF(TRIM(direction_hint),'') IS NOT NULL)""",
+                 AND COALESCE(NULLIF(TRIM(name),''),NULLIF(TRIM(related_light_name),'')) IS NOT NULL""",
             (did,),
         ).fetchone()[0]
 
@@ -341,10 +338,7 @@ class LCARepository:
                           (SELECT COUNT(*) FROM lca_channels x WHERE x.device_id=d.device_id AND x.enabled=1) monitored_channel_count,
                           (SELECT COUNT(*) FROM lca_channels x WHERE x.device_id=d.device_id AND x.enabled=0) excluded_channel_count,
                           (SELECT COUNT(*) FROM lca_channels x WHERE x.device_id=d.device_id AND x.enabled=1
-                             AND COALESCE(NULLIF(TRIM(x.name),''),NULLIF(TRIM(x.related_light_name),'')) IS NOT NULL
-                             AND (NULLIF(TRIM(x.interaction_point),'') IS NOT NULL
-                                  OR NULLIF(TRIM(x.adjacent_location_name),'') IS NOT NULL
-                                  OR NULLIF(TRIM(x.direction_hint),'') IS NOT NULL)) configured_channel_count
+                             AND COALESCE(NULLIF(TRIM(x.name),''),NULLIF(TRIM(x.related_light_name),'')) IS NOT NULL) configured_channel_count
                    FROM lca_devices d
                    {where}
                    ORDER BY CASE d.status WHEN 'discovered' THEN 0 WHEN 'incomplete' THEN 1 WHEN 'configured' THEN 2 ELSE 3 END,d.name"""
