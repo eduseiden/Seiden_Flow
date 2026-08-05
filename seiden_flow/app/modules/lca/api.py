@@ -37,6 +37,8 @@ def create_lca_blueprint(repo,version,ingress_path_fn,timezone_name):
     def update_channel(device_id,channel_key):
         if not repo.device(device_id):abort(404)
         return jsonify(repo.update_channel(device_id,channel_key,request.get_json(silent=False) or {}))
+    @bp.get('/api/v1/lca/relationships')
+    def relationships():return jsonify(repo.relationship_catalog())
     @bp.get('/api/v1/lca/events')
     def events():return jsonify({'items':repo.events(max(1,min(720,int(request.args.get('hours',24)))),max(1,min(1000,int(request.args.get('limit',200)))),request.args.get('device_id'))})
     return bp

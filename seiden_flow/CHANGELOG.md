@@ -1,6 +1,16 @@
+## 0.15.0 — LCA 0.3.0: Lighting Relationship Model
+
+- gangs classificados como retorno direto, paralelo, cena ou ignorado;
+- pontos reais formam um catálogo reutilizável para associação por combobox;
+- paralelos herdam automaticamente luz e ambiente do ponto real;
+- cenas possuem nome, descrição e aprendizado estatístico explicável;
+- efeitos observados até 3 segundos após uma cena são agrupados causalmente;
+- eventos causados por cena não são tratados como evidências independentes de rota;
+- Database Schema 14, somente aditivo; HEA, EEA e TCA preservados.
+
 # Changelog
 
-## 0.14.3 — LCA 0.2.3: Simplified Configuration Experience
+## 0.15.0 — LCA 0.3.0: Simplified Configuration Experience
 
 - reorganiza a configuração em localização do interruptor e seleção das teclas;
 - substitui formulários extensos por uma lista compacta de canais;
