@@ -1,3 +1,13 @@
+## 0.15.2 — LCA 0.3.2: Event Consolidation & UX Refinement
+
+- Consolida interação e efeitos técnicos em uma única ação compreensível no histórico principal.
+- Reformula os indicadores para ações compreendidas, confirmadas, sem confirmação, luzes ativas, dispositivos e itens a configurar.
+- Introduz opção **Informações avançadas**, desativada por padrão e persistida no navegador.
+- Mantém latência, entidades, contexto do Home Assistant e evidências técnicas em detalhes expansíveis.
+- Separa diagnóstico técnico da visão operacional.
+- Amplia `/api/v1/lca/dashboard` com `recent_actions`, `technical_events`, `confirmed_interactions` e `unconfirmed_interactions`, preservando compatibilidade.
+- Mantém Database Schema 15; nenhuma migração. HEA, EEA e TCA preservados.
+
 # Changelog
 
 ## 0.15.1 — LCA 0.3.1: Interaction Origin Attribution

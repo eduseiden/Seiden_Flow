@@ -1,4 +1,10 @@
-# Seiden FLOW 0.15.1 — Documentação técnica
+# Seiden FLOW 0.15.2 — Documentação técnica
+
+## LCA 0.3.2 — Event Consolidation & UX Refinement
+
+O dashboard separa ações de negócio de telemetria técnica. Interações são exibidas como eventos-pai e carregam os efeitos correlacionados em `effects`; mudanças brutas permanecem em `technical_events` e somente aparecem no modo avançado. Nenhuma estrutura de banco foi alterada.
+
+O endpoint `/api/v1/lca/dashboard` passa a expor também `recent_actions`, `technical_events`, `confirmed_interactions` e `unconfirmed_interactions`, preservando `recent_events` para compatibilidade.
 
 ## LCA 0.3.1 — Interaction Origin Attribution
 
@@ -9,8 +15,8 @@ Campos suportados: `source_entity`, `source_device`, `source_channel`, `requeste
 ## Identificação
 
 - Serviço: `seiden_flow`
-- Versão: `0.15.1`
-- LCA: `0.3.1`
+- Versão: `0.15.2`
+- LCA: `0.3.2`
 - Platform Schema: `2.0`
 - Database Schema: `15`
 - Porta interna: `8100`

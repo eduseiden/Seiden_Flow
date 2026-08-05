@@ -1,4 +1,19 @@
-# Seiden FLOW 0.15.1
+# Seiden FLOW 0.15.2
+
+## LCA 0.3.2 — consolidação de ações e refinamento de UX
+
+O LCA passa a apresentar primeiro o acontecimento compreendido — luz, estado, ponto utilizado, papel do ponto, origem e confirmação — consolidando as mudanças técnicas relacionadas em uma única ação. A telemetria detalhada permanece disponível em **Informações avançadas**, voltada a implantação e troubleshooting.
+
+Principais recursos:
+
+- histórico principal composto por ações compreendidas, sem duplicidade visual dos efeitos técnicos;
+- cards orientados ao usuário: ações compreendidas, confirmadas, sem confirmação, luzes ativas, dispositivos e itens a configurar;
+- detalhes técnicos expansíveis apenas no modo avançado;
+- latência de confirmação, entidades, gang, contexto do Home Assistant e evidências correlacionadas preservados para diagnóstico;
+- área separada de diagnóstico técnico com mudanças brutas;
+- preferência de exibição avançada salva no navegador;
+- Database Schema 15 preservado, sem migração;
+- HEA, EEA e TCA preservados.
 
 ## LCA 0.3.1 — atribuição da origem da interação
 

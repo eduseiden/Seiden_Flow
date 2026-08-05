@@ -643,6 +643,15 @@ class LCARepository:
                 LEFT JOIN lca_channels ch ON ch.device_id=s.device_id AND ch.channel_key=s.channel_key
                 WHERE s.status='open' AND d.status<>'ignored'
                   AND (s.channel_key IS NULL OR ch.enabled=1)""").fetchone()[0]
+            totals["confirmed_interactions"] = c.execute("""SELECT COUNT(*) FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
+                LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+                WHERE e.occurred_at>=? AND e.kind='interaction' AND e.interaction_status='confirmed'
+                  AND d.status<>'ignored' AND (e.channel_key IS NULL OR ch.enabled=1)""", (since,)).fetchone()[0]
+            totals["unconfirmed_interactions"] = c.execute("""SELECT COUNT(*) FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
+                LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+                WHERE e.occurred_at>=? AND e.kind='interaction'
+                  AND COALESCE(e.interaction_status,'pending_confirmation')<>'confirmed'
+                  AND d.status<>'ignored' AND (e.channel_key IS NULL OR ch.enabled=1)""", (since,)).fetchone()[0]
             by_hour = [dict(r) for r in c.execute("""SELECT substr(e.occurred_at,1,13)||':00' bucket,COUNT(*) value
                 FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
                 LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
@@ -658,11 +667,36 @@ class LCARepository:
                   AND (e.direction_hint IS NOT NULL OR e.adjacent_location_name IS NOT NULL)
                 GROUP BY e.origin_location_name,e.adjacent_location_name,e.direction_hint
                 ORDER BY evidence_count DESC LIMIT 10""", (since,)).fetchall()]
-            recent = [dict(r) for r in c.execute("""SELECT e.*,d.name device_name,d.position_label device_position,
+            action_rows = [dict(r) for r in c.execute("""SELECT e.*,d.name device_name,d.position_label device_position,
                 COALESCE(l.name,e.related_light_name) light_name,ch.relationship_type point_relationship
                 FROM lca_events e LEFT JOIN lca_devices d ON d.device_id=e.device_id
                 LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
                 LEFT JOIN lca_light_assets l ON l.light_id=ch.light_asset_id
-                WHERE e.occurred_at>=? AND d.status<>'ignored' AND (e.channel_key IS NULL OR ch.enabled=1)
+                WHERE e.occurred_at>=? AND e.kind='interaction' AND d.status<>'ignored'
+                  AND (e.channel_key IS NULL OR ch.enabled=1)
                 ORDER BY e.occurred_at DESC LIMIT 30""", (since,)).fetchall()]
-        return {"period_hours": hours, "summary": totals, "by_hour": by_hour, "top_devices": top, "route_evidence": routes, "recent_events": recent, "updated_at": datetime.now(timezone.utc).isoformat()}
+            actions=[]
+            for item in action_rows:
+                effects=[]
+                if item.get("lca_event_id"):
+                    effects=[dict(x) for x in c.execute("""SELECT e.lca_event_id,e.device_id,e.channel_key,e.state,e.action,e.occurred_at,
+                        d.name device_name,ch.relationship_type,COALESCE(l.name,e.related_light_name) light_name
+                        FROM lca_events e LEFT JOIN lca_devices d ON d.device_id=e.device_id
+                        LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+                        LEFT JOIN lca_light_assets l ON l.light_id=ch.light_asset_id
+                        WHERE (e.cause_type='interaction' AND e.cause_id=?) OR e.lca_event_id=?
+                        ORDER BY e.occurred_at""",(item["lca_event_id"],item.get("effect_event_id"))).fetchall()]
+                item["effects"]=effects
+                actions.append(item)
+            technical=[dict(r) for r in c.execute("""SELECT e.*,d.name device_name,d.position_label device_position,
+                COALESCE(l.name,e.related_light_name) light_name,ch.relationship_type point_relationship
+                FROM lca_events e LEFT JOIN lca_devices d ON d.device_id=e.device_id
+                LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+                LEFT JOIN lca_light_assets l ON l.light_id=ch.light_asset_id
+                WHERE e.occurred_at>=? AND e.kind<>'interaction' AND d.status<>'ignored'
+                  AND (e.channel_key IS NULL OR ch.enabled=1)
+                ORDER BY e.occurred_at DESC LIMIT 30""", (since,)).fetchall()]
+            recent=(actions+technical)[:30]
+        return {"period_hours": hours, "summary": totals, "by_hour": by_hour, "top_devices": top,
+                "route_evidence": routes, "recent_actions": actions, "technical_events": technical,
+                "recent_events": recent[:30], "updated_at": datetime.now(timezone.utc).isoformat()}
