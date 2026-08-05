@@ -619,8 +619,11 @@ class LCARepository:
                         ORDER BY e.occurred_at DESC LIMIT ?"""
             return [dict(r) for r in c.execute(query, params).fetchall()]
 
-    def dashboard(self, hours=24):
+    def dashboard(self, hours=24, action_page=1, action_page_size=10):
         since = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+        action_page = max(1, int(action_page or 1))
+        action_page_size = max(5, min(50, int(action_page_size or 10)))
+        action_offset = (action_page - 1) * action_page_size
         with self.db.connect() as c:
             totals = dict(c.execute("""SELECT COUNT(*) events,COUNT(DISTINCT e.device_id) active_devices
                 FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
@@ -702,6 +705,11 @@ class LCARepository:
                   AND (e.direction_hint IS NOT NULL OR e.adjacent_location_name IS NOT NULL)
                 GROUP BY e.origin_location_name,e.adjacent_location_name,e.direction_hint
                 ORDER BY evidence_count DESC LIMIT 10""", (since,)).fetchall()]
+            action_total = c.execute("""SELECT COUNT(*)
+                FROM lca_events e LEFT JOIN lca_devices d ON d.device_id=e.device_id
+                LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+                WHERE e.occurred_at>=? AND e.kind='interaction' AND d.status<>'ignored'
+                  AND (e.channel_key IS NULL OR ch.enabled=1)""", (since,)).fetchone()[0]
             action_rows = [dict(r) for r in c.execute("""SELECT e.*,d.name device_name,d.position_label device_position,
                 COALESCE(l.name,e.related_light_name) light_name,ch.relationship_type point_relationship
                 FROM lca_events e LEFT JOIN lca_devices d ON d.device_id=e.device_id
@@ -709,7 +717,7 @@ class LCARepository:
                 LEFT JOIN lca_light_assets l ON l.light_id=ch.light_asset_id
                 WHERE e.occurred_at>=? AND e.kind='interaction' AND d.status<>'ignored'
                   AND (e.channel_key IS NULL OR ch.enabled=1)
-                ORDER BY e.occurred_at DESC LIMIT 30""", (since,)).fetchall()]
+                ORDER BY e.occurred_at DESC LIMIT ? OFFSET ?""", (since, action_page_size, action_offset)).fetchall()]
             actions=[]
             for item in action_rows:
                 effects=[]
@@ -752,4 +760,10 @@ class LCARepository:
                 "route_evidence": routes, "recent_actions": actions, "technical_events": technical,
                 "current_lights": current_lights, "origin_breakdown": origin_breakdown,
                 "role_breakdown": role_breakdown, "recent_events": recent[:30],
+                "action_pagination": {
+                    "page": action_page,
+                    "page_size": action_page_size,
+                    "total": action_total,
+                    "total_pages": max(1, (action_total + action_page_size - 1) // action_page_size)
+                },
                 "updated_at": datetime.now(timezone.utc).isoformat()}

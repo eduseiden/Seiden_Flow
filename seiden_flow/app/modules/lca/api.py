@@ -7,7 +7,11 @@ def create_lca_blueprint(repo,version,ingress_path_fn,timezone_name):
     @bp.get('/intelligence/lca')
     def portal():return render_template('lca_portal.html',version=version,ingress_path=ingress_path_fn(),display_timezone=timezone_name)
     @bp.get('/api/v1/lca/dashboard')
-    def dashboard():return jsonify(repo.dashboard(max(1,min(720,int(request.args.get('hours',24))))))
+    def dashboard():
+        hours=max(1,min(720,int(request.args.get('hours',24))))
+        page=max(1,int(request.args.get('action_page',1)))
+        page_size=max(5,min(50,int(request.args.get('action_page_size',10))))
+        return jsonify(repo.dashboard(hours,page,page_size))
     @bp.get('/api/v1/lca/devices')
     def devices():return jsonify({'items':repo.devices(request.args.get('include_ignored','false').lower()=='true')})
     @bp.get('/api/v1/lca/devices/ignored')

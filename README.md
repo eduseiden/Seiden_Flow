@@ -1,19 +1,20 @@
-# Seiden FLOW 0.15.3
+# Seiden FLOW 0.15.4
 
-## LCA 0.3.3 — estado lógico e identidade visual Seiden One
+## LCA 0.3.4 — histórico operacional e consistência de interface
 
-O painel do LCA passa a contar **circuitos lógicos**, e não gangs individuais. Pontos diretos e paralelos associados à mesma luz são consolidados em um único estado operacional.
+O LCA mantém o estado lógico consolidado por circuito e aproxima sua experiência visual dos demais módulos da Seiden One. A operação passa a ter períodos padronizados, paginação real, temas claro e escuro e uma hierarquia mais limpa entre estado atual, resumo, uso e histórico.
 
 Principais recursos:
 
-- correção de **Luzes ativas** para contabilizar cada circuito lógico uma única vez;
-- visão de estado atual com circuitos ligados e total monitorado;
-- painel redesenhado no padrão visual da família Seiden One, com azul institucional e âmbar característico do LCA;
-- resumo do período orientado a ações, confirmação, acionamentos locais e cenas;
-- análise da origem dos acionamentos com terminologia comercial: local, remoto, automação e não identificada;
-- circuitos monitorados em destaque, com estado consolidado e quantidade de pontos associados;
-- dispositivos deslocados para a área de infraestrutura e configuração;
-- nomes de tecnologias internas ocultos da visão padrão e preservados apenas em informações avançadas;
+- períodos de **1 hora, 6 horas, 24 horas, 7 dias e 30 dias**;
+- paginação processada pela API, com 10, 25 ou 50 ações por página;
+- temas **Sistema, Claro e Escuro**, com preferência persistida no navegador;
+- estado atual sem métricas redundantes, com última ação e situação de confirmação;
+- contagens absolutas e percentuais nas análises de origem e uso dos pontos;
+- ações confirmadas apresentadas de forma discreta e exceções destacadas;
+- datas em linguagem mais natural e indicação de duração nos circuitos ligados;
+- circuitos lógicos únicos preservados, sem duplicar gangs diretos e paralelos;
+- informações técnicas restritas ao modo avançado;
 - Database Schema 15 preservado, sem migração;
 - HEA, EEA e TCA preservados.
 

@@ -1,3 +1,15 @@
+## 0.15.4 — LCA 0.3.4: Operational History & Interface Consistency
+
+- adiciona períodos de 1 hora, 6 horas, 24 horas, 7 dias e 30 dias;
+- implementa paginação real das ações pela API, com 10, 25 ou 50 registros por página;
+- inclui temas Sistema, Claro e Escuro, com preferência persistida;
+- remove redundâncias do Estado atual e destaca a última ação;
+- mostra contagens absolutas e percentuais nas distribuições;
+- simplifica ações confirmadas e destaca apenas exceções;
+- adota datas mais humanas e melhora a apresentação dos circuitos ativos;
+- mantém informações técnicas restritas ao modo avançado;
+- preserva Database Schema 15 e os módulos HEA, EEA e TCA.
+
 ## 0.15.3 — LCA 0.3.3: Logical State & Experience Redesign
 
 - Corrige o indicador de luzes ativas para contar circuitos lógicos únicos.
