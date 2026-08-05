@@ -1,7 +1,11 @@
-# Seiden FLOW 0.13.0.1
+# Seiden FLOW 0.13.1
 
 Camada de compreensão do **Seiden One**. O FLOW recebe eventos e evidências normalizadas, preserva o histórico e transforma dados operacionais em análises para pessoas, ambientes e ativos térmicos.
 
+
+## LCA 0.1.1 — processamento de eventos relevantes
+
+O LCA diferencia telemetria MQTT de eventos analíticos. A primeira observação estabelece o estado inicial; publicações repetidas sem mudança são mantidas apenas como telemetria técnica. Eventos e sessões são criados somente em transições reais, enquanto interações físicas explícitas permanecem registradas separadamente.
 
 ## Classificação progressiva dos perfis
 
@@ -77,7 +81,7 @@ Portal:
 
 Primeiro módulo nativo da arquitetura modular. O LCA não controla iluminação: ele interpreta eventos de acionamento e mudança de estado, descobre automaticamente dispositivos MQTT compatíveis e permite enriquecer manualmente o contexto espacial de interruptores, teclas e paralelos virtuais.
 
-Recursos da versão 0.1.0:
+Base funcional introduzida no LCA 0.1.0 e consolidada no LCA 0.1.1:
 
 - descoberta automática por prefixos MQTT configuráveis;
 - cadastro assistido de dispositivo, canal, localização, posição e ambiente adjacente;
@@ -159,7 +163,7 @@ O Vision permanece como autoridade dos perfis. Customizações específicas de a
 
 ## Persistência e compatibilidade
 
-- versão do FLOW: `0.13.0.1`;
+- versão do FLOW: `0.13.1`;
 - Platform Schema: `2.0`;
 - Database Schema: `12`;
 - migrações aditivas;
@@ -185,23 +189,6 @@ Antes de substituir uma versão em produção, mantenha backup da pasta de dados
 **Every Operation Tells a Story.**  
 *From events to operational intelligence.*
 
-
-### LCA — Lighting Context Analytics
-
-Primeiro módulo nativo da arquitetura modular. O LCA não controla iluminação: ele interpreta eventos de acionamento e mudança de estado, descobre automaticamente dispositivos MQTT compatíveis e permite enriquecer manualmente o contexto espacial de interruptores, teclas e paralelos virtuais.
-
-Recursos da versão 0.1.0:
-
-- descoberta automática por prefixos MQTT configuráveis;
-- cadastro assistido de dispositivo, canal, localização, posição e ambiente adjacente;
-- vínculo de tecla com luz, ponto de interação e grupo de paralelo virtual;
-- preservação da origem do acionamento;
-- sessões de iluminação;
-- métricas de eventos, interações e mudanças de estado;
-- evidências de rota baseadas no contexto configurado;
-- portal analítico em `/lca`;
-- nenhuma função de ligar, desligar ou comandar dispositivos.
-
 ## Arquitetura modular — 0.12.0
 
 A versão 0.12.0 inaugura a fundação modular do Seiden Flow sem descartar a implementação existente. HEA, EEA e TCA passam a possuir manifestos registrados em um catálogo central. O núcleo expõe os módulos carregados e as composições de solução por API, enquanto todas as rotas, bancos e dashboards da versão 0.11.7.1 permanecem compatíveis.
@@ -215,7 +202,7 @@ app/
 │   ├── hea/              # Human Experience Analytics
 │   ├── eea/              # Environmental Experience Analytics
 │   ├── tca/              # Thermal Control Analytics
-│   └── lca/              # Lighting Context Analytics 0.1.0
+│   └── lca/              # Lighting Context Analytics 0.1.1
 └── solutions/            # composições ativas e planejadas
 ```
 

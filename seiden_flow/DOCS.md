@@ -1,9 +1,9 @@
-# Seiden FLOW 0.13.0.1 — Documentação técnica
+# Seiden FLOW 0.13.1 — Documentação técnica
 
 ## Identificação
 
 - Serviço: `seiden_flow`
-- Versão: `0.13.0.1`
+- Versão: `0.13.1`
 - Platform Schema: `2.0`
 - Database Schema: `12`
 - Porta interna: `8100`
@@ -105,11 +105,11 @@ O manifesto monta:
 
 ## Compatibilidade
 
-A migração para Database Schema 11 é aditiva. Tabelas e dados anteriores são preservados. HEA e EEA continuam disponíveis mesmo sem ativos TCA cadastrados.
+A migração para Database Schema 12 é aditiva. Tabelas e dados anteriores são preservados. HEA e EEA continuam disponíveis mesmo sem ativos TCA cadastrados.
 
-## Modular Foundation (0.13.0.1)
+## Modular Foundation (0.12.0)
 
-A fundação modular usa `ModuleManifest` e `ModuleRegistry` para declarar e descobrir capacidades analíticas. A versão 0.13.0.1 não migra o banco nem altera contratos existentes: ela cria a fronteira arquitetural que permitirá extrair gradualmente rotas, repositórios, analytics e interfaces de cada módulo.
+A fundação modular usa `ModuleManifest` e `ModuleRegistry` para declarar e descobrir capacidades analíticas. A versão 0.12.0 não migrou o banco nem alterou contratos existentes: ela cria a fronteira arquitetural que permitirá extrair gradualmente rotas, repositórios, analytics e interfaces de cada módulo.
 
 Cada manifesto declara: identificador, nome, versão interna, estado, eventos consumidos, capacidades, portais, prefixos de API e dependências. Novos módulos devem ser registrados em `app/modules/catalog.py`.
 
@@ -119,3 +119,7 @@ O catálogo de soluções diferencia composições `active` e `planned`; uma com
 ## LCA 0.1.0
 
 O Lighting Context Analytics consome eventos normalizados pelo Bridge, descobre dispositivos sob os prefixos MQTT configurados e cria contexto analítico de iluminação. Não possui APIs de comando. Portal: `/lca`. Prefixo de API: `/api/v1/lca`.
+
+## LCA 0.1.1 — eventos relevantes
+
+O LCA mantém o último estado observado de cada canal. A primeira publicação estabelece a linha de base e não gera evento. Publicações seguintes com o mesmo valor contam apenas como mensagens técnicas. Uma mudança real gera `state_change`; ações explícitas do dispositivo geram `interaction`. Sessões são abertas e fechadas somente por transições reais.

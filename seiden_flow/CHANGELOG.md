@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.13.1 — LCA 0.1.1: Relevant Event Processing
+
+- diferencia mensagens MQTT, mudanças reais de estado e interações explícitas;
+- trata a primeira leitura de cada canal apenas como estado inicial;
+- ignora publicações periódicas sem alteração de valor no histórico analítico;
+- cria sessões somente em transições `OFF → ON` e encerra em `ON → OFF`;
+- adiciona estado persistente por dispositivo e canal;
+- adiciona contador técnico de mensagens recebidas, separado dos eventos relevantes;
+- aplica janela antirrepetição de dois segundos para ações idênticas;
+- remove uma única vez os eventos de estado e sessões sintéticas gerados pelo LCA 0.1.0, preservando interações e disponibilidade;
+- mantém o Database Schema 12 com tabelas aditivas internas ao módulo;
+- preserva HEA, EEA e TCA sem alterações funcionais.
+
 ## 0.13.0.1 — Correção de navegação do LCA
 
 - adiciona o card e o link do LCA à página inicial do Flow;

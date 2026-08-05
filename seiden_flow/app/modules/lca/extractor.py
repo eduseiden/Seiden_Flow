@@ -54,7 +54,7 @@ def extract_lca_events(payload: dict[str,Any], ha_event_type: str|None=None, top
     model=str(merged.get("model") or origin.get("model") or "").strip() or None
     manufacturer=str(merged.get("manufacturer") or origin.get("manufacturer") or "").strip() or None
     result=[]
-    common={"device_id":device_id,"device_name":device_name,"topic":topic or None,"occurred_at":occurred,"model":model,"manufacturer":manufacturer,"payload":payload}
+    common={"message_id":base_id,"device_id":device_id,"device_name":device_name,"topic":topic or None,"occurred_at":occurred,"model":model,"manufacturer":manufacturer,"payload":payload}
     if availability in {"online","offline"}:
         result.append({**common,"lca_event_id":base_id+":availability","kind":"availability","state":availability,"channel":None,"action":None,"brightness":None})
     action=merged.get("action") or merged.get("button_action") or merged.get("click")
