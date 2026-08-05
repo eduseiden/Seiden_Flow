@@ -282,11 +282,45 @@ class LCARepository:
                 (item["occurred_at"], duration, item["lca_event_id"], now, open_row["session_id"]),
             )
 
+    @staticmethod
+    def _configured_channel_count(c, did):
+        return c.execute(
+            """SELECT COUNT(*) FROM lca_channels
+               WHERE device_id=? AND enabled=1
+                 AND COALESCE(NULLIF(TRIM(name),''),NULLIF(TRIM(related_light_name),'')) IS NOT NULL
+                 AND (NULLIF(TRIM(interaction_point),'') IS NOT NULL
+                      OR NULLIF(TRIM(adjacent_location_name),'') IS NOT NULL
+                      OR NULLIF(TRIM(direction_hint),'') IS NOT NULL)""",
+            (did,),
+        ).fetchone()[0]
+
+    @classmethod
+    def _refresh_configuration_status(cls, c, did):
+        row = c.execute("SELECT status,location_name FROM lca_devices WHERE device_id=?", (did,)).fetchone()
+        if not row or row["status"] == "ignored":
+            return
+        total = c.execute("SELECT COUNT(*) FROM lca_channels WHERE device_id=? AND enabled=1", (did,)).fetchone()[0]
+        configured = cls._configured_channel_count(c, did)
+        if row["location_name"] and total > 0 and configured == total:
+            status = "configured"
+        elif row["location_name"] or configured > 0:
+            status = "incomplete"
+        else:
+            status = "discovered"
+        c.execute("UPDATE lca_devices SET status=? WHERE device_id=?", (status, did))
+
     def devices(self):
         with self.db.connect() as c:
             rows = c.execute(
-                """SELECT d.*,(SELECT COUNT(*) FROM lca_channels x WHERE x.device_id=d.device_id) channel_count
-                   FROM lca_devices d ORDER BY CASE d.status WHEN 'discovered' THEN 0 WHEN 'incomplete' THEN 1 ELSE 2 END,d.name"""
+                """SELECT d.*,
+                          (SELECT COUNT(*) FROM lca_channels x WHERE x.device_id=d.device_id) channel_count,
+                          (SELECT COUNT(*) FROM lca_channels x WHERE x.device_id=d.device_id AND x.enabled=1
+                             AND COALESCE(NULLIF(TRIM(x.name),''),NULLIF(TRIM(x.related_light_name),'')) IS NOT NULL
+                             AND (NULLIF(TRIM(x.interaction_point),'') IS NOT NULL
+                                  OR NULLIF(TRIM(x.adjacent_location_name),'') IS NOT NULL
+                                  OR NULLIF(TRIM(x.direction_hint),'') IS NOT NULL)) configured_channel_count
+                   FROM lca_devices d
+                   ORDER BY CASE d.status WHEN 'discovered' THEN 0 WHEN 'incomplete' THEN 1 WHEN 'configured' THEN 2 ELSE 3 END,d.name"""
             ).fetchall()
             return [dict(r) for r in rows]
 
@@ -298,6 +332,8 @@ class LCARepository:
             channels = c.execute("SELECT * FROM lca_channels WHERE device_id=? ORDER BY channel_key", (did,)).fetchall()
             out = dict(d)
             out["channels"] = [dict(x) for x in channels]
+            out["configured_channel_count"] = self._configured_channel_count(c, did)
+            out["channel_count"] = len(channels)
             return out
 
     def update_device(self, did, p):
@@ -308,6 +344,7 @@ class LCARepository:
         with self.db.connect() as c:
             vals = [p[k] for k in fields] + [datetime.now(timezone.utc).isoformat(), did]
             c.execute(f"UPDATE lca_devices SET {','.join(k+'=?' for k in fields)},updated_at=? WHERE device_id=?", vals)
+            self._refresh_configuration_status(c, did)
         return self.device(did)
 
     def update_channel(self, did, ch, p):
@@ -320,6 +357,7 @@ class LCARepository:
             if fields:
                 vals = [1 if p[k] is True else 0 if p[k] is False else p[k] for k in fields] + [now, did, ch]
                 c.execute(f"UPDATE lca_channels SET {','.join(k+'=?' for k in fields)},updated_at=? WHERE device_id=? AND channel_key=?", vals)
+            self._refresh_configuration_status(c, did)
         return self.device(did)
 
     def events(self, hours=24, limit=200, device_id=None):

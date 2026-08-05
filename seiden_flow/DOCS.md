@@ -1,9 +1,9 @@
-# Seiden FLOW 0.13.1 — Documentação técnica
+# Seiden FLOW 0.14.0 — Documentação técnica
 
 ## Identificação
 
 - Serviço: `seiden_flow`
-- Versão: `0.13.1`
+- Versão: `0.14.0`
 - Platform Schema: `2.0`
 - Database Schema: `12`
 - Porta interna: `8100`
@@ -120,6 +120,13 @@ O catálogo de soluções diferencia composições `active` e `planned`; uma com
 
 O Lighting Context Analytics consome eventos normalizados pelo Bridge, descobre dispositivos sob os prefixos MQTT configurados e cria contexto analítico de iluminação. Não possui APIs de comando. Portal: `/lca`. Prefixo de API: `/api/v1/lca`.
 
-## LCA 0.1.1 — eventos relevantes
+## LCA 0.2.0 — configuração espacial assistida
+
+- portal com edição de dispositivo e teclas;
+- enriquecimento de ambiente, posição, adjacência e direção;
+- vínculo com luz/função e grupos de paralelo virtual;
+- status automático `discovered`, `incomplete` e `configured`;
+- opção explícita para ignorar dispositivos sem relevância analítica;
+- nenhuma função de comando ou controle de iluminação.
 
 O LCA mantém o último estado observado de cada canal. A primeira publicação estabelece a linha de base e não gera evento. Publicações seguintes com o mesmo valor contam apenas como mensagens técnicas. Uma mudança real gera `state_change`; ações explícitas do dispositivo geram `interaction`. Sessões são abertas e fechadas somente por transições reais.

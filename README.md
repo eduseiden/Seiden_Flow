@@ -1,11 +1,13 @@
-# Seiden FLOW 0.13.1
+# Seiden FLOW 0.14.0
 
 Camada de compreensão do **Seiden One**. O FLOW recebe eventos e evidências normalizadas, preserva o histórico e transforma dados operacionais em análises para pessoas, ambientes e ativos térmicos.
 
 
-## LCA 0.1.1 — processamento de eventos relevantes
+## LCA 0.2.0 — configuração espacial assistida
 
 O LCA diferencia telemetria MQTT de eventos analíticos. A primeira observação estabelece o estado inicial; publicações repetidas sem mudança são mantidas apenas como telemetria técnica. Eventos e sessões são criados somente em transições reais, enquanto interações físicas explícitas permanecem registradas separadamente.
+
+O portal do LCA agora oferece configuração visual dos dispositivos descobertos e de cada tecla. O usuário informa ambiente, posição física, ambiente adjacente, ponto de interação, direção sugerida, luz relacionada e grupo de paralelo virtual. O status do dispositivo evolui automaticamente entre Descoberto, Incompleto e Configurado, sem alterar a captura de eventos relevantes introduzida na versão 0.1.1.
 
 ## Classificação progressiva dos perfis
 
@@ -81,10 +83,11 @@ Portal:
 
 Primeiro módulo nativo da arquitetura modular. O LCA não controla iluminação: ele interpreta eventos de acionamento e mudança de estado, descobre automaticamente dispositivos MQTT compatíveis e permite enriquecer manualmente o contexto espacial de interruptores, teclas e paralelos virtuais.
 
-Base funcional introduzida no LCA 0.1.0 e consolidada no LCA 0.1.1:
+Base funcional consolidada até o LCA 0.2.0:
 
 - descoberta automática por prefixos MQTT configuráveis;
-- cadastro assistido de dispositivo, canal, localização, posição e ambiente adjacente;
+- configuração visual de dispositivo, ambiente, posição e ambiente adjacente;
+- configuração individual das teclas com progresso e status automático;
 - vínculo de tecla com luz, ponto de interação e grupo de paralelo virtual;
 - preservação da origem do acionamento;
 - sessões de iluminação;
@@ -163,7 +166,7 @@ O Vision permanece como autoridade dos perfis. Customizações específicas de a
 
 ## Persistência e compatibilidade
 
-- versão do FLOW: `0.13.1`;
+- versão do FLOW: `0.14.0`;
 - Platform Schema: `2.0`;
 - Database Schema: `12`;
 - migrações aditivas;
@@ -202,7 +205,7 @@ app/
 │   ├── hea/              # Human Experience Analytics
 │   ├── eea/              # Environmental Experience Analytics
 │   ├── tca/              # Thermal Control Analytics
-│   └── lca/              # Lighting Context Analytics 0.1.1
+│   └── lca/              # Lighting Context Analytics 0.2.0
 └── solutions/            # composições ativas e planejadas
 ```
 

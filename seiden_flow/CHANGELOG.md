@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.14.0 — LCA 0.2.0: Device and Spatial Configuration
+
+- adiciona configuração visual dos dispositivos descobertos diretamente no portal LCA;
+- permite informar nome amigável, tipo, ambiente, posição física, ambiente adjacente e observações;
+- adiciona configuração individual de cada tecla/canal;
+- permite registrar ponto de interação, direção sugerida, luz ou função relacionada e grupo de paralelo virtual;
+- calcula automaticamente o progresso de configuração de cada dispositivo;
+- introduz estados `discovered`, `incomplete`, `configured` e `ignored`;
+- mantém a captura de eventos relevantes e o polling de 15 segundos;
+- não adiciona comandos de iluminação e não altera HEA, EEA ou TCA;
+- mantém o Database Schema 12.
+
 ## 0.13.1 — LCA 0.1.1: Relevant Event Processing
 
 - diferencia mensagens MQTT, mudanças reais de estado e interações explícitas;
