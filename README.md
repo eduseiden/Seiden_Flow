@@ -1,16 +1,18 @@
-# Seiden FLOW 0.15.5
+# Seiden FLOW 0.15.6
 
-## LCA 0.3.5 — resolução de identidade e normalização de teclas
+## LCA 0.3.6 — consolidação de circuitos lógicos
 
-Esta versão corrige falsos **Sem confirmação** em pontos diretos com nomes livres e normaliza dispositivos que publicam aliases duplicados para a mesma tecla física.
+Esta versão separa definitivamente **circuitos de iluminação** de **pontos de acionamento**. Um circuito real é contado uma única vez, mesmo quando possui retorno direto, paralelo virtual ou aliases técnicos.
 
-- confirmação de pontos diretos pela própria transição observada;
-- correlação prioritária por circuito lógico, estado solicitado e janela temporal;
-- suporte a entidades com nomes livres, sem exigir sufixos como `_l1`;
-- normalização automática de `l1/left`, `l2/center` e `l3/right` quando representam a mesma tecla;
-- migração automática do histórico e da configuração dos aliases já existentes;
-- contagem de teclas físicas, evitando mostrar seis canais em dispositivos de três teclas;
-- Database Schema mantido em `15`.
+- `circuit_id` canônico e permanente por circuito lógico;
+- consolidação automática e auditável de circuitos duplicados;
+- migração de pontos, sessões, eventos e efeitos de cenas para o circuito canônico;
+- prevenção de novas duplicidades ao cadastrar pontos diretos;
+- contagens separadas de circuitos monitorados e pontos de acionamento;
+- lista de circuitos com quantidade de pontos diretos e paralelos;
+- estado desconhecido reservado a circuitos sem leitura confiável;
+- diagnóstico avançado de qualidade da configuração;
+- Database Schema `16`, com migração aditiva e preservação do histórico.
 
 ## LCA 0.3.4 — histórico operacional e consistência de interface
 

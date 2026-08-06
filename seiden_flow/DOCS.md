@@ -1,6 +1,12 @@
-# Seiden FLOW 0.15.5 — Documentação técnica
 
-## LCA 0.3.5 — Identity Resolution & Physical Channel Normalization
+## LCA 0.3.6 — circuitos lógicos e pontos de acionamento
+
+O LCA diferencia o **circuito de iluminação** (a carga real iluminada) dos **pontos de acionamento** (retorno direto, paralelo, cena ou interface). O identificador `circuit_id` é estável e independe de nomes técnicos de dispositivos. Duplicidades seguras são consolidadas automaticamente, com auditoria em `lca_light_merge_log`.
+
+O dashboard expõe `monitored_lights`, `active_lights`, `monitored_points`, `direct_points`, `parallel_points` e `configuration_quality`.
+# Seiden FLOW 0.15.6 — Documentação técnica
+
+## LCA 0.3.6 — Logical Circuit Consolidation
 
 O endpoint `/api/v1/lca/dashboard` aceita `hours`, `action_page` e `action_page_size`. A paginação das ações é realizada no SQLite, evitando carregar todo o histórico no navegador.
 
@@ -19,15 +25,17 @@ O endpoint `/api/v1/lca/dashboard` aceita `hours`, `action_page` e `action_page_
 - ações confirmadas não recebem destaque repetitivo; somente exceções são enfatizadas;
 - o estado lógico continua calculado por `light_asset_id`, sem duplicar pontos paralelos.
 
-Nenhuma estrutura de banco foi alterada. O Database Schema permanece em 15.
+O Database Schema foi atualizado para 16 com colunas aditivas em `lca_light_assets` e a tabela de auditoria `lca_light_merge_log`.
 
-### Alterações da LCA 0.3.5
+### Alterações do LCA 0.3.6
 
-- nomes livres de entidades são resolvidos pelo circuito e pela luz lógica;
-- pontos diretos são confirmados pela própria mudança que originou o evento;
-- aliases `left/center/right` são consolidados em `l1/l2/l3` quando coexistem no mesmo dispositivo;
-- a migração preserva configuração e histórico sob a tecla física canônica;
-- não há mudança no Database Schema (`15`).
+- cada circuito lógico recebe um `circuit_id` canônico;
+- pontos diretos e paralelos referenciam o mesmo circuito real;
+- duplicidades seguras são consolidadas com migração de canais, sessões, eventos e efeitos de cenas;
+- novas configurações reutilizam circuitos existentes em vez de criar ativos duplicados;
+- o dashboard separa circuitos monitorados de pontos de acionamento;
+- o modo avançado apresenta indicadores de qualidade da configuração;
+- Database Schema `16`.
 
 ## LCA 0.3.1 — Interaction Origin Attribution
 
@@ -38,10 +46,10 @@ Campos suportados: `source_entity`, `source_device`, `source_channel`, `requeste
 ## Identificação
 
 - Serviço: `seiden_flow`
-- Versão: `0.15.5`
-- LCA: `0.3.5`
+- Versão: `0.15.6`
+- LCA: `0.3.6`
 - Platform Schema: `2.0`
-- Database Schema: `15`
+- Database Schema: `16`
 - Porta interna: `8100`
 - Persistência: SQLite na pasta de configuração do add-on
 

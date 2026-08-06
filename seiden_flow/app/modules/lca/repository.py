@@ -18,6 +18,7 @@ class LCARepository:
         self.ensure_schema()
         self._migrate_010_history()
         self._migrate_035_channel_aliases()
+        self._migrate_036_logical_circuits()
 
     def ensure_schema(self):
         with self.db.connect() as c:
@@ -106,6 +107,17 @@ class LCARepository:
             self._ensure_column(c, "lca_events", "effect_confirmed_at", "TEXT")
             self._ensure_column(c, "lca_events", "confirmation_latency_ms", "INTEGER")
             self._ensure_column(c, "lca_events", "interaction_status", "TEXT")
+            self._ensure_column(c, "lca_light_assets", "circuit_id", "TEXT")
+            self._ensure_column(c, "lca_light_assets", "archived_at", "TEXT")
+            self._ensure_column(c, "lca_light_assets", "merged_into_light_id", "TEXT")
+            c.execute("""CREATE TABLE IF NOT EXISTS lca_light_merge_log(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_light_id TEXT NOT NULL,
+                target_light_id TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                merged_at TEXT NOT NULL,
+                details_json TEXT NOT NULL DEFAULT '{}')""")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_lca_light_assets_circuit ON lca_light_assets(site_id,circuit_id)")
 
     @staticmethod
     def _ensure_column(c, table, column, declaration):
@@ -199,6 +211,115 @@ class LCARepository:
                     c.execute("DELETE FROM lca_channels WHERE device_id=? AND channel_key=?", (did, alias))
                 self._refresh_configuration_status(c, did)
             now = datetime.now(timezone.utc).isoformat()
+            c.execute("INSERT INTO lca_metadata(key,value,updated_at) VALUES(?,?,?)", (key, "completed", now))
+
+    def _migrate_036_logical_circuits(self):
+        """Consolidate duplicated logical lights into canonical circuits.
+
+        A circuit is the illuminated load. Direct and parallel points are only
+        interaction points and must reference the same logical circuit. Older
+        versions could create one light asset per direct entity, especially
+        when friendly entity names were used. This migration merges safe
+        duplicates while preserving channels, sessions, events and audit data.
+        """
+        key = "lca_logical_circuit_consolidation_036"
+        with self.db.connect() as c:
+            if c.execute("SELECT value FROM lca_metadata WHERE key=?", (key,)).fetchone():
+                return
+            now = datetime.now(timezone.utc).isoformat()
+            lights = [dict(r) for r in c.execute(
+                "SELECT * FROM lca_light_assets WHERE archived_at IS NULL ORDER BY created_at,light_id"
+            ).fetchall()]
+
+            def norm(value):
+                return self._normalize_identifier(value)
+
+            # Populate stable circuit identifiers first.
+            for light in lights:
+                name_key = norm(light.get("name")) or norm(light.get("light_id"))
+                location_key = norm(light.get("location_name"))
+                circuit_id = f"{location_key}_{name_key}" if location_key else name_key
+                c.execute(
+                    "UPDATE lca_light_assets SET circuit_id=?,updated_at=? WHERE light_id=?",
+                    (circuit_id, now, light["light_id"]),
+                )
+                light["circuit_id"] = circuit_id
+
+            # Group by semantic light name. Merge exact location duplicates and
+            # location-less records only when a single located circuit exists.
+            by_name = {}
+            for light in lights:
+                by_name.setdefault(norm(light.get("name")), []).append(light)
+
+            for name_key, group in by_name.items():
+                if not name_key or len(group) < 2:
+                    continue
+                located = {norm(x.get("location_name")) for x in group if norm(x.get("location_name"))}
+                buckets = {}
+                for light in group:
+                    loc = norm(light.get("location_name"))
+                    if not loc and len(located) == 1:
+                        loc = next(iter(located))
+                    buckets.setdefault(loc, []).append(light)
+
+                for loc_key, duplicates in buckets.items():
+                    if len(duplicates) < 2 or not loc_key:
+                        continue
+                    # Prefer the asset with a location, then the one with more
+                    # configured points, then the oldest stable identifier.
+                    scored = []
+                    for light in duplicates:
+                        point_count = c.execute(
+                            "SELECT COUNT(*) FROM lca_channels WHERE light_asset_id=?",
+                            (light["light_id"],),
+                        ).fetchone()[0]
+                        score = (1 if light.get("location_name") else 0, point_count, -len(light["light_id"]))
+                        scored.append((score, light))
+                    scored.sort(key=lambda x: x[0], reverse=True)
+                    target = scored[0][1]
+                    target_id = target["light_id"]
+                    target_location = target.get("location_name") or next(
+                        (x.get("location_name") for x in duplicates if x.get("location_name")), None
+                    )
+                    canonical_circuit = f"{loc_key}_{name_key}"
+                    c.execute(
+                        "UPDATE lca_light_assets SET circuit_id=?,location_name=COALESCE(location_name,?),updated_at=? WHERE light_id=?",
+                        (canonical_circuit, target_location, now, target_id),
+                    )
+                    for _, source in scored[1:]:
+                        source_id = source["light_id"]
+                        c.execute("UPDATE lca_channels SET light_asset_id=?,related_light_id=?,related_light_name=COALESCE(related_light_name,?),updated_at=? WHERE light_asset_id=?",
+                                  (target_id, target_id, target.get("name"), now, source_id))
+                        c.execute("UPDATE lca_sessions SET related_light_id=? WHERE related_light_id=?", (target_id, source_id))
+                        c.execute("UPDATE lca_events SET related_light_id=?,related_light_name=COALESCE(related_light_name,?) WHERE related_light_id=?",
+                                  (target_id, target.get("name"), source_id))
+                        # Merge scene statistics without losing observations.
+                        effects = c.execute("SELECT * FROM lca_scene_effects WHERE light_id=?", (source_id,)).fetchall()
+                        for effect in effects:
+                            existing = c.execute("SELECT * FROM lca_scene_effects WHERE scene_id=? AND light_id=? AND resulting_state=?",
+                                                 (effect["scene_id"], target_id, effect["resulting_state"])).fetchone()
+                            if existing:
+                                observations = int(existing["observations"] or 0) + int(effect["observations"] or 0)
+                                executions = max(int(existing["executions"] or 0), int(effect["executions"] or 0))
+                                confidence = (observations / executions) if executions else 0
+                                c.execute("UPDATE lca_scene_effects SET observations=?,executions=?,confidence=?,last_seen=MAX(COALESCE(last_seen,''),?),updated_at=? WHERE scene_id=? AND light_id=? AND resulting_state=?",
+                                          (observations, executions, confidence, effect["last_seen"], now, effect["scene_id"], target_id, effect["resulting_state"]))
+                            else:
+                                c.execute("UPDATE lca_scene_effects SET light_id=?,updated_at=? WHERE scene_id=? AND light_id=? AND resulting_state=?",
+                                          (target_id, now, effect["scene_id"], source_id, effect["resulting_state"]))
+                        c.execute("DELETE FROM lca_scene_effects WHERE light_id=?", (source_id,))
+                        c.execute("INSERT INTO lca_light_merge_log(source_light_id,target_light_id,reason,merged_at,details_json) VALUES(?,?,?,?,?)",
+                                  (source_id, target_id, "same_name_and_location", now,
+                                   json.dumps({"name": source.get("name"), "location": source.get("location_name")}, ensure_ascii=False)))
+                        c.execute("DELETE FROM lca_light_assets WHERE light_id=?", (source_id,))
+
+            # Recalculate identifiers after merges and updated locations.
+            remaining = c.execute("SELECT light_id,name,location_name FROM lca_light_assets WHERE archived_at IS NULL").fetchall()
+            for light in remaining:
+                name_key = norm(light["name"]) or norm(light["light_id"])
+                location_key = norm(light["location_name"])
+                circuit_id = f"{location_key}_{name_key}" if location_key else name_key
+                c.execute("UPDATE lca_light_assets SET circuit_id=?,updated_at=? WHERE light_id=?", (circuit_id, now, light["light_id"]))
             c.execute("INSERT INTO lca_metadata(key,value,updated_at) VALUES(?,?,?)", (key, "completed", now))
 
     def ingest(self, items):
@@ -688,8 +809,27 @@ class LCARepository:
             light_id=None; related_name=None; parallel_source=None; scene_id=None
             if role=="direct":
                 related_name=(p.get("light_name") or p.get("related_light_name") or name or "").strip() or None
-                light_id=f"light:{did}:{ch}"
-                c.execute("INSERT INTO lca_light_assets(light_id,site_id,name,location_name,source_channel_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(light_id) DO UPDATE SET name=excluded.name,location_name=excluded.location_name,updated_at=excluded.updated_at",(light_id,self.db.site_id,related_name or ch,location,cid,now,now))
+                name_key=self._normalize_identifier(related_name or ch)
+                location_key=self._normalize_identifier(location)
+                circuit_id=f"{location_key}_{name_key}" if location_key else name_key
+                # Reuse an existing logical circuit instead of creating one
+                # light asset per direct entity. A location-less asset is reused
+                # only when it is the unique circuit with that semantic name.
+                existing=c.execute("SELECT * FROM lca_light_assets WHERE archived_at IS NULL AND site_id=? AND circuit_id=? LIMIT 1",
+                                   (self.db.site_id,circuit_id)).fetchone()
+                if not existing and location_key:
+                    existing=c.execute("""SELECT * FROM lca_light_assets
+                        WHERE archived_at IS NULL AND site_id=? AND lower(name)=lower(?)
+                          AND (location_name IS NULL OR trim(location_name)='') LIMIT 1""",
+                                       (self.db.site_id,related_name or ch)).fetchone()
+                if existing:
+                    light_id=existing["light_id"]
+                    c.execute("UPDATE lca_light_assets SET name=?,location_name=COALESCE(?,location_name),circuit_id=?,updated_at=? WHERE light_id=?",
+                              (related_name or ch,location,circuit_id,now,light_id))
+                else:
+                    light_id=f"light:{did}:{ch}"
+                    c.execute("INSERT INTO lca_light_assets(light_id,site_id,name,location_name,source_channel_id,circuit_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(light_id) DO UPDATE SET name=excluded.name,location_name=excluded.location_name,circuit_id=excluded.circuit_id,updated_at=excluded.updated_at",
+                              (light_id,self.db.site_id,related_name or ch,location,cid,circuit_id,now,now))
             elif role=="parallel":
                 parallel_source=p.get("parallel_source_channel_id")
                 src=c.execute("SELECT light_asset_id,related_light_name,location_name FROM lca_channels WHERE channel_id=?",(parallel_source,)).fetchone() if parallel_source else None
@@ -709,7 +849,7 @@ class LCARepository:
 
     def relationship_catalog(self):
         with self.db.connect() as c:
-            points=[dict(r) for r in c.execute("SELECT ch.channel_id,ch.device_id,ch.channel_key,ch.related_light_name light_name,ch.location_name,d.name device_name FROM lca_channels ch JOIN lca_devices d ON d.device_id=ch.device_id WHERE ch.relationship_type='direct' AND ch.enabled=1 AND ch.light_asset_id IS NOT NULL ORDER BY ch.location_name,ch.related_light_name,d.name").fetchall()]
+            points=[dict(r) for r in c.execute("SELECT ch.channel_id,ch.device_id,ch.channel_key,ch.related_light_name light_name,ch.location_name,d.name device_name,l.circuit_id FROM lca_channels ch JOIN lca_devices d ON d.device_id=ch.device_id LEFT JOIN lca_light_assets l ON l.light_id=ch.light_asset_id WHERE ch.relationship_type='direct' AND ch.enabled=1 AND ch.light_asset_id IS NOT NULL AND l.archived_at IS NULL ORDER BY ch.location_name,ch.related_light_name,d.name").fetchall()]
             scenes=[dict(r) for r in c.execute("SELECT s.*, (SELECT COUNT(*) FROM lca_scene_executions x WHERE x.scene_id=s.scene_id) execution_count FROM lca_scenes s ORDER BY s.name").fetchall()]
             effects=[dict(r) for r in c.execute("SELECT e.*,l.name light_name FROM lca_scene_effects e LEFT JOIN lca_light_assets l ON l.light_id=e.light_id ORDER BY e.scene_id,e.confidence DESC").fetchall()]
             return {"direct_points":points,"scenes":scenes,"scene_effects":effects}
@@ -757,8 +897,10 @@ class LCARepository:
             # Estado lógico consolidado: cada luz é contada uma única vez,
             # independentemente da quantidade de gangs diretos ou paralelos.
             current_lights = [dict(r) for r in c.execute("""
-                SELECT l.light_id,l.name,l.location_name,
+                SELECT l.light_id,l.circuit_id,l.name,l.location_name,
                        COUNT(DISTINCT CASE WHEN d.device_id IS NOT NULL THEN ch.channel_id END) point_count,
+                       COUNT(DISTINCT CASE WHEN d.device_id IS NOT NULL AND ch.relationship_type='direct' THEN ch.channel_id END) direct_point_count,
+                       COUNT(DISTINCT CASE WHEN d.device_id IS NOT NULL AND ch.relationship_type='parallel' THEN ch.channel_id END) parallel_point_count,
                        (
                          SELECT cs.state
                          FROM lca_channels ch2
@@ -784,11 +926,15 @@ class LCARepository:
                 FROM lca_light_assets l
                 LEFT JOIN lca_channels ch ON ch.light_asset_id=l.light_id AND ch.enabled=1
                 LEFT JOIN lca_devices d ON d.device_id=ch.device_id AND d.status<>'ignored'
-                GROUP BY l.light_id,l.name,l.location_name
+                WHERE l.archived_at IS NULL
+                GROUP BY l.light_id,l.circuit_id,l.name,l.location_name
                 HAVING COUNT(DISTINCT CASE WHEN d.device_id IS NOT NULL THEN ch.channel_id END)>0
                 ORDER BY l.location_name,l.name
             """).fetchall()]
             totals["monitored_lights"] = len(current_lights)
+            totals["monitored_points"] = sum(int(light.get("point_count") or 0) for light in current_lights)
+            totals["direct_points"] = sum(int(light.get("direct_point_count") or 0) for light in current_lights)
+            totals["parallel_points"] = sum(int(light.get("parallel_point_count") or 0) for light in current_lights)
             totals["active_lights"] = sum(1 for light in current_lights if str(light.get("state") or "").upper() == "ON")
             totals["unknown_lights"] = sum(1 for light in current_lights if not light.get("state"))
             # Mantido para compatibilidade com clientes antigos da API.
@@ -867,11 +1013,22 @@ class LCARepository:
                   AND (e.channel_key IS NULL OR ch.enabled=1)
                 GROUP BY COALESCE(ch.relationship_type,'unassigned') ORDER BY value DESC
             """, (since,)).fetchall()]
+            merge_count = c.execute("SELECT COUNT(*) FROM lca_light_merge_log").fetchone()[0]
+            missing_location = c.execute("SELECT COUNT(*) FROM lca_light_assets WHERE archived_at IS NULL AND (location_name IS NULL OR trim(location_name)='')").fetchone()[0]
+            parallel_without_circuit = c.execute("SELECT COUNT(*) FROM lca_channels WHERE enabled=1 AND relationship_type='parallel' AND light_asset_id IS NULL").fetchone()[0]
+            circuits_without_direct = c.execute("""SELECT COUNT(*) FROM lca_light_assets l WHERE l.archived_at IS NULL
+                AND NOT EXISTS(SELECT 1 FROM lca_channels ch WHERE ch.light_asset_id=l.light_id AND ch.enabled=1 AND ch.relationship_type='direct')""").fetchone()[0]
+            configuration_quality = {
+                "merged_circuits": merge_count,
+                "circuits_without_location": missing_location,
+                "parallels_without_circuit": parallel_without_circuit,
+                "circuits_without_direct_point": circuits_without_direct,
+            }
             recent=(actions+technical)[:30]
         return {"period_hours": hours, "summary": totals, "by_hour": by_hour, "top_devices": top,
                 "route_evidence": routes, "recent_actions": actions, "technical_events": technical,
                 "current_lights": current_lights, "origin_breakdown": origin_breakdown,
-                "role_breakdown": role_breakdown, "recent_events": recent[:30],
+                "role_breakdown": role_breakdown, "configuration_quality": configuration_quality, "recent_events": recent[:30],
                 "action_pagination": {
                     "page": action_page,
                     "page_size": action_page_size,

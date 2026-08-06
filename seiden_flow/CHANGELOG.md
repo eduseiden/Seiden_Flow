@@ -1,3 +1,14 @@
+## 0.15.6 — LCA 0.3.6: Logical Circuit Consolidation
+
+- introduz `circuit_id` canônico para circuitos de iluminação;
+- consolida duplicidades por nome e ambiente, incluindo registros antigos sem ambiente quando há um único destino inequívoco;
+- migra pontos, sessões, eventos e efeitos de cenas para o circuito canônico, com log de auditoria;
+- evita novas duplicidades ao cadastrar pontos diretos;
+- separa contagens de circuitos e pontos de acionamento;
+- mostra pontos diretos e paralelos por circuito;
+- adiciona diagnóstico avançado de qualidade da configuração;
+- atualiza Database Schema para 16, preservando HEA, EEA, TCA e todo o histórico.
+
 ## 0.15.5 — LCA 0.3.5: Identity Resolution & Physical Channel Normalization
 
 - Corrige falsos `Sem confirmação` em pontos diretos com nomes livres.
