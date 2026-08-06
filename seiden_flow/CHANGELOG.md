@@ -1,3 +1,12 @@
+## 0.15.5 — LCA 0.3.5: Identity Resolution & Physical Channel Normalization
+
+- Corrige falsos `Sem confirmação` em pontos diretos com nomes livres.
+- Resolve a origem por circuito lógico e destino, sem depender de convenções de nome.
+- Confirma pontos diretos pela própria transição observada.
+- Consolida aliases `l1/left`, `l2/center` e `l3/right` em três teclas físicas.
+- Migra configuração, estado e histórico dos aliases existentes.
+- Mantém Database Schema 15 e preserva HEA, EEA e TCA.
+
 ## 0.15.4 — LCA 0.3.4: Operational History & Interface Consistency
 
 - adiciona períodos de 1 hora, 6 horas, 24 horas, 7 dias e 30 dias;

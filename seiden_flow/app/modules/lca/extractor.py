@@ -103,13 +103,24 @@ def extract_lca_events(payload: dict[str,Any], ha_event_type: str|None=None, top
         kl=str(key).lower()
         if kl=="state" or kl.startswith("state_") or kl.startswith("state_l"):
             state_fields.append((str(key)[6:] if kl.startswith("state_") else (str(key)[5:] if kl.startswith("state_l") else "main"),value))
+    # Alguns modelos publicam dois nomes para a mesma tecla física, por
+    # exemplo l1/left, l2/center e l3/right. Quando ambos aparecem no mesmo
+    # payload, normalizamos para o identificador numérico e evitamos eventos
+    # e canais duplicados.
+    raw_keys={str(ch).lower() for ch,_ in state_fields}
+    alias_map={}
+    for canonical,alias in (("l1","left"),("l2","center"),("l3","right")):
+        if canonical in raw_keys and alias in raw_keys:
+            alias_map[alias]=canonical
+
     seen=set()
     for ch,value in state_fields:
+        normalized_ch=alias_map.get(str(ch).lower(),str(ch or "main"))
         st=_state(value)
-        if not st or (ch,st) in seen:continue
-        seen.add((ch,st))
+        if not st or (normalized_ch,st) in seen:continue
+        seen.add((normalized_ch,st))
         bright=merged.get("brightness")
         try:bright=float(bright) if bright is not None else None
         except (TypeError,ValueError):bright=None
-        result.append({**common,"lca_event_id":f"{base_id}:state:{_slug(ch)}","kind":"state","state":st,"channel":str(ch or "main"),"action":None,"brightness":bright})
+        result.append({**common,"lca_event_id":f"{base_id}:state:{_slug(normalized_ch)}","kind":"state","state":st,"channel":normalized_ch,"action":None,"brightness":bright})
     return result

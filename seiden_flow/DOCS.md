@@ -1,6 +1,6 @@
-# Seiden FLOW 0.15.4 — Documentação técnica
+# Seiden FLOW 0.15.5 — Documentação técnica
 
-## LCA 0.3.4 — Operational History & Interface Consistency
+## LCA 0.3.5 — Identity Resolution & Physical Channel Normalization
 
 O endpoint `/api/v1/lca/dashboard` aceita `hours`, `action_page` e `action_page_size`. A paginação das ações é realizada no SQLite, evitando carregar todo o histórico no navegador.
 
@@ -21,6 +21,14 @@ O endpoint `/api/v1/lca/dashboard` aceita `hours`, `action_page` e `action_page_
 
 Nenhuma estrutura de banco foi alterada. O Database Schema permanece em 15.
 
+### Alterações da LCA 0.3.5
+
+- nomes livres de entidades são resolvidos pelo circuito e pela luz lógica;
+- pontos diretos são confirmados pela própria mudança que originou o evento;
+- aliases `left/center/right` são consolidados em `l1/l2/l3` quando coexistem no mesmo dispositivo;
+- a migração preserva configuração e histórico sob a tecla física canônica;
+- não há mudança no Database Schema (`15`).
+
 ## LCA 0.3.1 — Interaction Origin Attribution
 
 O tópico canônico `seiden/lca/interactions` carrega a proveniência conhecida pelo Node-RED antes da sincronização de um paralelo ou da execução de uma cena. O Flow resolve o dispositivo e o gang cadastrados, registra a interação separadamente do efeito e correlaciona mudanças da mesma luz lógica em uma janela temporal curta.
@@ -30,8 +38,8 @@ Campos suportados: `source_entity`, `source_device`, `source_channel`, `requeste
 ## Identificação
 
 - Serviço: `seiden_flow`
-- Versão: `0.15.4`
-- LCA: `0.3.4`
+- Versão: `0.15.5`
+- LCA: `0.3.5`
 - Platform Schema: `2.0`
 - Database Schema: `15`
 - Porta interna: `8100`

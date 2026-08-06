@@ -17,6 +17,7 @@ class LCARepository:
         self.db = db
         self.ensure_schema()
         self._migrate_010_history()
+        self._migrate_035_channel_aliases()
 
     def ensure_schema(self):
         with self.db.connect() as c:
@@ -132,6 +133,74 @@ class LCARepository:
                 (key, "completed", now),
             )
 
+    def _migrate_035_channel_aliases(self):
+        """Collapse duplicated aliases exposed by some multi-gang devices.
+
+        Models that publish l1/left, l2/center and l3/right are represented as
+        three physical channels, not six analytical channels. Existing
+        configuration and history are merged into the canonical l1/l2/l3 keys.
+        """
+        key = "lca_channel_alias_normalization_035"
+        pairs = (("l1", "left"), ("l2", "center"), ("l3", "right"))
+        with self.db.connect() as c:
+            if c.execute("SELECT value FROM lca_metadata WHERE key=?", (key,)).fetchone():
+                return
+            devices = [r[0] for r in c.execute("SELECT device_id FROM lca_devices").fetchall()]
+            for did in devices:
+                for canonical, alias in pairs:
+                    main = c.execute("SELECT * FROM lca_channels WHERE device_id=? AND channel_key=?", (did, canonical)).fetchone()
+                    duplicate = c.execute("SELECT * FROM lca_channels WHERE device_id=? AND channel_key=?", (did, alias)).fetchone()
+                    if not main or not duplicate:
+                        continue
+                    # Preserve whichever side was actually configured, while
+                    # keeping the numeric channel as the canonical identity.
+                    def pick(field, default=None):
+                        a = main[field] if field in main.keys() else None
+                        b = duplicate[field] if field in duplicate.keys() else None
+                        if a not in (None, "", default):
+                            return a
+                        return b if b not in (None, "") else a
+                    enabled = 1 if bool(main["enabled"]) or bool(duplicate["enabled"]) else 0
+                    relationship = pick("relationship_type", "unassigned") or "unassigned"
+                    values = {
+                        "enabled": enabled,
+                        "name": pick("name"),
+                        "interaction_point": pick("interaction_point"),
+                        "location_id": pick("location_id"),
+                        "location_name": pick("location_name"),
+                        "adjacent_location_id": pick("adjacent_location_id"),
+                        "adjacent_location_name": pick("adjacent_location_name"),
+                        "direction_hint": pick("direction_hint"),
+                        "related_light_id": pick("related_light_id"),
+                        "related_light_name": pick("related_light_name"),
+                        "virtual_parallel_group": pick("virtual_parallel_group"),
+                        "relationship_type": relationship,
+                        "light_asset_id": pick("light_asset_id"),
+                        "parallel_source_channel_id": pick("parallel_source_channel_id"),
+                        "scene_id": pick("scene_id"),
+                    }
+                    c.execute("""UPDATE lca_channels SET enabled=:enabled,name=:name,interaction_point=:interaction_point,
+                        location_id=:location_id,location_name=:location_name,adjacent_location_id=:adjacent_location_id,
+                        adjacent_location_name=:adjacent_location_name,direction_hint=:direction_hint,
+                        related_light_id=:related_light_id,related_light_name=:related_light_name,
+                        virtual_parallel_group=:virtual_parallel_group,relationship_type=:relationship_type,
+                        light_asset_id=:light_asset_id,parallel_source_channel_id=:parallel_source_channel_id,
+                        scene_id=:scene_id,updated_at=:updated_at WHERE device_id=:device_id AND channel_key=:channel_key""",
+                        {**values, "updated_at": datetime.now(timezone.utc).isoformat(), "device_id": did, "channel_key": canonical})
+                    # Keep historical evidence under the physical channel.
+                    c.execute("UPDATE lca_events SET channel_key=? WHERE device_id=? AND channel_key=?", (canonical, did, alias))
+                    c.execute("UPDATE lca_sessions SET channel_key=? WHERE device_id=? AND channel_key=?", (canonical, did, alias))
+                    alias_state = c.execute("SELECT * FROM lca_channel_state WHERE device_id=? AND channel_key=?", (did, alias)).fetchone()
+                    main_state = c.execute("SELECT * FROM lca_channel_state WHERE device_id=? AND channel_key=?", (did, canonical)).fetchone()
+                    if alias_state and not main_state:
+                        c.execute("UPDATE lca_channel_state SET channel_key=? WHERE device_id=? AND channel_key=?", (canonical, did, alias))
+                    elif alias_state:
+                        c.execute("DELETE FROM lca_channel_state WHERE device_id=? AND channel_key=?", (did, alias))
+                    c.execute("DELETE FROM lca_channels WHERE device_id=? AND channel_key=?", (did, alias))
+                self._refresh_configuration_status(c, did)
+            now = datetime.now(timezone.utc).isoformat()
+            c.execute("INSERT INTO lca_metadata(key,value,updated_at) VALUES(?,?,?)", (key, "completed", now))
+
     def ingest(self, items):
         inserted_events = 0
         if not items:
@@ -145,7 +214,7 @@ class LCARepository:
                         item = dict(item)
                         item["device_id"] = resolved["device_id"]
                         item["device_name"] = resolved["name"]
-                        item["channel"] = item.get("source_channel") or item.get("channel")
+                        item["channel"] = resolved["resolved_channel_key"] or item.get("source_channel") or item.get("channel")
                 did = item["device_id"]
                 ch = item.get("channel")
                 blocked = c.execute(
@@ -190,18 +259,50 @@ class LCARepository:
         return inserted_events
 
     @staticmethod
-    def _resolve_interaction_source(c, item):
+    def _normalize_identifier(value):
+        import re, unicodedata
+        text=unicodedata.normalize("NFKD",str(value or "")).encode("ascii","ignore").decode().lower()
+        text=re.sub(r"^(switch\.|light\.)", "", text)
+        text=re.sub(r"^(gr_|grupo_)", "", text)
+        text=re.sub(r"_(real|virtual|retorno)$", "", text)
+        return re.sub(r"[^a-z0-9]+", "_", text).strip("_")
+
+    @classmethod
+    def _resolve_interaction_source(cls, c, item):
         ref=str(item.get("source_device") or "").strip().lower()
         entity=str(item.get("source_entity") or "").strip().lower()
+        source_channel=str(item.get("source_channel") or "").strip().lower()
         if not ref and entity.startswith("switch."):
             ref=entity.split(".",1)[1]
-            ch=str(item.get("source_channel") or "").lower()
-            if ch and ref.endswith("_"+ch):ref=ref[:-(len(ch)+1)]
-        if not ref:return None
-        return c.execute("""SELECT * FROM lca_devices
-            WHERE lower(name)=? OR lower(device_id)=? OR lower(topic) LIKE ?
-            ORDER BY CASE WHEN lower(name)=? THEN 0 WHEN lower(device_id)=? THEN 1 ELSE 2 END
-            LIMIT 1""",(ref,ref,"%/"+ref,ref,ref)).fetchone()
+            if source_channel and ref.endswith("_"+source_channel):
+                ref=ref[:-(len(source_channel)+1)]
+        if ref:
+            row=c.execute("""SELECT d.*,ch.channel_key resolved_channel_key,ch.channel_id resolved_channel_id
+                FROM lca_devices d LEFT JOIN lca_channels ch ON ch.device_id=d.device_id AND lower(ch.channel_key)=?
+                WHERE lower(d.name)=? OR lower(d.device_id)=? OR lower(d.topic) LIKE ?
+                ORDER BY CASE WHEN lower(d.name)=? THEN 0 WHEN lower(d.device_id)=? THEN 1 ELSE 2 END
+                LIMIT 1""",(source_channel,ref,ref,"%/"+ref,ref,ref)).fetchone()
+            if row:
+                return row
+
+        # Free-form entity names are resolved through the circuit/light model,
+        # not by forcing a device_channel naming convention.
+        circuit=cls._normalize_identifier(item.get("circuit_id"))
+        target=cls._normalize_identifier(item.get("target_entity"))
+        candidates=c.execute("""SELECT d.*,ch.channel_key resolved_channel_key,ch.channel_id resolved_channel_id,
+                   ch.relationship_type,l.name light_name,l.location_name light_location
+            FROM lca_channels ch JOIN lca_devices d ON d.device_id=ch.device_id
+            LEFT JOIN lca_light_assets l ON l.light_id=ch.light_asset_id
+            WHERE ch.enabled=1 AND ch.light_asset_id IS NOT NULL AND d.status<>'ignored'
+            ORDER BY CASE ch.relationship_type WHEN 'direct' THEN 0 WHEN 'parallel' THEN 1 ELSE 2 END""").fetchall()
+        for row in candidates:
+            logical=cls._normalize_identifier(f"{row['light_location'] or ''}_{row['light_name'] or ''}")
+            name_only=cls._normalize_identifier(row['light_name'])
+            if circuit and (circuit==logical or circuit==name_only or circuit.endswith("_"+name_only)):
+                return row
+            if target and (target==logical or target==name_only or target.endswith("_"+name_only)):
+                return row
+        return None
 
     def _upsert_device(self, c, item, now):
         c.execute(
@@ -337,8 +438,17 @@ class LCARepository:
         ).fetchone()
         if recent and self._parse_time(recent["occurred_at"]) >= cutoff:
             return False
+        # A direct point event is emitted from the state transition itself.
+        # Therefore it is already a valid effect confirmation, even when the
+        # entity has a free-form name and no separate technical event exists.
+        if cfg is not None and cfg["relationship_type"] == "direct" and item.get("requested_state") in {"on","off"}:
+            event["interaction_status"] = "confirmed"
+            event["effect_confirmed_at"] = item["occurred_at"]
+            event["confirmation_latency_ms"] = 0
+            event["causal_confidence"] = 1.0
         inserted=self._insert_event(c,event,cfg,now)
-        if inserted:self._correlate_existing_effect(c,event,cfg,now)
+        if inserted and event.get("interaction_status") != "confirmed":
+            self._correlate_existing_effect(c,event,cfg,now)
         return inserted
 
     def _correlate_existing_effect(self,c,item,cfg,now):
@@ -393,8 +503,9 @@ class LCARepository:
                    origin_location_id,origin_location_name,adjacent_location_id,adjacent_location_name,direction_hint,
                    related_light_id,related_light_name,virtual_parallel_group,cause_type,cause_id,causal_confidence,
                    source_entity,source_device_ref,source_channel_ref,requested_state,target_entity,circuit_id,interaction_kind,
-                   origin_mode,ha_context_id,ha_parent_id,ha_user_id,point_role,point_position,interaction_status,payload_json,created_at)
-                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                   origin_mode,ha_context_id,ha_parent_id,ha_user_id,point_role,point_position,effect_event_id,
+                   effect_confirmed_at,confirmation_latency_ms,interaction_status,payload_json,created_at)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     item["lca_event_id"], item["device_id"], item.get("channel"), item["kind"],
                     item.get("state"), item.get("action"), item.get("brightness"), item["occurred_at"],
@@ -406,7 +517,8 @@ class LCARepository:
                     item.get("source_entity"),item.get("source_device"),item.get("source_channel"),item.get("requested_state"),
                     item.get("target_entity"),item.get("circuit_id"),item.get("interaction_kind"),item.get("origin_mode"),
                     item.get("ha_context_id"),item.get("ha_parent_id"),item.get("ha_user_id"),item.get("point_role"),
-                    item.get("point_position"),item.get("interaction_status"),json.dumps(item["payload"], ensure_ascii=False), now,
+                    item.get("point_position"),item.get("effect_event_id"),item.get("effect_confirmed_at"),
+                    item.get("confirmation_latency_ms"),item.get("interaction_status"),json.dumps(item["payload"], ensure_ascii=False), now,
                 ),
             )
             return True

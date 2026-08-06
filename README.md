@@ -1,4 +1,16 @@
-# Seiden FLOW 0.15.4
+# Seiden FLOW 0.15.5
+
+## LCA 0.3.5 — resolução de identidade e normalização de teclas
+
+Esta versão corrige falsos **Sem confirmação** em pontos diretos com nomes livres e normaliza dispositivos que publicam aliases duplicados para a mesma tecla física.
+
+- confirmação de pontos diretos pela própria transição observada;
+- correlação prioritária por circuito lógico, estado solicitado e janela temporal;
+- suporte a entidades com nomes livres, sem exigir sufixos como `_l1`;
+- normalização automática de `l1/left`, `l2/center` e `l3/right` quando representam a mesma tecla;
+- migração automática do histórico e da configuração dos aliases já existentes;
+- contagem de teclas físicas, evitando mostrar seis canais em dispositivos de três teclas;
+- Database Schema mantido em `15`.
 
 ## LCA 0.3.4 — histórico operacional e consistência de interface
 
