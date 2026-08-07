@@ -1,4 +1,18 @@
-# Seiden FLOW 0.15.7
+# Seiden FLOW 0.15.8
+
+
+## LCA 0.3.8 — histórico operacional e UX
+
+A seção **Ações recentes** ganha hierarquia visual própria e uma leitura mais rápida do estado após cada ação. O estado deixa de ser repetido no título e passa a ser comunicado visualmente, mantendo alertas e exceções semanticamente separados.
+
+- cabeçalho da seção com maior hierarquia e descrição objetiva;
+- títulos das ocorrências sem repetição textual de “ligada/desligada”;
+- estado visual por marcador: âmbar para ligado e cinza neutro para desligado;
+- legenda discreta ao final da lista;
+- vermelho reservado a exceções, alertas e “Sem confirmação”;
+- ajustes de espaçamento, alinhamento, hover, responsividade e dark mode;
+- nenhuma alteração na lógica analítica do LCA 0.3.7;
+- Database Schema `17`; HEA, EEA e TCA preservados.
 
 ## LCA 0.3.7 — identidade de infraestrutura por dispositivo MQTT
 

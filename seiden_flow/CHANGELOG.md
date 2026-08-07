@@ -1,3 +1,12 @@
+## 0.15.8 — LCA 0.3.8: Operational History UX
+
+- Reforça a hierarquia visual da seção **Ações recentes** com cabeçalho próprio e descrição objetiva.
+- Remove a repetição textual “ligada/desligada” do título de cada ocorrência.
+- Introduz estado visual por ponto: âmbar para ligado e cinza neutro para desligado.
+- Adiciona legenda discreta no rodapé da lista, preservando vermelho apenas para exceções e alertas.
+- Melhora espaçamento, alinhamento, hover e responsividade da lista de ações em temas claro e escuro.
+- Mantém detalhes técnicos e “Sem confirmação” apenas quando aplicáveis, sem alterar a lógica analítica do LCA 0.3.7.
+
 ## 0.15.7 — LCA 0.3.7: MQTT Infrastructure Identity
 
 - define a infraestrutura do LCA pelo dispositivo/tópico Zigbee2MQTT e pelos canais canônicos L1/L2/L3/...;
