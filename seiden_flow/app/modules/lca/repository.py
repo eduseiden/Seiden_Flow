@@ -19,6 +19,7 @@ class LCARepository:
         self._migrate_010_history()
         self._migrate_035_channel_aliases()
         self._migrate_036_logical_circuits()
+        self._migrate_037_infrastructure_identity()
 
     def ensure_schema(self):
         with self.db.connect() as c:
@@ -118,6 +119,14 @@ class LCARepository:
                 merged_at TEXT NOT NULL,
                 details_json TEXT NOT NULL DEFAULT '{}')""")
             c.execute("CREATE INDEX IF NOT EXISTS idx_lca_light_assets_circuit ON lca_light_assets(site_id,circuit_id)")
+            c.execute("""CREATE TABLE IF NOT EXISTS lca_pending_interactions(
+                lca_event_id TEXT PRIMARY KEY,
+                circuit_id TEXT,
+                requested_state TEXT,
+                occurred_at TEXT NOT NULL,
+                item_json TEXT NOT NULL,
+                created_at TEXT NOT NULL)""")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_lca_pending_interactions_time ON lca_pending_interactions(occurred_at)")
 
     @staticmethod
     def _ensure_column(c, table, column, declaration):
@@ -322,6 +331,37 @@ class LCARepository:
                 c.execute("UPDATE lca_light_assets SET circuit_id=?,updated_at=? WHERE light_id=?", (circuit_id, now, light["light_id"]))
             c.execute("INSERT INTO lca_metadata(key,value,updated_at) VALUES(?,?,?)", (key, "completed", now))
 
+    def _migrate_037_infrastructure_identity(self):
+        """Hide synthetic devices created from explicit interaction aliases.
+
+        LCA infrastructure is defined by the real MQTT device/topic and its
+        canonical channels (L1, L2, ...). Friendly Home Assistant entity names
+        carried by seiden/lca/interactions are diagnostic metadata only and
+        must never become standalone infrastructure devices.
+        """
+        key = "lca_infrastructure_identity_037"
+        with self.db.connect() as c:
+            if c.execute("SELECT value FROM lca_metadata WHERE key=?", (key,)).fetchone():
+                return
+            now = datetime.now(timezone.utc).isoformat()
+            rows = c.execute("SELECT device_id,topic,sample_payload_json FROM lca_devices WHERE status<>'ignored'").fetchall()
+            for row in rows:
+                topic = str(row["topic"] or "").strip().lower().rstrip("/")
+                sample = str(row["sample_payload_json"] or "").lower()
+                synthetic = topic == "seiden/lca/interactions" or '"event_type": "lighting_interaction"' in sample or '"event_type":"lighting_interaction"' in sample
+                if not synthetic:
+                    continue
+                did = row["device_id"]
+                # A real infrastructure device has state evidence. Never hide it
+                # merely because it also appeared in an interaction payload.
+                has_state = c.execute("SELECT 1 FROM lca_events WHERE device_id=? AND kind='state_change' LIMIT 1", (did,)).fetchone()
+                if has_state:
+                    continue
+                c.execute("UPDATE lca_devices SET status='ignored',updated_at=? WHERE device_id=?", (now, did))
+                c.execute("INSERT INTO lca_device_exclusions(device_id,reason,created_at,updated_at) VALUES(?,?,?,?) ON CONFLICT(device_id) DO UPDATE SET reason=excluded.reason,updated_at=excluded.updated_at",
+                          (did, "synthetic_interaction_alias_037", now, now))
+            c.execute("INSERT INTO lca_metadata(key,value,updated_at) VALUES(?,?,?)", (key, "completed", now))
+
     def ingest(self, items):
         inserted_events = 0
         if not items:
@@ -329,13 +369,20 @@ class LCARepository:
         with self.db.connect() as c:
             for item in items:
                 now = datetime.now(timezone.utc).isoformat()
-                if item.get("kind") == "interaction" and item.get("source_device"):
+                if item.get("kind") == "interaction":
                     resolved = self._resolve_interaction_source(c, item)
                     if resolved:
                         item = dict(item)
                         item["device_id"] = resolved["device_id"]
                         item["device_name"] = resolved["name"]
                         item["channel"] = resolved["resolved_channel_key"] or item.get("source_channel") or item.get("channel")
+                    else:
+                        # Never create infrastructure from a friendly HA entity
+                        # such as switch.sala_painel_virtual. Queue the explicit
+                        # interaction until the real Zigbee2MQTT state change
+                        # identifies device + canonical channel.
+                        self._queue_pending_interaction(c, item, now)
+                        continue
                 did = item["device_id"]
                 ch = item.get("channel")
                 blocked = c.execute(
@@ -371,6 +418,7 @@ class LCARepository:
                 if kind == "state":
                     if self._process_state(c, item, cfg, now):
                         inserted_events += 1
+                        self._resolve_pending_with_state(c, item, cfg, now)
                 elif kind == "availability":
                     if self._process_availability(c, item, cfg, now):
                         inserted_events += 1
@@ -391,39 +439,87 @@ class LCARepository:
     @classmethod
     def _resolve_interaction_source(cls, c, item):
         ref=str(item.get("source_device") or "").strip().lower()
-        entity=str(item.get("source_entity") or "").strip().lower()
         source_channel=str(item.get("source_channel") or "").strip().lower()
-        if not ref and entity.startswith("switch."):
-            ref=entity.split(".",1)[1]
-            if source_channel and ref.endswith("_"+source_channel):
-                ref=ref[:-(len(source_channel)+1)]
+
+        # 1) Exact infrastructure identity. This is the preferred path when
+        # the publisher already sends the Zigbee2MQTT device + L1/L2/... .
         if ref:
             row=c.execute("""SELECT d.*,ch.channel_key resolved_channel_key,ch.channel_id resolved_channel_id
                 FROM lca_devices d LEFT JOIN lca_channels ch ON ch.device_id=d.device_id AND lower(ch.channel_key)=?
-                WHERE lower(d.name)=? OR lower(d.device_id)=? OR lower(d.topic) LIKE ?
+                WHERE d.status<>'ignored' AND lower(COALESCE(d.topic,''))<>'seiden/lca/interactions'
+                  AND (lower(d.name)=? OR lower(d.device_id)=? OR lower(COALESCE(d.topic,'')) LIKE ?)
                 ORDER BY CASE WHEN lower(d.name)=? THEN 0 WHEN lower(d.device_id)=? THEN 1 ELSE 2 END
                 LIMIT 1""",(source_channel,ref,ref,"%/"+ref,ref,ref)).fetchone()
-            if row:
+            if row and (source_channel or row["resolved_channel_key"]):
                 return row
 
-        # Free-form entity names are resolved through the circuit/light model,
-        # not by forcing a device_channel naming convention.
+        # 2) Friendly entity names are intentionally ignored. Resolve the
+        # physical point from the real MQTT state transition associated with
+        # the configured logical circuit.
         circuit=cls._normalize_identifier(item.get("circuit_id"))
-        target=cls._normalize_identifier(item.get("target_entity"))
-        candidates=c.execute("""SELECT d.*,ch.channel_key resolved_channel_key,ch.channel_id resolved_channel_id,
-                   ch.relationship_type,l.name light_name,l.location_name light_location
-            FROM lca_channels ch JOIN lca_devices d ON d.device_id=ch.device_id
-            LEFT JOIN lca_light_assets l ON l.light_id=ch.light_asset_id
-            WHERE ch.enabled=1 AND ch.light_asset_id IS NOT NULL AND d.status<>'ignored'
-            ORDER BY CASE ch.relationship_type WHEN 'direct' THEN 0 WHEN 'parallel' THEN 1 ELSE 2 END""").fetchall()
-        for row in candidates:
-            logical=cls._normalize_identifier(f"{row['light_location'] or ''}_{row['light_name'] or ''}")
-            name_only=cls._normalize_identifier(row['light_name'])
-            if circuit and (circuit==logical or circuit==name_only or circuit.endswith("_"+name_only)):
-                return row
-            if target and (target==logical or target==name_only or target.endswith("_"+name_only)):
-                return row
+        requested=str(item.get("requested_state") or "").lower()
+        if circuit and requested in {"on","off"}:
+            t=cls._parse_time(item.get("occurred_at"))
+            lo=(t-timedelta(seconds=2)).isoformat(); hi=(t+timedelta(seconds=1)).isoformat()
+            rows=c.execute("""SELECT d.*,ch.channel_key resolved_channel_key,ch.channel_id resolved_channel_id,
+                       ch.relationship_type,l.circuit_id,e.occurred_at effect_at
+                FROM lca_events e
+                JOIN lca_devices d ON d.device_id=e.device_id AND d.status<>'ignored'
+                JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key AND ch.enabled=1
+                LEFT JOIN lca_light_assets l ON l.light_id=ch.light_asset_id
+                WHERE e.kind='state_change' AND e.state=? AND e.occurred_at BETWEEN ? AND ?
+                ORDER BY ABS(julianday(e.occurred_at)-julianday(?))""",
+                (requested,lo,hi,item.get("occurred_at"))).fetchall()
+            for row in rows:
+                rc=cls._normalize_identifier(row["circuit_id"])
+                if rc and (circuit==rc or circuit.endswith("_"+rc) or rc.endswith("_"+circuit)):
+                    return row
+
+        # 3) If a circuit has exactly one configured interaction point, it is
+        # safe to resolve without relying on entity naming. Multiple points are
+        # left pending until their real state transition identifies the source.
+        if circuit:
+            candidates=c.execute("""SELECT d.*,ch.channel_key resolved_channel_key,ch.channel_id resolved_channel_id,l.circuit_id
+                FROM lca_channels ch JOIN lca_devices d ON d.device_id=ch.device_id
+                JOIN lca_light_assets l ON l.light_id=ch.light_asset_id
+                WHERE ch.enabled=1 AND d.status<>'ignored'
+                  AND ch.relationship_type IN ('direct','parallel') AND l.archived_at IS NULL""").fetchall()
+            matched=[r for r in candidates if cls._normalize_identifier(r["circuit_id"]) and
+                     (circuit==cls._normalize_identifier(r["circuit_id"]) or circuit.endswith("_"+cls._normalize_identifier(r["circuit_id"])) or cls._normalize_identifier(r["circuit_id"]).endswith("_"+circuit))]
+            if len(matched)==1:
+                return matched[0]
         return None
+
+    @staticmethod
+    def _queue_pending_interaction(c, item, now):
+        c.execute("""INSERT INTO lca_pending_interactions(lca_event_id,circuit_id,requested_state,occurred_at,item_json,created_at)
+            VALUES(?,?,?,?,?,?) ON CONFLICT(lca_event_id) DO UPDATE SET item_json=excluded.item_json,created_at=excluded.created_at""",
+            (item["lca_event_id"], item.get("circuit_id"), item.get("requested_state"), item["occurred_at"], json.dumps(item,ensure_ascii=False), now))
+        cutoff=(datetime.now(timezone.utc)-timedelta(minutes=5)).isoformat()
+        c.execute("DELETE FROM lca_pending_interactions WHERE created_at<?", (cutoff,))
+
+    def _resolve_pending_with_state(self, c, state_item, cfg, now):
+        if not cfg or not cfg["light_asset_id"] or state_item.get("state") not in {"on","off"}:
+            return
+        light=c.execute("SELECT circuit_id FROM lca_light_assets WHERE light_id=?", (cfg["light_asset_id"],)).fetchone()
+        if not light or not light["circuit_id"]:
+            return
+        circuit=self._normalize_identifier(light["circuit_id"])
+        t=self._parse_time(state_item["occurred_at"]); lo=(t-timedelta(seconds=1)).isoformat(); hi=(t+timedelta(seconds=3)).isoformat()
+        rows=c.execute("""SELECT * FROM lca_pending_interactions WHERE requested_state=? AND occurred_at BETWEEN ? AND ? ORDER BY occurred_at""",
+                       (state_item["state"],lo,hi)).fetchall()
+        for row in rows:
+            pending_circuit=self._normalize_identifier(row["circuit_id"])
+            if not pending_circuit or not (pending_circuit==circuit or pending_circuit.endswith("_"+circuit) or circuit.endswith("_"+pending_circuit)):
+                continue
+            item=json.loads(row["item_json"]); item["device_id"]=state_item["device_id"]
+            dev=c.execute("SELECT name FROM lca_devices WHERE device_id=?", (state_item["device_id"],)).fetchone()
+            item["device_name"]=dev["name"] if dev else state_item.get("device_name")
+            item["channel"]=state_item.get("channel")
+            self._record_message(c,item,now)
+            self._process_interaction(c,item,cfg,now)
+            c.execute("DELETE FROM lca_pending_interactions WHERE lca_event_id=?", (row["lca_event_id"],))
+            break
 
     def _upsert_device(self, c, item, now):
         c.execute(

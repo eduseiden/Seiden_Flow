@@ -1,4 +1,16 @@
-# Seiden FLOW 0.15.6
+# Seiden FLOW 0.15.7
+
+## LCA 0.3.7 — identidade de infraestrutura por dispositivo MQTT
+
+O LCA passa a considerar como infraestrutura apenas os dispositivos reais descobertos pelos tópicos MQTT (por exemplo, `zigbee2mqtt/Interruptor Sala`) e seus canais canônicos (`L1`, `L2`, ...). Entidades amigáveis do Home Assistant, como `switch.sala_painel_virtual`, permanecem apenas como metadado técnico do evento e não aparecem como dispositivos ou teclas adicionais.
+
+- dispositivo = tópico/dispositivo Zigbee2MQTT;
+- tecla = canal canônico L1/L2/L3/...;
+- nomes livres de entidades não criam infraestrutura;
+- interações com entidades renomeadas são correlacionadas pelo circuito e pela transição MQTT real;
+- interações que chegam antes da transição ficam pendentes por alguns segundos e são resolvidas quando o estado real chega;
+- dispositivos sintéticos criados por versões anteriores a partir de `seiden/lca/interactions` são ocultados automaticamente quando não possuem evidência real de estado;
+- Database Schema `17`; HEA, EEA e TCA preservados.
 
 ## LCA 0.3.6 — consolidação de circuitos lógicos
 

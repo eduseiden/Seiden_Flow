@@ -1,3 +1,13 @@
+## 0.15.7 — LCA 0.3.7: MQTT Infrastructure Identity
+
+- define a infraestrutura do LCA pelo dispositivo/tópico Zigbee2MQTT e pelos canais canônicos L1/L2/L3/...;
+- impede que `source_entity` e nomes amigáveis de gangs criem dispositivos sintéticos;
+- correlaciona interações renomeadas pela transição real do canal MQTT e pelo `circuit_id`;
+- adiciona fila curta para interações que chegam antes da mudança de estado;
+- oculta automaticamente aliases sintéticos antigos sem evidência de estado real;
+- mantém `source_entity` somente como metadado técnico para diagnóstico;
+- atualiza Database Schema para 17 e preserva HEA, EEA, TCA, circuitos e histórico válido.
+
 ## 0.15.6 — LCA 0.3.6: Logical Circuit Consolidation
 
 - introduz `circuit_id` canônico para circuitos de iluminação;
