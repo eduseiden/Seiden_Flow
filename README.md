@@ -1,6 +1,6 @@
-# Seiden FLOW 0.16.0
+# Seiden FLOW 0.16.0.1
 
-## LCA 0.4.0 — Circuit Usage Analytics
+## LCA 0.4.0.1 — Circuit Usage UX Refinement
 
 A primeira camada temporal do LCA transforma estados canônicos ON/OFF em sessões de iluminação por circuito. O dashboard passa a mostrar tempo ligado, quantidade de sessões, duração média, maior sessão e utilização percentual por circuito, preservando toda a linguagem visual e o dark mode consolidados na série 0.3.9.
 
@@ -11,15 +11,16 @@ A primeira camada temporal do LCA transforma estados canônicos ON/OFF em sessõ
 - infraestrutura continua baseada no dispositivo MQTT e canais L1/L2/L3;
 - UX/UI, histórico operacional, bolinhas de estado e dark mode da LCA 0.3.9 são mantidos.
 
-### Novidades 0.4.0
+### Novidades 0.4.0.1
 
-- sessões canônicas de iluminação por circuito;
-- tempo ligado por circuito no período selecionado;
-- percentual de utilização do período;
-- quantidade de sessões;
-- duração média e maior sessão;
-- duração da sessão atual para circuitos ligados;
-- migração do histórico confirmado existente para sessões sem apagar eventos anteriores.
+- correção gramatical de `sessão/sessões`;
+- exibição padrão somente dos circuitos que tiveram uso no período;
+- filtro por local na seção **Tempo de uso**;
+- opção **Mostrar sem uso**, desativada por padrão;
+- KPIs recalculados de forma coerente com o local selecionado;
+- ordenação por maior tempo ligado mantida como padrão;
+- novos controles revisados para responsividade e dark mode;
+- nenhuma alteração de schema ou da lógica canônica de sessões.
 
 ## Base anterior — LCA 0.3.9.3 — Canonical Circuit State
 

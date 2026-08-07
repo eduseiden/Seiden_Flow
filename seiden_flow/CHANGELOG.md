@@ -1,3 +1,14 @@
+## 0.16.0.1 — LCA 0.4.0.1: Circuit Usage UX Refinement
+
+- Corrige pluralização de `sessão/sessões` na utilização por circuito.
+- Por padrão, a seção **Tempo de uso** mostra apenas circuitos que tiveram uso no período selecionado.
+- Adiciona filtro por local sem alterar o período global do dashboard.
+- Adiciona opção discreta **Mostrar sem uso**, desativada por padrão.
+- KPIs de utilização passam a respeitar o local selecionado e continuam calculados apenas sobre circuitos efetivamente usados.
+- Ordenação padrão permanece por maior tempo ligado, reduzindo poluição visual em instalações com muitos circuitos.
+- Refino responsivo e de contraste dos novos filtros em dark mode.
+- Sem alteração de schema; `DATABASE_SCHEMA_VERSION = 19`.
+
 ## 0.16.0 — LCA 0.4.0: Circuit Usage Analytics
 
 - Adiciona `lca_circuit_sessions`, sessão canônica por circuito lógico.

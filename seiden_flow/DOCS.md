@@ -1,8 +1,8 @@
-# Seiden FLOW 0.16.0 — Documentação técnica
+# Seiden FLOW 0.16.0.1 — Documentação técnica
 
-## LCA 0.4.0 — Circuit Usage Analytics
+## LCA 0.4.0.1 — Circuit Usage UX Refinement
 
-O LCA 0.4.0 adiciona sessões canônicas no nível do circuito (`lca_circuit_sessions`). Uma sessão começa somente quando o estado canônico do circuito muda para `on` e termina quando muda para `off`. Evidências repetidas no mesmo estado não reiniciam a sessão.
+O LCA 0.4.0.1 preserva as sessões canônicas introduzidas no LCA 0.4.0 e refina a apresentação de uso. O LCA 0.4.0 adiciona sessões canônicas no nível do circuito (`lca_circuit_sessions`). Uma sessão começa somente quando o estado canônico do circuito muda para `on` e termina quando muda para `off`. Evidências repetidas no mesmo estado não reiniciam a sessão.
 
 O endpoint `/api/v1/lca/dashboard` passa a expor `usage_summary` e `usage_by_circuit`. As durações são recortadas ao período selecionado no dashboard; assim, uma sessão iniciada antes da janela contribui apenas com o trecho observado dentro dela.
 
@@ -17,6 +17,20 @@ Métricas disponíveis:
 - `current_session_started_at`.
 
 A migração `lca_circuit_usage_sessions_040` reconstrói sessões históricas a partir das interações confirmadas existentes. O `DATABASE_SCHEMA_VERSION` passa a 19.
+
+
+## Refinamento de apresentação 0.4.0.1
+
+A seção **Tempo de uso** deixa de funcionar como inventário completo e passa a priorizar análise operacional:
+
+- por padrão, somente circuitos com uso no período são exibidos;
+- o filtro **Local** permite restringir a análise a um ambiente sem alterar o período global do dashboard;
+- **Mostrar sem uso** expõe circuitos sem sessões apenas quando necessário para auditoria;
+- KPIs de tempo/sessões respeitam o local selecionado e consideram somente circuitos efetivamente usados;
+- a lista permanece ordenada por tempo ligado decrescente;
+- pluralização de `sessão/sessões` é tratada explicitamente na interface.
+
+Os filtros são aplicados na camada de apresentação sobre `usage_by_circuit`; não alteram persistência, sessões ou estado canônico. O schema permanece em 19.
 
 ## Compatibilidade visual
 
