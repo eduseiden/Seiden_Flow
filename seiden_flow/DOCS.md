@@ -1,6 +1,12 @@
-# Seiden FLOW 0.15.8 — Documentação técnica
+# Seiden FLOW 0.15.9 — Documentação técnica
 
-## LCA 0.3.8 — Operational History UX
+## LCA 0.3.9 — Visual Language & Dark Mode Refinement
+
+- monitored circuits use a compact state-dot model with direct/parallel breakdown reserved for advanced mode;
+- amber is reserved for active lighting/state semantics, while analytic charts use blue/purple/neutral palettes;
+- dark theme includes explicit contrast overrides for metadata, subtitles, controls, legends and separators;
+- singular/plural labels are rendered naturally for channels and scene executions.
+
 
 A identidade estrutural passa a ser `dispositivo MQTT + canal canônico`. O tópico `zigbee2mqtt/Interruptor Sala` representa o dispositivo e L1/L2/L3/... representam suas teclas. `source_entity` de eventos explícitos é evidência técnica e nunca promove uma entidade amigável a dispositivo. Interações sem identidade técnica resolvível são associadas ao ponto correto por `circuit_id` e pela transição MQTT observada na janela causal.
 

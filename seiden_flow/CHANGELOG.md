@@ -1,3 +1,14 @@
+## 0.15.9 — LCA 0.3.9: Visual Language & Dark Mode Refinement
+
+- Simplifica **Circuitos monitorados** para priorizar nome, ambiente e quantidade de pontos de acionamento.
+- Move a composição direto/paralelo e a última mudança para **Informações avançadas**, reduzindo densidade visual.
+- Unifica o estado de circuitos e histórico com a mesma linguagem visual: âmbar para ligado e cinza neutro para desligado.
+- Adiciona legenda discreta de estado também em **Circuitos monitorados**, sem repetir badges textuais em cada item.
+- Reserva o âmbar para iluminação/estado ativo; gráficos de origem e papel passam a usar azul, roxo e tons neutros.
+- Corrige pluralização de tecla/teclas e execução/execuções.
+- Revisa contraste do modo escuro em subtítulos, metadados, campos, botões, legendas, divisores e estados.
+- Mantém toda a lógica analítica, schema 17 e identidade MQTT do LCA 0.3.7 intactos.
+
 ## 0.15.8 — LCA 0.3.8: Operational History UX
 
 - Reforça a hierarquia visual da seção **Ações recentes** com cabeçalho próprio e descrição objetiva.

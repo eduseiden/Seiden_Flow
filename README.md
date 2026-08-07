@@ -1,7 +1,17 @@
-# Seiden FLOW 0.15.8
+# Seiden FLOW 0.15.9
 
 
-## LCA 0.3.8 — histórico operacional e UX
+## LCA 0.3.9 — linguagem visual e refinamento dark mode
+
+### Refinamentos 0.3.9
+
+- circuitos monitorados mais compactos, sem badges repetitivos de Ligado/Desligado;
+- mesma semântica visual de estado em histórico e circuitos: âmbar = ligado, cinza = desligado;
+- detalhes direto/paralelo ficam no modo avançado;
+- âmbar deixa de ser usado em gráficos de origem/papel para evitar ambiguidade;
+- contraste e legibilidade revisados para tema escuro;
+- pluralização natural em teclas e execuções.
+
 
 A seção **Ações recentes** ganha hierarquia visual própria e uma leitura mais rápida do estado após cada ação. O estado deixa de ser repetido no título e passa a ser comunicado visualmente, mantendo alertas e exceções semanticamente separados.
 
