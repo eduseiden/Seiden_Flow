@@ -1,7 +1,7 @@
-# Seiden FLOW 0.15.9.1
+# Seiden FLOW 0.15.9.2
 
 
-## LCA 0.3.9.1 — correção de estado lógico dos circuitos
+## LCA 0.3.9.2 — correção de estado lógico dos circuitos
 
 ### Correção 0.3.9.1
 

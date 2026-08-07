@@ -1005,8 +1005,7 @@ class LCARepository:
                          JOIN lca_devices d2 ON d2.device_id=ch2.device_id
                          WHERE ch2.light_asset_id=l.light_id
                            AND ch2.enabled=1 AND d2.status<>'ignored'
-                         ORDER BY CASE WHEN ch2.relationship_type='direct' THEN 0 ELSE 1 END,
-                                  COALESCE(cs.last_changed_at,cs.last_observed_at) DESC
+                         ORDER BY COALESCE(cs.last_changed_at,cs.last_observed_at) DESC
                          LIMIT 1
                        ) state,
                        (
@@ -1017,8 +1016,7 @@ class LCARepository:
                          JOIN lca_devices d2 ON d2.device_id=ch2.device_id
                          WHERE ch2.light_asset_id=l.light_id
                            AND ch2.enabled=1 AND d2.status<>'ignored'
-                         ORDER BY CASE WHEN ch2.relationship_type='direct' THEN 0 ELSE 1 END,
-                                  COALESCE(cs.last_changed_at,cs.last_observed_at) DESC
+                         ORDER BY COALESCE(cs.last_changed_at,cs.last_observed_at) DESC
                          LIMIT 1
                        ) last_updated_at
                 FROM lca_light_assets l

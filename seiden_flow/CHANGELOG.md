@@ -1,3 +1,9 @@
+## 0.15.9.2 — LCA 0.3.9.2
+
+- Corrige regressão de estado lógico introduzida na 0.15.9.1.
+- Restaura a regra comprovada da 0.15.7: o estado consolidado do circuito usa a evidência válida mais recente entre seus pontos associados, sem priorizar artificialmente pontos diretos.
+- Mantém integralmente os refinamentos visuais, dark mode e identidade MQTT da 0.15.9.x.
+
 ## 0.15.9.1 — LCA 0.3.9.1: Logical State Regression Fix
 
 - Corrige regressão do estado consolidado dos circuitos no dashboard.
