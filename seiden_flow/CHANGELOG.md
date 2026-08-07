@@ -1,3 +1,13 @@
+## 0.16.0 — LCA 0.4.0: Circuit Usage Analytics
+
+- Adiciona `lca_circuit_sessions`, sessão canônica por circuito lógico.
+- Sessões são abertas/fechadas apenas por transições do estado canônico, evitando duplicidade por pontos paralelos ou telemetria repetida.
+- Migra histórico confirmado existente para sessões de uso (`lca_circuit_usage_sessions_040`).
+- Dashboard passa a expor tempo ligado, sessões, duração média, maior sessão e percentual de utilização por circuito.
+- Nova seção “Tempo de uso” com hierarquia visual coerente com a LCA 0.3.9, responsiva e revisada para dark mode.
+- Mantém sem alterações o histórico operacional, a configuração por dispositivo MQTT + L1/L2/L3 e a fonte única de verdade de estado introduzida na 0.3.9.3.
+- `DATABASE_SCHEMA_VERSION = 19`.
+
 ## 0.15.9.3 — LCA 0.3.9.3: Canonical Circuit State
 
 - Introduz estado canônico persistente por circuito em `lca_circuit_state`.

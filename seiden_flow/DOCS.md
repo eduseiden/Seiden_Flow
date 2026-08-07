@@ -1,4 +1,29 @@
-# Seiden FLOW 0.15.9.3 — Documentação técnica
+# Seiden FLOW 0.16.0 — Documentação técnica
+
+## LCA 0.4.0 — Circuit Usage Analytics
+
+O LCA 0.4.0 adiciona sessões canônicas no nível do circuito (`lca_circuit_sessions`). Uma sessão começa somente quando o estado canônico do circuito muda para `on` e termina quando muda para `off`. Evidências repetidas no mesmo estado não reiniciam a sessão.
+
+O endpoint `/api/v1/lca/dashboard` passa a expor `usage_summary` e `usage_by_circuit`. As durações são recortadas ao período selecionado no dashboard; assim, uma sessão iniciada antes da janela contribui apenas com o trecho observado dentro dela.
+
+Métricas disponíveis:
+
+- `total_on_seconds`;
+- `session_count`;
+- `average_session_seconds`;
+- `longest_session_seconds`;
+- `utilization_pct`;
+- `current_session_seconds`;
+- `current_session_started_at`.
+
+A migração `lca_circuit_usage_sessions_040` reconstrói sessões históricas a partir das interações confirmadas existentes. O `DATABASE_SCHEMA_VERSION` passa a 19.
+
+## Compatibilidade visual
+
+A interface mantém integralmente a base visual da LCA 0.3.9.x. A nova seção “Tempo de uso” usa os mesmos tokens, superfícies, tipografia, responsividade e contraste em modo claro/escuro.
+
+---
+
 
 ## LCA 0.3.9.3 — Canonical Circuit State
 

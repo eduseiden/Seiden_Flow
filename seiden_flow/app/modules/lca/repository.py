@@ -21,6 +21,7 @@ class LCARepository:
         self._migrate_036_logical_circuits()
         self._migrate_037_infrastructure_identity()
         self._migrate_0393_canonical_circuit_state()
+        self._migrate_040_circuit_usage_sessions()
 
     def ensure_schema(self):
         with self.db.connect() as c:
@@ -136,6 +137,20 @@ class LCARepository:
                 source_type TEXT NOT NULL,
                 source_event_id TEXT,
                 updated_at TEXT NOT NULL)""")
+            c.execute("""CREATE TABLE IF NOT EXISTS lca_circuit_sessions(
+                session_id TEXT PRIMARY KEY,
+                light_id TEXT NOT NULL,
+                started_at TEXT NOT NULL,
+                ended_at TEXT,
+                duration_seconds INTEGER,
+                start_event_id TEXT,
+                end_event_id TEXT,
+                status TEXT NOT NULL DEFAULT 'open',
+                source_type TEXT NOT NULL DEFAULT 'confirmed_interaction',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL)""")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_lca_circuit_sessions_light_start ON lca_circuit_sessions(light_id,started_at DESC)")
+            c.execute("CREATE INDEX IF NOT EXISTS idx_lca_circuit_sessions_status ON lca_circuit_sessions(status,started_at DESC)")
 
     @staticmethod
     def _ensure_column(c, table, column, declaration):
@@ -491,6 +506,55 @@ class LCARepository:
                     (light_id,state,changed_at,changed_at,source_type,source_event_id,now))
             c.execute("INSERT INTO lca_metadata(key,value,updated_at) VALUES(?,?,?)", (key, "completed", now))
 
+    def _migrate_040_circuit_usage_sessions(self):
+        """Build canonical lighting sessions from confirmed circuit interactions.
+
+        LCA 0.4.0 treats a session as a circuit-level ON interval. Point-level
+        telemetry remains evidence only; analytics are derived from the
+        canonical circuit state introduced in 0.3.9.3.
+        """
+        key = "lca_circuit_usage_sessions_040"
+        with self.db.connect() as c:
+            if c.execute("SELECT value FROM lca_metadata WHERE key=?", (key,)).fetchone():
+                return
+            now = datetime.now(timezone.utc).isoformat()
+            c.execute("DELETE FROM lca_circuit_sessions")
+            lights = [dict(r) for r in c.execute(
+                "SELECT light_id,circuit_id FROM lca_light_assets WHERE archived_at IS NULL"
+            ).fetchall()]
+            for light in lights:
+                rows = [dict(r) for r in c.execute("""
+                    SELECT e.lca_event_id,e.requested_state,e.occurred_at,e.effect_confirmed_at,e.circuit_id
+                    FROM lca_events e
+                    LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+                    WHERE e.kind='interaction' AND e.interaction_status='confirmed'
+                      AND e.requested_state IN ('on','off')
+                      AND (ch.light_asset_id=? OR (e.circuit_id IS NOT NULL AND e.circuit_id=?))
+                    ORDER BY COALESCE(e.effect_confirmed_at,e.occurred_at),e.id
+                """, (light["light_id"], light.get("circuit_id"))).fetchall()]
+                current = None
+                open_sid = None
+                open_start = None
+                for row in rows:
+                    state = str(row.get("requested_state") or "").lower()
+                    at = row.get("effect_confirmed_at") or row.get("occurred_at")
+                    if state == current:
+                        continue
+                    if state == "on":
+                        sid = f"{light['light_id']}:circuit:{at}"
+                        c.execute("""INSERT OR IGNORE INTO lca_circuit_sessions
+                            (session_id,light_id,started_at,start_event_id,status,source_type,created_at,updated_at)
+                            VALUES(?,?,?,?,?,?,?,?)""",
+                            (sid,light["light_id"],at,row["lca_event_id"],"open","migration_confirmed_interaction",now,now))
+                        open_sid, open_start = sid, at
+                    elif state == "off" and open_sid:
+                        duration = max(0, int((self._parse_time(at)-self._parse_time(open_start)).total_seconds()))
+                        c.execute("""UPDATE lca_circuit_sessions SET ended_at=?,duration_seconds=?,end_event_id=?,status='closed',updated_at=?
+                            WHERE session_id=?""", (at,duration,row["lca_event_id"],now,open_sid))
+                        open_sid, open_start = None, None
+                    current = state
+            c.execute("INSERT INTO lca_metadata(key,value,updated_at) VALUES(?,?,?)", (key,"completed",now))
+
     def _set_circuit_state(self, c, light_id, state, changed_at, source_type, source_event_id, now):
         if not light_id or str(state or '').lower() not in {'on','off'}:
             return
@@ -502,14 +566,42 @@ class LCARepository:
                     return
             except Exception:
                 pass
+            previous_state = str(existing["state"] or "").lower()
+            if previous_state == state:
+                # Duplicate evidence may enrich provenance, but it must not
+                # create a new usage session or reset its start time.
+                c.execute("""UPDATE lca_circuit_state SET source_type=?,source_event_id=?,updated_at=?
+                             WHERE light_id=?""", (source_type,source_event_id,now,light_id))
+                return
             c.execute("""UPDATE lca_circuit_state SET state=?,last_changed_at=?,source_type=?,source_event_id=?,updated_at=?
                          WHERE light_id=?""",
                       (state,changed_at,source_type,source_event_id,now,light_id))
         else:
+            previous_state = None
             c.execute("""INSERT INTO lca_circuit_state
                 (light_id,state,first_observed_at,last_changed_at,source_type,source_event_id,updated_at)
                 VALUES(?,?,?,?,?,?,?)""",
                 (light_id,state,changed_at,changed_at,source_type,source_event_id,now))
+
+        # Circuit-level sessions are the analytical source for time-in-use.
+        # They are driven only by canonical state transitions, never by the
+        # individual physical/virtual point state.
+        if state == 'on':
+            open_row = c.execute("""SELECT session_id FROM lca_circuit_sessions
+                WHERE light_id=? AND status='open' ORDER BY started_at DESC LIMIT 1""", (light_id,)).fetchone()
+            if not open_row:
+                sid = f"{light_id}:circuit:{changed_at}"
+                c.execute("""INSERT OR IGNORE INTO lca_circuit_sessions
+                    (session_id,light_id,started_at,start_event_id,status,source_type,created_at,updated_at)
+                    VALUES(?,?,?,?,?,?,?,?)""",
+                    (sid,light_id,changed_at,source_event_id,"open",source_type,now,now))
+        elif state == 'off':
+            open_row = c.execute("""SELECT session_id,started_at FROM lca_circuit_sessions
+                WHERE light_id=? AND status='open' ORDER BY started_at DESC LIMIT 1""", (light_id,)).fetchone()
+            if open_row:
+                duration = max(0, int((self._parse_time(changed_at)-self._parse_time(open_row["started_at"])).total_seconds()))
+                c.execute("""UPDATE lca_circuit_sessions SET ended_at=?,duration_seconds=?,end_event_id=?,status='closed',updated_at=?
+                    WHERE session_id=?""", (changed_at,duration,source_event_id,now,open_row["session_id"]))
 
     @staticmethod
     def _normalize_identifier(value):
@@ -1107,6 +1199,71 @@ class LCARepository:
             totals["parallel_points"] = sum(int(light.get("parallel_point_count") or 0) for light in current_lights)
             totals["active_lights"] = sum(1 for light in current_lights if str(light.get("state") or "").upper() == "ON")
             totals["unknown_lights"] = sum(1 for light in current_lights if not light.get("state"))
+
+            # LCA 0.4.0 — Circuit Usage Analytics. Sessions are clipped to the
+            # selected dashboard period, so a circuit that was already ON at
+            # the period boundary contributes only the observed interval.
+            period_start = self._parse_time(since)
+            period_end = datetime.now(timezone.utc)
+            period_seconds = max(1, int((period_end - period_start).total_seconds()))
+            usage_map = {light["light_id"]: {
+                "light_id": light["light_id"],
+                "circuit_id": light.get("circuit_id"),
+                "name": light.get("name"),
+                "location_name": light.get("location_name"),
+                "state": light.get("state"),
+                "total_on_seconds": 0,
+                "session_count": 0,
+                "average_session_seconds": 0,
+                "longest_session_seconds": 0,
+                "utilization_pct": 0.0,
+                "current_session_seconds": 0,
+                "current_session_started_at": None,
+            } for light in current_lights}
+            usage_sessions = [dict(r) for r in c.execute("""
+                SELECT s.*,l.circuit_id,l.name,l.location_name
+                FROM lca_circuit_sessions s
+                JOIN lca_light_assets l ON l.light_id=s.light_id
+                WHERE l.archived_at IS NULL AND s.started_at<=?
+                  AND (s.ended_at IS NULL OR s.ended_at>=?)
+                ORDER BY s.started_at
+            """, (period_end.isoformat(), since)).fetchall()]
+            for session in usage_sessions:
+                item = usage_map.get(session["light_id"])
+                if not item:
+                    continue
+                session_start = self._parse_time(session["started_at"])
+                session_end = self._parse_time(session["ended_at"]) if session.get("ended_at") else period_end
+                observed_start = max(period_start, session_start)
+                observed_end = min(period_end, session_end)
+                observed_seconds = max(0, int((observed_end-observed_start).total_seconds()))
+                if observed_seconds <= 0:
+                    continue
+                item["total_on_seconds"] += observed_seconds
+                item["session_count"] += 1
+                item["longest_session_seconds"] = max(item["longest_session_seconds"], observed_seconds)
+                if not session.get("ended_at"):
+                    item["current_session_seconds"] = max(0, int((period_end-session_start).total_seconds()))
+                    item["current_session_started_at"] = session["started_at"]
+            usage_by_circuit = []
+            for item in usage_map.values():
+                if item["session_count"]:
+                    item["average_session_seconds"] = int(item["total_on_seconds"] / item["session_count"])
+                item["utilization_pct"] = round(min(100.0, item["total_on_seconds"] * 100.0 / period_seconds), 1)
+                usage_by_circuit.append(item)
+            usage_by_circuit.sort(key=lambda x: (-x["total_on_seconds"], str(x.get("location_name") or ""), str(x.get("name") or "")))
+            usage_total_seconds = sum(x["total_on_seconds"] for x in usage_by_circuit)
+            usage_session_count = sum(x["session_count"] for x in usage_by_circuit)
+            usage_summary = {
+                "total_on_seconds": usage_total_seconds,
+                "session_count": usage_session_count,
+                "average_session_seconds": int(usage_total_seconds / usage_session_count) if usage_session_count else 0,
+                "longest_session_seconds": max((x["longest_session_seconds"] for x in usage_by_circuit), default=0),
+                "circuits_used": sum(1 for x in usage_by_circuit if x["total_on_seconds"] > 0),
+                "period_seconds": period_seconds,
+            }
+            totals["usage_total_on_seconds"] = usage_summary["total_on_seconds"]
+            totals["usage_session_count"] = usage_summary["session_count"]
             # Mantido para compatibilidade com clientes antigos da API.
             totals["open_sessions"] = totals["active_lights"]
             totals["confirmed_interactions"] = c.execute("""SELECT COUNT(*) FROM lca_events e JOIN lca_devices d ON d.device_id=e.device_id
@@ -1198,7 +1355,8 @@ class LCARepository:
         return {"period_hours": hours, "summary": totals, "by_hour": by_hour, "top_devices": top,
                 "route_evidence": routes, "recent_actions": actions, "technical_events": technical,
                 "current_lights": current_lights, "origin_breakdown": origin_breakdown,
-                "role_breakdown": role_breakdown, "configuration_quality": configuration_quality, "recent_events": recent[:30],
+                "role_breakdown": role_breakdown, "usage_summary": usage_summary, "usage_by_circuit": usage_by_circuit,
+                "configuration_quality": configuration_quality, "recent_events": recent[:30],
                 "action_pagination": {
                     "page": action_page,
                     "page_size": action_page_size,
