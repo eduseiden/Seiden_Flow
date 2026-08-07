@@ -1,7 +1,11 @@
-# Seiden FLOW 0.15.9
+# Seiden FLOW 0.15.9.1
 
 
-## LCA 0.3.9 — linguagem visual e refinamento dark mode
+## LCA 0.3.9.1 — correção de estado lógico dos circuitos
+
+### Correção 0.3.9.1
+
+O estado lógico consolidado agora prioriza o ponto direto do circuito como fonte de verdade. Pontos paralelos continuam sendo analisados como pontos de acionamento, mas não sobrescrevem o estado real da carga quando há retorno direto configurado.
 
 ### Refinamentos 0.3.9
 

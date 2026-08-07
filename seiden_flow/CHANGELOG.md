@@ -1,3 +1,11 @@
+## 0.15.9.1 — LCA 0.3.9.1: Logical State Regression Fix
+
+- Corrige regressão do estado consolidado dos circuitos no dashboard.
+- Pontos diretos passam a ser a fonte preferencial do estado lógico do circuito.
+- Pontos paralelos continuam contribuindo para ações e métricas, mas não sobrescrevem o estado real quando existe um ponto direto monitorado.
+- Cabeçalho e lista de Circuitos monitorados voltam a usar a mesma fonte canônica de estado.
+- Mantidos os refinamentos de UX/UI e dark mode da 0.15.9.
+
 ## 0.15.9 — LCA 0.3.9: Visual Language & Dark Mode Refinement
 
 - Simplifica **Circuitos monitorados** para priorizar nome, ambiente e quantidade de pontos de acionamento.

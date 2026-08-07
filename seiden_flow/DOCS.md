@@ -1,6 +1,6 @@
-# Seiden FLOW 0.15.9 — Documentação técnica
+# Seiden FLOW 0.15.9.1 — Documentação técnica
 
-## LCA 0.3.9 — Visual Language & Dark Mode Refinement
+## LCA 0.3.9.1 — Logical State Regression Fix
 
 - monitored circuits use a compact state-dot model with direct/parallel breakdown reserved for advanced mode;
 - amber is reserved for active lighting/state semantics, while analytic charts use blue/purple/neutral palettes;
