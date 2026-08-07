@@ -1,3 +1,14 @@
+## 0.15.9.3 — LCA 0.3.9.3: Canonical Circuit State
+
+- Introduz estado canônico persistente por circuito em `lca_circuit_state`.
+- Deixa de inferir o estado atual da carga a partir do estado técnico de pontos diretos ou paralelos.
+- Interações confirmadas atualizam o circuito pelo `requested_state`, inclusive em paralelos.
+- Migração inicializa circuitos existentes pela última interação confirmada, com fallback seguro para a última telemetria disponível.
+- Cabeçalho e **Circuitos monitorados** passam a consumir a mesma fonte de verdade.
+- Protege contra eventos fora de ordem sobrescrevendo estado mais recente.
+- Mantém integralmente UX/UI, dark mode e identidade MQTT da LCA 0.3.9.
+- Database Schema atualizado para 18.
+
 ## 0.15.9.2 — LCA 0.3.9.2
 
 - Corrige regressão de estado lógico introduzida na 0.15.9.1.

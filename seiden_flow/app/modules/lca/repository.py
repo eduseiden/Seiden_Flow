@@ -20,6 +20,7 @@ class LCARepository:
         self._migrate_035_channel_aliases()
         self._migrate_036_logical_circuits()
         self._migrate_037_infrastructure_identity()
+        self._migrate_0393_canonical_circuit_state()
 
     def ensure_schema(self):
         with self.db.connect() as c:
@@ -127,6 +128,14 @@ class LCARepository:
                 item_json TEXT NOT NULL,
                 created_at TEXT NOT NULL)""")
             c.execute("CREATE INDEX IF NOT EXISTS idx_lca_pending_interactions_time ON lca_pending_interactions(occurred_at)")
+            c.execute("""CREATE TABLE IF NOT EXISTS lca_circuit_state(
+                light_id TEXT PRIMARY KEY,
+                state TEXT NOT NULL,
+                first_observed_at TEXT NOT NULL,
+                last_changed_at TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                source_event_id TEXT,
+                updated_at TEXT NOT NULL)""")
 
     @staticmethod
     def _ensure_column(c, table, column, declaration):
@@ -427,6 +436,81 @@ class LCARepository:
                         inserted_events += 1
         return inserted_events
 
+    def _migrate_0393_canonical_circuit_state(self):
+        """Create one persistent state per logical lighting circuit.
+
+        The logical circuit state is intentionally independent from the
+        instantaneous state of direct/parallel interaction points. Existing
+        installations are initialized from the most recent confirmed logical
+        interaction when available, falling back to the latest channel state
+        only as a startup baseline.
+        """
+        key = "lca_canonical_circuit_state_0393"
+        with self.db.connect() as c:
+            if c.execute("SELECT value FROM lca_metadata WHERE key=?", (key,)).fetchone():
+                return
+            now = datetime.now(timezone.utc).isoformat()
+            lights = c.execute("SELECT light_id FROM lca_light_assets WHERE archived_at IS NULL").fetchall()
+            for light in lights:
+                light_id = light["light_id"]
+                interaction = c.execute("""
+                    SELECT e.requested_state,COALESCE(e.effect_confirmed_at,e.occurred_at) changed_at,e.lca_event_id
+                    FROM lca_events e
+                    JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+                    WHERE ch.light_asset_id=? AND e.kind='interaction'
+                      AND e.interaction_status='confirmed' AND e.requested_state IN ('on','off')
+                    ORDER BY COALESCE(e.effect_confirmed_at,e.occurred_at) DESC
+                    LIMIT 1
+                """, (light_id,)).fetchone()
+                if interaction:
+                    state = interaction["requested_state"]
+                    changed_at = interaction["changed_at"]
+                    source_type = "confirmed_interaction_migration"
+                    source_event_id = interaction["lca_event_id"]
+                else:
+                    baseline = c.execute("""
+                        SELECT cs.state,COALESCE(cs.last_changed_at,cs.last_observed_at) changed_at
+                        FROM lca_channels ch
+                        JOIN lca_channel_state cs ON cs.device_id=ch.device_id AND cs.channel_key=ch.channel_key
+                        JOIN lca_devices d ON d.device_id=ch.device_id
+                        WHERE ch.light_asset_id=? AND ch.enabled=1 AND d.status<>'ignored'
+                        ORDER BY COALESCE(cs.last_changed_at,cs.last_observed_at) DESC
+                        LIMIT 1
+                    """, (light_id,)).fetchone()
+                    if not baseline:
+                        continue
+                    state = str(baseline["state"] or "").lower()
+                    if state not in {"on", "off"}:
+                        continue
+                    changed_at = baseline["changed_at"]
+                    source_type = "channel_baseline_migration"
+                    source_event_id = None
+                c.execute("""INSERT OR REPLACE INTO lca_circuit_state
+                    (light_id,state,first_observed_at,last_changed_at,source_type,source_event_id,updated_at)
+                    VALUES(?,?,?,?,?,?,?)""",
+                    (light_id,state,changed_at,changed_at,source_type,source_event_id,now))
+            c.execute("INSERT INTO lca_metadata(key,value,updated_at) VALUES(?,?,?)", (key, "completed", now))
+
+    def _set_circuit_state(self, c, light_id, state, changed_at, source_type, source_event_id, now):
+        if not light_id or str(state or '').lower() not in {'on','off'}:
+            return
+        state = str(state).lower()
+        existing = c.execute("SELECT * FROM lca_circuit_state WHERE light_id=?", (light_id,)).fetchone()
+        if existing:
+            try:
+                if self._parse_time(changed_at) < self._parse_time(existing["last_changed_at"]):
+                    return
+            except Exception:
+                pass
+            c.execute("""UPDATE lca_circuit_state SET state=?,last_changed_at=?,source_type=?,source_event_id=?,updated_at=?
+                         WHERE light_id=?""",
+                      (state,changed_at,source_type,source_event_id,now,light_id))
+        else:
+            c.execute("""INSERT INTO lca_circuit_state
+                (light_id,state,first_observed_at,last_changed_at,source_type,source_event_id,updated_at)
+                VALUES(?,?,?,?,?,?,?)""",
+                (light_id,state,changed_at,changed_at,source_type,source_event_id,now))
+
     @staticmethod
     def _normalize_identifier(value):
         import re, unicodedata
@@ -664,7 +748,11 @@ class LCARepository:
             event["confirmation_latency_ms"] = 0
             event["causal_confidence"] = 1.0
         inserted=self._insert_event(c,event,cfg,now)
-        if inserted and event.get("interaction_status") != "confirmed":
+        if inserted and event.get("interaction_status") == "confirmed" and cfg is not None:
+            self._set_circuit_state(c, cfg["light_asset_id"], item.get("requested_state"),
+                                    event.get("effect_confirmed_at") or item["occurred_at"],
+                                    "confirmed_interaction", item["lca_event_id"], now)
+        elif inserted:
             self._correlate_existing_effect(c,event,cfg,now)
         return inserted
 
@@ -690,12 +778,17 @@ class LCARepository:
             (cfg["light_asset_id"],event["state"],lo,event["occurred_at"])).fetchone()
         if interaction:self._confirm_interaction(c,interaction["lca_event_id"],event["lca_event_id"],event["occurred_at"],interaction["occurred_at"],now)
 
-    @classmethod
-    def _confirm_interaction(cls,c,interaction_id,effect_id,effect_at,interaction_at,now):
-        latency=max(0,int((cls._parse_time(effect_at)-cls._parse_time(interaction_at)).total_seconds()*1000))
+    def _confirm_interaction(self,c,interaction_id,effect_id,effect_at,interaction_at,now):
+        latency=max(0,int((self._parse_time(effect_at)-self._parse_time(interaction_at)).total_seconds()*1000))
         c.execute("""UPDATE lca_events SET effect_event_id=?,effect_confirmed_at=?,confirmation_latency_ms=?,interaction_status='confirmed'
             WHERE lca_event_id=?""",(effect_id,effect_at,latency,interaction_id))
         c.execute("""UPDATE lca_events SET cause_type='interaction',cause_id=?,causal_confidence=1.0 WHERE lca_event_id=? AND cause_type IS NULL""",(interaction_id,effect_id))
+        resolved=c.execute("""SELECT e.requested_state,ch.light_asset_id
+            FROM lca_events e LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+            WHERE e.lca_event_id=?""",(interaction_id,)).fetchone()
+        if resolved:
+            self._set_circuit_state(c,resolved["light_asset_id"],resolved["requested_state"],effect_at,
+                                    "confirmed_interaction",interaction_id,now)
 
     @staticmethod
     def _learn_scene_effect(c, scene_id, light_id, state, occurred_at, now):
@@ -997,29 +1090,10 @@ class LCARepository:
                        COUNT(DISTINCT CASE WHEN d.device_id IS NOT NULL THEN ch.channel_id END) point_count,
                        COUNT(DISTINCT CASE WHEN d.device_id IS NOT NULL AND ch.relationship_type='direct' THEN ch.channel_id END) direct_point_count,
                        COUNT(DISTINCT CASE WHEN d.device_id IS NOT NULL AND ch.relationship_type='parallel' THEN ch.channel_id END) parallel_point_count,
-                       (
-                         SELECT cs.state
-                         FROM lca_channels ch2
-                         JOIN lca_channel_state cs
-                           ON cs.device_id=ch2.device_id AND cs.channel_key=ch2.channel_key
-                         JOIN lca_devices d2 ON d2.device_id=ch2.device_id
-                         WHERE ch2.light_asset_id=l.light_id
-                           AND ch2.enabled=1 AND d2.status<>'ignored'
-                         ORDER BY COALESCE(cs.last_changed_at,cs.last_observed_at) DESC
-                         LIMIT 1
-                       ) state,
-                       (
-                         SELECT COALESCE(cs.last_changed_at,cs.last_observed_at)
-                         FROM lca_channels ch2
-                         JOIN lca_channel_state cs
-                           ON cs.device_id=ch2.device_id AND cs.channel_key=ch2.channel_key
-                         JOIN lca_devices d2 ON d2.device_id=ch2.device_id
-                         WHERE ch2.light_asset_id=l.light_id
-                           AND ch2.enabled=1 AND d2.status<>'ignored'
-                         ORDER BY COALESCE(cs.last_changed_at,cs.last_observed_at) DESC
-                         LIMIT 1
-                       ) last_updated_at
+                       cst.state state,
+                       cst.last_changed_at last_updated_at
                 FROM lca_light_assets l
+                LEFT JOIN lca_circuit_state cst ON cst.light_id=l.light_id
                 LEFT JOIN lca_channels ch ON ch.light_asset_id=l.light_id AND ch.enabled=1
                 LEFT JOIN lca_devices d ON d.device_id=ch.device_id AND d.status<>'ignored'
                 WHERE l.archived_at IS NULL

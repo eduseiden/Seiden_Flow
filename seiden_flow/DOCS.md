@@ -1,4 +1,14 @@
-# Seiden FLOW 0.15.9.2 — Documentação técnica
+# Seiden FLOW 0.15.9.3 — Documentação técnica
+
+## LCA 0.3.9.3 — Canonical Circuit State
+
+O estado operacional de uma carga passa a ser persistido em `lca_circuit_state`, indexado por `light_id`. Pontos diretos e paralelos continuam sendo fontes de interação e evidência, mas seus estados técnicos não são mais usados para recalcular o estado atual da carga.
+
+Uma interação com `requested_state` confirmado atualiza o estado canônico. A migração 0.3.9.3 inicializa circuitos existentes pela interação confirmada mais recente e usa `lca_channel_state` somente como baseline de compatibilidade quando não há histórico lógico.
+
+O dashboard usa `lca_circuit_state` tanto para `active_lights` quanto para `current_lights`, garantindo uma única fonte de verdade após refresh. Eventos fora de ordem são ignorados quando mais antigos que `last_changed_at`.
+
+Database Schema: `18`. UX/UI da LCA 0.3.9 preservada integralmente.
 
 ## LCA 0.3.9.2 — Logical State Regression Fix
 

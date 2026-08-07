@@ -1,32 +1,17 @@
-# Seiden FLOW 0.15.9.2
+# Seiden FLOW 0.15.9.3
 
+## LCA 0.3.9.3 — Canonical Circuit State
 
-## LCA 0.3.9.2 — correção de estado lógico dos circuitos
+Correção arquitetural do estado atual dos circuitos, preservando integralmente a UX/UI da série LCA 0.3.9.
 
-### Correção 0.3.9.1
-
-O estado lógico consolidado agora prioriza o ponto direto do circuito como fonte de verdade. Pontos paralelos continuam sendo analisados como pontos de acionamento, mas não sobrescrevem o estado real da carga quando há retorno direto configurado.
-
-### Refinamentos 0.3.9
-
-- circuitos monitorados mais compactos, sem badges repetitivos de Ligado/Desligado;
-- mesma semântica visual de estado em histórico e circuitos: âmbar = ligado, cinza = desligado;
-- detalhes direto/paralelo ficam no modo avançado;
-- âmbar deixa de ser usado em gráficos de origem/papel para evitar ambiguidade;
-- contraste e legibilidade revisados para tema escuro;
-- pluralização natural em teclas e execuções.
-
-
-A seção **Ações recentes** ganha hierarquia visual própria e uma leitura mais rápida do estado após cada ação. O estado deixa de ser repetido no título e passa a ser comunicado visualmente, mantendo alertas e exceções semanticamente separados.
-
-- cabeçalho da seção com maior hierarquia e descrição objetiva;
-- títulos das ocorrências sem repetição textual de “ligada/desligada”;
-- estado visual por marcador: âmbar para ligado e cinza neutro para desligado;
-- legenda discreta ao final da lista;
-- vermelho reservado a exceções, alertas e “Sem confirmação”;
-- ajustes de espaçamento, alinhamento, hover, responsividade e dark mode;
-- nenhuma alteração na lógica analítica do LCA 0.3.7;
-- Database Schema `17`; HEA, EEA e TCA preservados.
+- cada circuito lógico passa a ter um estado canônico persistente próprio em `lca_circuit_state`;
+- o estado do circuito deixa de ser inferido do estado técnico de pontos diretos/paralelos;
+- uma interação confirmada atualiza o estado canônico pelo `requested_state`;
+- a migração inicializa o estado preferencialmente pela última interação confirmada e usa telemetria de canal apenas como baseline quando não existe histórico lógico;
+- cabeçalho e **Circuitos monitorados** leem a mesma fonte de verdade;
+- atualizações fora de ordem não sobrescrevem um estado lógico mais recente;
+- todos os refinamentos visuais, dark mode, identidade MQTT, L1/L2/L3 e histórico operacional da LCA 0.3.9 são mantidos;
+- Database Schema `18`; HEA, EEA e TCA preservados.
 
 ## LCA 0.3.7 — identidade de infraestrutura por dispositivo MQTT
 
