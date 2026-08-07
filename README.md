@@ -1,6 +1,11 @@
-# Seiden FLOW 0.16.0.1
+# Seiden FLOW 0.16.0.2
 
-## LCA 0.4.0.1 — Circuit Usage UX Refinement
+## LCA 0.4.0.2 — Bridge State Transition Support
+
+O LCA agora consome `state_transition` do MQTT State Driver. Pontos diretos atualizam o circuito canônico; paralelos continuam usando a interação explícita do Node-RED para identificar a origem. O estado MQTT, por si só, nunca é classificado automaticamente como acionamento local.
+
+
+## LCA 0.4.0.2 — Circuit Usage UX Refinement
 
 A primeira camada temporal do LCA transforma estados canônicos ON/OFF em sessões de iluminação por circuito. O dashboard passa a mostrar tempo ligado, quantidade de sessões, duração média, maior sessão e utilização percentual por circuito, preservando toda a linguagem visual e o dark mode consolidados na série 0.3.9.
 
@@ -11,7 +16,7 @@ A primeira camada temporal do LCA transforma estados canônicos ON/OFF em sessõ
 - infraestrutura continua baseada no dispositivo MQTT e canais L1/L2/L3;
 - UX/UI, histórico operacional, bolinhas de estado e dark mode da LCA 0.3.9 são mantidos.
 
-### Novidades 0.4.0.1
+### Novidades 0.4.0.2
 
 - correção gramatical de `sessão/sessões`;
 - exibição padrão somente dos circuitos que tiveram uso no período;

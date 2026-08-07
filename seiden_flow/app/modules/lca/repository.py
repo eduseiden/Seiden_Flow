@@ -643,7 +643,7 @@ class LCARepository:
                 JOIN lca_devices d ON d.device_id=e.device_id AND d.status<>'ignored'
                 JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key AND ch.enabled=1
                 LEFT JOIN lca_light_assets l ON l.light_id=ch.light_asset_id
-                WHERE e.kind='state_change' AND e.state=? AND e.occurred_at BETWEEN ? AND ?
+                WHERE e.kind='state_change' AND e.state=? AND julianday(e.occurred_at) BETWEEN julianday(?) AND julianday(?)
                 ORDER BY ABS(julianday(e.occurred_at)-julianday(?))""",
                 (requested,lo,hi,item.get("occurred_at"))).fetchall()
             for row in rows:
@@ -682,7 +682,7 @@ class LCARepository:
             return
         circuit=self._normalize_identifier(light["circuit_id"])
         t=self._parse_time(state_item["occurred_at"]); lo=(t-timedelta(seconds=1)).isoformat(); hi=(t+timedelta(seconds=3)).isoformat()
-        rows=c.execute("""SELECT * FROM lca_pending_interactions WHERE requested_state=? AND occurred_at BETWEEN ? AND ? ORDER BY occurred_at""",
+        rows=c.execute("""SELECT * FROM lca_pending_interactions WHERE requested_state=? AND julianday(occurred_at) BETWEEN julianday(?) AND julianday(?) ORDER BY julianday(occurred_at)""",
                        (state_item["state"],lo,hi)).fetchall()
         for row in rows:
             pending_circuit=self._normalize_identifier(row["circuit_id"])
@@ -745,14 +745,30 @@ class LCARepository:
             (did, ch),
         ).fetchone()
 
-        # First observation establishes baseline only. It is not an event.
+        # Raw MQTT observations need a baseline before we can infer a change.
+        # Bridge State Driver events are different: the Bridge already observed
+        # the previous state and sends an explicit previous -> current transition.
+        # Reconstruct that baseline so the first transition seen by Flow is not
+        # lost after an LCA restart or when a device is first discovered.
         if previous is None:
-            c.execute(
-                """INSERT INTO lca_channel_state(device_id,channel_key,state,brightness,first_observed_at,last_observed_at,last_changed_at,updated_at)
-                   VALUES(?,?,?,?,?,?,NULL,?)""",
-                (did, ch, new_state, item.get("brightness"), item["occurred_at"], item["occurred_at"], now),
-            )
-            return False
+            explicit_previous = str(item.get("previous_state") or "").lower() if item.get("explicit_transition") else ""
+            if explicit_previous in {"on", "off"} and explicit_previous != new_state:
+                c.execute(
+                    """INSERT INTO lca_channel_state(device_id,channel_key,state,brightness,first_observed_at,last_observed_at,last_changed_at,updated_at)
+                       VALUES(?,?,?,?,?,?,NULL,?)""",
+                    (did, ch, explicit_previous, item.get("brightness"), item["occurred_at"], item["occurred_at"], now),
+                )
+                previous = c.execute(
+                    "SELECT * FROM lca_channel_state WHERE device_id=? AND channel_key=?",
+                    (did, ch),
+                ).fetchone()
+            else:
+                c.execute(
+                    """INSERT INTO lca_channel_state(device_id,channel_key,state,brightness,first_observed_at,last_observed_at,last_changed_at,updated_at)
+                       VALUES(?,?,?,?,?,?,NULL,?)""",
+                    (did, ch, new_state, item.get("brightness"), item["occurred_at"], item["occurred_at"], now),
+                )
+                return False
 
         # Repeated state report: update telemetry timestamp, produce no event.
         if previous["state"] == new_state:
@@ -782,10 +798,61 @@ class LCARepository:
             (new_state, item.get("brightness"), item["occurred_at"], item["occurred_at"], now, did, ch),
         )
         self._update_session(c, event, cfg, now)
+
+        # A configured direct point is the physical state source of the logical
+        # circuit, independent of whether that change originated locally, via a
+        # virtual parallel or remotely. This updates the canonical circuit state
+        # and circuit-level usage sessions. Parallel points never do this.
+        if cfg is not None and cfg["relationship_type"] == "direct" and cfg["light_asset_id"]:
+            self._set_circuit_state(
+                c, cfg["light_asset_id"], new_state, item["occurred_at"],
+                "direct_state_transition", event["lca_event_id"], now,
+            )
+
         if not event.get("cause_type"):
             self._correlate_pending_interaction(c,event,cfg,now)
+
+        # With no explicit Node-RED interaction to explain a Bridge transition,
+        # a direct point transition is itself a comprehended action. Its origin
+        # remains unknown: a state change alone cannot prove a physical press.
+        if item.get("explicit_transition") and cfg is not None and cfg["relationship_type"] == "direct":
+            persisted = c.execute("SELECT cause_type FROM lca_events WHERE lca_event_id=?", (event["lca_event_id"],)).fetchone()
+            if persisted and not persisted["cause_type"]:
+                self._record_direct_transition_action(c, event, cfg, now)
+
         if event.get("cause_type") == "scene" and cfg and cfg["light_asset_id"]:
             self._learn_scene_effect(c,event["cause_id"],cfg["light_asset_id"],new_state,item["occurred_at"],now)
+        return True
+
+    def _record_direct_transition_action(self, c, state_event, cfg, now):
+        """Represent an un-attributed direct state transition as one LCA action.
+
+        This is used only for explicit Bridge State Driver transitions on a
+        configured direct point and only when no explicit interaction already
+        explains the effect. It avoids double counting virtual parallels.
+        """
+        action = dict(state_event)
+        action_id = state_event["lca_event_id"] + ":direct_action"
+        action.update({
+            "lca_event_id": action_id,
+            "kind": "interaction",
+            "state": None,
+            "action": state_event.get("state"),
+            "requested_state": state_event.get("state"),
+            "interaction_kind": "direct_state_transition",
+            "origin_mode": "unknown",
+            "interaction_status": "confirmed",
+            "effect_event_id": state_event["lca_event_id"],
+            "effect_confirmed_at": state_event["occurred_at"],
+            "confirmation_latency_ms": 0,
+            "point_role": "direct",
+        })
+        if not self._insert_event(c, action, cfg, now):
+            return False
+        c.execute(
+            "UPDATE lca_events SET cause_type='interaction',cause_id=?,causal_confidence=1.0 WHERE lca_event_id=? AND cause_type IS NULL",
+            (action_id, state_event["lca_event_id"]),
+        )
         return True
 
     def _process_availability(self, c, item, cfg, now):
@@ -854,7 +921,7 @@ class LCARepository:
         lo=(t-timedelta(seconds=2)).isoformat(); hi=(t+timedelta(seconds=1)).isoformat()
         effect=c.execute("""SELECT e.lca_event_id,e.occurred_at FROM lca_events e
             LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
-            WHERE e.kind='state_change' AND ch.light_asset_id=? AND e.state=? AND e.occurred_at BETWEEN ? AND ?
+            WHERE e.kind='state_change' AND ch.light_asset_id=? AND e.state=? AND julianday(e.occurred_at) BETWEEN julianday(?) AND julianday(?)
             ORDER BY ABS(julianday(e.occurred_at)-julianday(?)) LIMIT 1""",
             (cfg["light_asset_id"],item["requested_state"],lo,hi,item["occurred_at"])).fetchone()
         if effect:self._confirm_interaction(c,item["lca_event_id"],effect["lca_event_id"],effect["occurred_at"],item["occurred_at"],now)
@@ -865,8 +932,8 @@ class LCARepository:
         interaction=c.execute("""SELECT e.lca_event_id,e.occurred_at FROM lca_events e
             LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
             WHERE e.kind='interaction' AND ch.light_asset_id=? AND e.requested_state=?
-              AND e.occurred_at BETWEEN ? AND ? AND COALESCE(e.interaction_status,'pending_confirmation')='pending_confirmation'
-            ORDER BY e.occurred_at DESC LIMIT 1""",
+              AND julianday(e.occurred_at) BETWEEN julianday(?) AND julianday(?) AND COALESCE(e.interaction_status,'pending_confirmation')='pending_confirmation'
+            ORDER BY julianday(e.occurred_at) DESC LIMIT 1""",
             (cfg["light_asset_id"],event["state"],lo,event["occurred_at"])).fetchone()
         if interaction:self._confirm_interaction(c,interaction["lca_event_id"],event["lca_event_id"],event["occurred_at"],interaction["occurred_at"],now)
 
@@ -1125,6 +1192,15 @@ class LCARepository:
             current=c.execute("SELECT enabled FROM lca_channels WHERE device_id=? AND channel_key=?",(did,ch)).fetchone()
             if previous and current and bool(previous["enabled"])!=bool(current["enabled"]):
                 c.execute("DELETE FROM lca_channel_state WHERE device_id=? AND channel_key=?",(did,ch)); c.execute("DELETE FROM lca_sessions WHERE device_id=? AND channel_key=? AND status='open'",(did,ch))
+
+            # When an already discovered channel is classified as the direct
+            # point, initialize the logical circuit from its last known state.
+            # This makes the circuit immediately coherent without waiting for
+            # another physical transition after configuration.
+            if role == "direct" and light_id:
+                observed=c.execute("SELECT state,COALESCE(last_changed_at,last_observed_at) changed_at FROM lca_channel_state WHERE device_id=? AND channel_key=?",(did,ch)).fetchone()
+                if observed and str(observed["state"] or "").lower() in {"on","off"}:
+                    self._set_circuit_state(c,light_id,observed["state"],observed["changed_at"] or now,"direct_configuration_baseline",None,now)
             self._refresh_configuration_status(c,did)
         return self.device(did)
 

@@ -1,8 +1,13 @@
-# Seiden FLOW 0.16.0.1 — Documentação técnica
+# Seiden FLOW 0.16.0.2 — Documentação técnica
 
-## LCA 0.4.0.1 — Circuit Usage UX Refinement
+## LCA 0.4.0.2 — Bridge State Transition Support
 
-O LCA 0.4.0.1 preserva as sessões canônicas introduzidas no LCA 0.4.0 e refina a apresentação de uso. O LCA 0.4.0 adiciona sessões canônicas no nível do circuito (`lca_circuit_sessions`). Uma sessão começa somente quando o estado canônico do circuito muda para `on` e termina quando muda para `off`. Evidências repetidas no mesmo estado não reiniciam a sessão.
+Eventos compactos `state_transition` emitidos pelo MQTT State Driver do Bridge são convertidos em evidência de estado do LCA. Em um canal `direct`, a transição atualiza o estado canônico e as sessões do circuito. Em canais `parallel`, a origem continua sendo determinada pelo contrato `lighting_interaction` publicado em `seiden/lca/interactions`, evitando dupla contagem.
+
+
+## LCA 0.4.0.2 — Circuit Usage UX Refinement
+
+O LCA 0.4.0.2 preserva as sessões canônicas introduzidas no LCA 0.4.0 e refina a apresentação de uso. O LCA 0.4.0 adiciona sessões canônicas no nível do circuito (`lca_circuit_sessions`). Uma sessão começa somente quando o estado canônico do circuito muda para `on` e termina quando muda para `off`. Evidências repetidas no mesmo estado não reiniciam a sessão.
 
 O endpoint `/api/v1/lca/dashboard` passa a expor `usage_summary` e `usage_by_circuit`. As durações são recortadas ao período selecionado no dashboard; assim, uma sessão iniciada antes da janela contribui apenas com o trecho observado dentro dela.
 
@@ -19,7 +24,7 @@ Métricas disponíveis:
 A migração `lca_circuit_usage_sessions_040` reconstrói sessões históricas a partir das interações confirmadas existentes. O `DATABASE_SCHEMA_VERSION` passa a 19.
 
 
-## Refinamento de apresentação 0.4.0.1
+## Refinamento de apresentação 0.4.0.2
 
 A seção **Tempo de uso** deixa de funcionar como inventário completo e passa a priorizar análise operacional:
 

@@ -1,4 +1,4 @@
-## 0.16.0.1 — LCA 0.4.0.1: Circuit Usage UX Refinement
+## 0.16.0.2 — LCA 0.4.0.2: Circuit Usage UX Refinement
 
 - Corrige pluralização de `sessão/sessões` na utilização por circuito.
 - Por padrão, a seção **Tempo de uso** mostra apenas circuitos que tiveram uso no período selecionado.
