@@ -1,3 +1,21 @@
+## 0.16.3 — LCA 0.4.2 · Interaction Preference
+
+- Adiciona **Preferências de interação** sem alterar a baseline estabilizada de ingestão, correlação, estado canônico ou sessões.
+- Ranking dos pontos de acionamento mais utilizados.
+- Participação de ponto direto, paralelo e cena.
+- Participação de origem local, remota, automação e não identificada.
+- Preferência dominante por circuito, com classificação `Uso equilibrado`, `Preferência clara` e `Preferência forte`.
+- Comparação da participação de cada ponto com o período anterior de mesma duração.
+- Mudanças de comportamento só são destacadas quando a variação é material (≥ 5 p.p.) e existe volume mínimo de eventos.
+- Filtros independentes por ambiente e circuito.
+- Analytics derivados exclusivamente de `lca_events` consolidados; nenhuma tabela nova.
+- Endpoint dedicado `/api/v1/lca/interaction-preference`.
+- Progressive disclosure: Top 6 pontos e Top 5 circuitos, com expansão sob demanda.
+- Funções críticas de correlação preservadas byte a byte.
+- README da raiz atualizado para **Seiden FLOW 0.16.3** e com resumo da release.
+- DOCS e changelog atualizados.
+- Schema permanece 19.
+
 ## 0.16.2.1 — LCA 0.4.1.1 · UX/UI Refinement
 
 - Refinamento visual da tela administrativa sem alteração da lógica analítica ou de correlação.

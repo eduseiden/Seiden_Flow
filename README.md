@@ -1,4 +1,21 @@
-# Seiden FLOW 0.16.1.1
+# Seiden FLOW 0.16.3
+
+## LCA 0.4.2 — Interaction Preference
+
+A Seiden One passa a compreender **como as pessoas preferem interagir com a iluminação**,
+indo além de quando e por quanto tempo os circuitos são utilizados.
+
+A nova camada analítica mostra:
+
+- pontos de acionamento mais utilizados;
+- direto × paralelo × cena;
+- local × remoto × automação × origem não identificada;
+- preferência dominante por circuito;
+- mudanças de preferência em relação ao período anterior.
+
+A análise utiliza exclusivamente os eventos operacionais já consolidados pelo LCA
+e não altera a lógica estabilizada de correlação, estado canônico ou sessões.
+
 
 ## LCA 0.4.0.2 — Bridge State Transition Support
 

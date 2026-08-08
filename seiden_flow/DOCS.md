@@ -323,3 +323,20 @@ A versão melhora hierarquia e densidade visual com:
 - configuração administrativa recolhida por padrão.
 
 Toda a profundidade administrativa permanece disponível sob demanda.
+
+
+## Flow 0.16.3 / LCA 0.4.2 — Interaction Preference
+
+O LCA passa a quantificar como os usuários preferem acionar cada circuito.
+A análise é calculada sobre `lca_events` consolidados e não interfere na
+ingestão ou correlação operacional.
+
+Principais leituras:
+
+- ranking de pontos mais usados;
+- direto, paralelo e cena;
+- origem local, remota, automação e desconhecida;
+- ponto dominante por circuito;
+- comparação com o período anterior de mesma duração.
+
+Endpoint dedicado: `/api/v1/lca/interaction-preference`.

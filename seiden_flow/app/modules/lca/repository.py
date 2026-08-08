@@ -1729,6 +1729,371 @@ class LCARepository:
             "by_circuit": circuits,
         }
 
+    @staticmethod
+    def _preference_classification(share_pct):
+        share = float(share_pct or 0)
+        if share >= 75:
+            return "strong"
+        if share >= 60:
+            return "moderate"
+        return "balanced"
+
+    @staticmethod
+    def _origin_family(origin_mode):
+        mode = str(origin_mode or "unknown").strip().lower()
+        if mode in {"local", "local_probable"}:
+            return "local"
+        if mode in {"home_assistant_user", "remote", "app", "user_remote"}:
+            return "remote"
+        if mode in {"automation", "automation_probable", "scene", "script"}:
+            return "automation"
+        return "unknown"
+
+    def interaction_preference(self, hours=168, location_name=None, light_id=None):
+        """LCA 0.4.2: quantify how each logical circuit is normally operated.
+
+        Read-only analytics over already consolidated interaction events.
+        It never changes correlation, canonical state or usage sessions.
+        """
+        hours = max(1, min(720, int(hours or 168)))
+        now = datetime.now(timezone.utc)
+        current_start = now - timedelta(hours=hours)
+        previous_start = current_start - timedelta(hours=hours)
+        location_filter = str(location_name or "").strip() or None
+        light_filter = str(light_id or "").strip() or None
+
+        with self.db.connect() as c:
+            lights = [dict(r) for r in c.execute("""
+                SELECT light_id,circuit_id,name,
+                       COALESCE(location_name,'Ambiente não informado') location_name
+                FROM lca_light_assets
+                WHERE archived_at IS NULL
+                ORDER BY location_name,name
+            """).fetchall()]
+
+            filter_options = {
+                "locations": sorted(
+                    {str(x["location_name"]) for x in lights},
+                    key=lambda x: x.casefold(),
+                ),
+                "circuits": [
+                    {
+                        "light_id": x["light_id"],
+                        "circuit_id": x.get("circuit_id"),
+                        "name": x.get("name") or "Circuito",
+                        "location_name": x.get("location_name") or "Ambiente não informado",
+                    }
+                    for x in lights
+                ],
+            }
+
+            allowed = {
+                x["light_id"]
+                for x in lights
+                if (not location_filter or x["location_name"] == location_filter)
+                and (not light_filter or x["light_id"] == light_filter)
+            }
+
+            rows = [dict(r) for r in c.execute("""
+                SELECT
+                    e.lca_event_id,e.device_id,e.channel_key,e.occurred_at,
+                    e.origin_mode,e.interaction_kind,e.source_entity,
+                    e.source_device_ref,e.source_channel_ref,
+                    d.name device_name,d.position_label device_position,
+                    ch.relationship_type,
+                    COALESCE(ch.light_asset_id,ch.related_light_id) light_id,
+                    l.circuit_id,l.name circuit_name,
+                    COALESCE(l.location_name,'Ambiente não informado') location_name,
+                    COALESCE(ch.name,ch.channel_key,e.source_channel_ref,'Estado') channel_name
+                FROM lca_events e
+                JOIN lca_devices d ON d.device_id=e.device_id
+                LEFT JOIN lca_channels ch
+                  ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+                LEFT JOIN lca_light_assets l
+                  ON l.light_id=COALESCE(ch.light_asset_id,ch.related_light_id)
+                WHERE e.kind='interaction'
+                  AND e.occurred_at>=?
+                  AND e.occurred_at<=?
+                  AND d.status<>'ignored'
+                  AND (e.channel_key IS NULL OR ch.enabled=1)
+                  AND l.archived_at IS NULL
+                ORDER BY e.occurred_at
+            """, (previous_start.isoformat(), now.isoformat())).fetchall()]
+
+        def point_key(row):
+            return (
+                str(row.get("device_id") or ""),
+                str(row.get("channel_key") or row.get("source_channel_ref") or "main"),
+            )
+
+        def point_label(row):
+            position = str(row.get("device_position") or "").strip()
+            device = str(
+                row.get("device_name")
+                or row.get("source_device_ref")
+                or row.get("device_id")
+                or "Ponto"
+            ).strip()
+            channel = str(
+                row.get("channel_name")
+                or row.get("channel_key")
+                or ""
+            ).strip()
+            base = position or device
+            lower = channel.lower()
+            if channel and lower not in {"main", "estado"}:
+                display_channel = (
+                    channel.upper()
+                    if lower.startswith("l") and lower[1:].isdigit()
+                    else channel
+                )
+                return f"{base} · {display_channel}"
+            return base
+
+        def aggregate(period_rows):
+            total = 0
+            role_counts = {}
+            origin_counts = {}
+            point_map = {}
+            circuit_map = {}
+
+            for row in period_rows:
+                lid = row.get("light_id")
+                if not lid or lid not in allowed:
+                    continue
+
+                total += 1
+                role = str(row.get("relationship_type") or "unassigned").lower()
+                if role not in {"direct", "parallel", "scene"}:
+                    role = "other"
+                role_counts[role] = role_counts.get(role, 0) + 1
+
+                origin = self._origin_family(row.get("origin_mode"))
+                origin_counts[origin] = origin_counts.get(origin, 0) + 1
+
+                pkey = point_key(row)
+                p = point_map.setdefault(pkey, {
+                    "device_id": pkey[0],
+                    "channel_key": pkey[1],
+                    "label": point_label(row),
+                    "role": role,
+                    "light_id": lid,
+                    "circuit_id": row.get("circuit_id"),
+                    "circuit_name": row.get("circuit_name") or "Circuito",
+                    "location_name": row.get("location_name") or "Ambiente não informado",
+                    "interactions": 0,
+                    "origin_counts": {
+                        "local": 0, "remote": 0,
+                        "automation": 0, "unknown": 0
+                    },
+                })
+                p["interactions"] += 1
+                p["origin_counts"][origin] += 1
+
+                circuit = circuit_map.setdefault(lid, {
+                    "light_id": lid,
+                    "circuit_id": row.get("circuit_id"),
+                    "name": row.get("circuit_name") or "Circuito",
+                    "location_name": row.get("location_name") or "Ambiente não informado",
+                    "interactions": 0,
+                    "points": {},
+                })
+                circuit["interactions"] += 1
+                cp = circuit["points"].setdefault(pkey, {
+                    "label": p["label"],
+                    "role": role,
+                    "interactions": 0,
+                })
+                cp["interactions"] += 1
+
+            points = []
+            for p in point_map.values():
+                circuit_total = circuit_map.get(
+                    p["light_id"], {}
+                ).get("interactions", 0)
+                p["share_in_circuit_pct"] = round(
+                    p["interactions"] * 100.0 / circuit_total, 1
+                ) if circuit_total else 0.0
+                p["share_overall_pct"] = round(
+                    p["interactions"] * 100.0 / total, 1
+                ) if total else 0.0
+                points.append(p)
+            points.sort(
+                key=lambda x: (-x["interactions"], x["label"].casefold())
+            )
+
+            circuits = []
+            for circuit in circuit_map.values():
+                point_values = list(circuit["points"].values())
+                point_values.sort(
+                    key=lambda x: (-x["interactions"], x["label"].casefold())
+                )
+                dominant = point_values[0] if point_values else None
+                dominant_share = round(
+                    dominant["interactions"] * 100.0 / circuit["interactions"], 1
+                ) if dominant and circuit["interactions"] else 0.0
+                circuits.append({
+                    "light_id": circuit["light_id"],
+                    "circuit_id": circuit["circuit_id"],
+                    "name": circuit["name"],
+                    "location_name": circuit["location_name"],
+                    "interactions": circuit["interactions"],
+                    "point_count": len(point_values),
+                    "dominant_point": dominant["label"] if dominant else None,
+                    "dominant_role": dominant["role"] if dominant else None,
+                    "dominant_share_pct": dominant_share,
+                    "classification": self._preference_classification(
+                        dominant_share
+                    ),
+                    "points": point_values,
+                })
+            circuits.sort(
+                key=lambda x: (
+                    -x["interactions"],
+                    x["location_name"].casefold(),
+                    x["name"].casefold(),
+                )
+            )
+
+            return {
+                "total": total,
+                "role_counts": role_counts,
+                "origin_counts": origin_counts,
+                "points": points,
+                "circuits": circuits,
+            }
+
+        current_rows = [
+            r for r in rows
+            if self._parse_time(r["occurred_at"]) >= current_start
+        ]
+        previous_rows = [
+            r for r in rows
+            if previous_start
+            <= self._parse_time(r["occurred_at"])
+            < current_start
+        ]
+
+        current = aggregate(current_rows)
+        previous = aggregate(previous_rows)
+
+        prev_points = {
+            (x["device_id"], x["channel_key"], x["light_id"]): x
+            for x in previous["points"]
+        }
+        point_trends = []
+        for point in current["points"]:
+            prev = prev_points.get((
+                point["device_id"],
+                point["channel_key"],
+                point["light_id"],
+            ))
+            previous_share = (
+                float(prev["share_in_circuit_pct"]) if prev else 0.0
+            )
+            delta = round(
+                float(point["share_in_circuit_pct"]) - previous_share, 1
+            )
+            point_trends.append({
+                "device_id": point["device_id"],
+                "channel_key": point["channel_key"],
+                "light_id": point["light_id"],
+                "label": point["label"],
+                "circuit_name": point["circuit_name"],
+                "location_name": point["location_name"],
+                "current_share_pct": point["share_in_circuit_pct"],
+                "previous_share_pct": previous_share,
+                "delta_pct_points": delta,
+                "current_interactions": point["interactions"],
+                "previous_interactions": prev["interactions"] if prev else 0,
+            })
+        point_trends.sort(
+            key=lambda x: (
+                -abs(x["delta_pct_points"]),
+                -x["current_interactions"],
+            )
+        )
+
+        def pct(count):
+            return round(
+                count * 100.0 / current["total"], 1
+            ) if current["total"] else 0.0
+
+        direct = current["role_counts"].get("direct", 0)
+        parallel = current["role_counts"].get("parallel", 0)
+        scene = current["role_counts"].get("scene", 0)
+        role_known = direct + parallel + scene
+
+        origin_breakdown = [
+            {
+                "key": key,
+                "value": current["origin_counts"].get(key, 0),
+                "share_pct": pct(current["origin_counts"].get(key, 0)),
+            }
+            for key in ("local", "remote", "automation", "unknown")
+        ]
+        role_breakdown = [
+            {"key": "direct", "value": direct, "share_pct": pct(direct)},
+            {"key": "parallel", "value": parallel, "share_pct": pct(parallel)},
+            {"key": "scene", "value": scene, "share_pct": pct(scene)},
+            {
+                "key": "other",
+                "value": current["role_counts"].get("other", 0),
+                "share_pct": pct(current["role_counts"].get("other", 0)),
+            },
+        ]
+
+        dominant_circuits = [
+            x for x in current["circuits"]
+            if x["classification"] in {"strong", "moderate"}
+        ]
+        strongest = max(
+            current["points"],
+            key=lambda x: (
+                x["interactions"],
+                x["share_in_circuit_pct"],
+            ),
+            default=None,
+        )
+
+        return {
+            "period": {
+                "hours": hours,
+                "start": current_start.isoformat(),
+                "end": now.isoformat(),
+                "previous_start": previous_start.isoformat(),
+                "previous_end": current_start.isoformat(),
+            },
+            "filters": {
+                "location_name": location_filter,
+                "light_id": light_filter,
+            },
+            "filter_options": filter_options,
+            "summary": {
+                "interactions": current["total"],
+                "points_used": len(current["points"]),
+                "circuits_observed": len(current["circuits"]),
+                "dominant_circuits": len(dominant_circuits),
+                "strongest_point": (
+                    strongest["label"] if strongest else None
+                ),
+                "strongest_point_interactions": (
+                    strongest["interactions"] if strongest else 0
+                ),
+                "direct_share_pct": round(
+                    direct * 100.0 / role_known, 1
+                ) if role_known else 0.0,
+                "parallel_share_pct": round(
+                    parallel * 100.0 / role_known, 1
+                ) if role_known else 0.0,
+            },
+            "origin_breakdown": origin_breakdown,
+            "role_breakdown": role_breakdown,
+            "points": current["points"],
+            "circuits": current["circuits"],
+            "trends": point_trends,
+        }
+
     def dashboard(self, hours=24, action_page=1, action_page_size=10):
         since = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
         action_page = max(1, int(action_page or 1))
