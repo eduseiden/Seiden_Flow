@@ -2094,6 +2094,576 @@ class LCARepository:
             "trends": point_trends,
         }
 
+    @staticmethod
+    def _median(values):
+        values = sorted(float(x) for x in values if x is not None)
+        if not values:
+            return 0.0
+        n = len(values)
+        mid = n // 2
+        if n % 2:
+            return values[mid]
+        return (values[mid - 1] + values[mid]) / 2.0
+
+    @classmethod
+    def _mad(cls, values, center=None):
+        values = [float(x) for x in values if x is not None]
+        if not values:
+            return 0.0
+        center = cls._median(values) if center is None else float(center)
+        return cls._median([abs(x - center) for x in values])
+
+    @staticmethod
+    def _confidence_level(score, days_observed=0, samples=0):
+        score = max(0.0, min(1.0, float(score or 0)))
+        if days_observed < 3 or samples < 5:
+            return "learning"
+        if score < 0.45:
+            return "low"
+        if score < 0.70:
+            return "moderate"
+        return "high"
+
+    @classmethod
+    def _behavior_confidence(cls, days_observed, samples, consistency):
+        """Confidence combines observation span, sample size and repeatability."""
+        days_component = min(max(float(days_observed), 0.0) / 14.0, 1.0)
+        sample_component = min(max(float(samples), 0.0) / 30.0, 1.0)
+        consistency_component = max(0.0, min(1.0, float(consistency or 0)))
+        score = (
+            0.35 * days_component
+            + 0.45 * sample_component
+            + 0.20 * consistency_component
+        )
+        level = cls._confidence_level(score, days_observed, samples)
+        return round(score, 3), level
+
+    @staticmethod
+    def _hour_in_window(hour, start, end):
+        if start is None or end is None:
+            return True
+        hour = int(hour) % 24
+        start = int(start) % 24
+        end = int(end) % 24
+        if start == end:
+            return True
+        if start < end:
+            return start <= hour < end
+        return hour >= start or hour < end
+
+    def behavioral_patterns(self, hours=720, location_name=None, light_id=None):
+        """LCA 0.5.0 — learn normal behavior before highlighting deviations.
+
+        The engine uses only canonical circuit sessions. It never writes to
+        operational tables and never changes correlation/state semantics.
+        """
+        hours = max(24, min(720, int(hours or 720)))
+        now = datetime.now(timezone.utc)
+        period_start = now - timedelta(hours=hours)
+        location_filter = str(location_name or "").strip() or None
+        light_filter = str(light_id or "").strip() or None
+
+        with self.db.connect() as c:
+            lights = [dict(r) for r in c.execute("""
+                SELECT light_id,circuit_id,name,
+                       COALESCE(location_name,'Ambiente não informado') location_name
+                FROM lca_light_assets
+                WHERE archived_at IS NULL
+                ORDER BY location_name,name
+            """).fetchall()]
+
+            filter_options = {
+                "locations": sorted(
+                    {str(x["location_name"]) for x in lights},
+                    key=lambda x: x.casefold(),
+                ),
+                "circuits": [
+                    {
+                        "light_id": x["light_id"],
+                        "circuit_id": x.get("circuit_id"),
+                        "name": x.get("name") or "Circuito",
+                        "location_name": x.get("location_name") or "Ambiente não informado",
+                    }
+                    for x in lights
+                ],
+            }
+
+            allowed = {
+                x["light_id"]
+                for x in lights
+                if (not location_filter or x["location_name"] == location_filter)
+                and (not light_filter or x["light_id"] == light_filter)
+            }
+
+            rows = [dict(r) for r in c.execute("""
+                SELECT s.session_id,s.light_id,s.started_at,s.ended_at,
+                       s.duration_seconds,s.status,
+                       l.circuit_id,l.name,
+                       COALESCE(l.location_name,'Ambiente não informado') location_name
+                FROM lca_circuit_sessions s
+                JOIN lca_light_assets l ON l.light_id=s.light_id
+                WHERE l.archived_at IS NULL
+                  AND s.started_at>=?
+                  AND s.started_at<=?
+                ORDER BY s.started_at
+            """, (period_start.isoformat(), now.isoformat())).fetchall()]
+
+        rows = [r for r in rows if r["light_id"] in allowed]
+        for row in rows:
+            row["_start"] = self._parse_time(row["started_at"])
+            row["_end"] = (
+                self._parse_time(row["ended_at"])
+                if row.get("ended_at")
+                else now
+            )
+            row["_observed_seconds"] = max(
+                0, int((row["_end"] - row["_start"]).total_seconds())
+            )
+            row["_local_start"] = row["_start"].astimezone(self.local_timezone)
+
+        if rows:
+            first_observed = min(r["_start"] for r in rows)
+            observation_days = max(
+                1.0, (now - first_observed).total_seconds() / 86400.0
+            )
+        else:
+            observation_days = 0.0
+
+        by_light = {}
+        for row in rows:
+            by_light.setdefault(row["light_id"], []).append(row)
+
+        # -----------------------------------------------------------------
+        # Learned duration profile by circuit.
+        # -----------------------------------------------------------------
+        circuit_profiles = []
+        duration_deviations = []
+        unusual_hours = []
+        open_long_sessions = []
+
+        for lid, sessions in by_light.items():
+            closed = [
+                s for s in sessions
+                if s.get("ended_at") and s["_observed_seconds"] > 0
+            ]
+            durations = [s["_observed_seconds"] for s in closed]
+            median_duration = self._median(durations)
+            mad_duration = self._mad(durations, median_duration)
+
+            if median_duration > 0:
+                spread_ratio = min(
+                    1.0,
+                    (mad_duration * 1.4826) / max(median_duration, 1.0)
+                )
+                consistency = 1.0 - spread_ratio
+            else:
+                consistency = 0.0
+
+            circuit_days = (
+                max(
+                    1.0,
+                    (
+                        now - min(s["_start"] for s in sessions)
+                    ).total_seconds() / 86400.0,
+                )
+                if sessions else 0.0
+            )
+            confidence_score, confidence_level = self._behavior_confidence(
+                circuit_days, len(closed), consistency
+            )
+
+            # Learned prolonged-use threshold: robust and relative to the circuit.
+            # No fixed "2 hour" business rule.
+            robust_sigma = mad_duration * 1.4826
+            if len(durations) >= 5 and median_duration > 0:
+                prolonged_threshold = max(
+                    median_duration * 1.75,
+                    median_duration + 3.0 * robust_sigma,
+                )
+            else:
+                prolonged_threshold = None
+
+            # Typical start-hour window covering 80% of historical sessions.
+            hour_counts = [0] * 24
+            for s in sessions:
+                hour_counts[s["_local_start"].hour] += 1
+            typical_start, typical_end, typical_coverage = (
+                self._typical_hour_window(hour_counts, 0.80)
+                if sessions else (None, None, 0.0)
+            )
+
+            first = sessions[0]
+            profile = {
+                "light_id": lid,
+                "circuit_id": first.get("circuit_id"),
+                "name": first.get("name") or "Circuito",
+                "location_name": first.get("location_name") or "Ambiente não informado",
+                "sessions": len(sessions),
+                "closed_sessions": len(closed),
+                "days_observed": round(circuit_days, 1),
+                "median_duration_seconds": int(median_duration),
+                "mad_duration_seconds": int(mad_duration),
+                "prolonged_threshold_seconds": (
+                    int(prolonged_threshold)
+                    if prolonged_threshold is not None else None
+                ),
+                "typical_start_hour": typical_start,
+                "typical_end_hour": typical_end,
+                "typical_start_coverage_pct": typical_coverage,
+                "consistency": round(consistency, 3),
+                "confidence_score": confidence_score,
+                "confidence_level": confidence_level,
+            }
+            circuit_profiles.append(profile)
+
+            # Only highlight deviations when evidence is at least moderate.
+            if confidence_level in {"moderate", "high"}:
+                recent_cutoff = now - timedelta(hours=24)
+                for s in sessions:
+                    if s["_start"] < recent_cutoff:
+                        continue
+
+                    if (
+                        prolonged_threshold is not None
+                        and s["_observed_seconds"] > prolonged_threshold
+                    ):
+                        item = {
+                            "kind": "prolonged_usage",
+                            "light_id": lid,
+                            "circuit_id": first.get("circuit_id"),
+                            "name": first.get("name") or "Circuito",
+                            "location_name": first.get("location_name")
+                            or "Ambiente não informado",
+                            "started_at": s["started_at"],
+                            "ended_at": s.get("ended_at"),
+                            "duration_seconds": s["_observed_seconds"],
+                            "expected_seconds": int(median_duration),
+                            "threshold_seconds": int(prolonged_threshold),
+                            "confidence_level": confidence_level,
+                            "confidence_score": confidence_score,
+                        }
+                        duration_deviations.append(item)
+                        if not s.get("ended_at"):
+                            open_long_sessions.append(item)
+
+                    if (
+                        typical_start is not None
+                        and typical_end is not None
+                        and len(sessions) >= 8
+                        and not self._hour_in_window(
+                            s["_local_start"].hour,
+                            typical_start,
+                            typical_end,
+                        )
+                    ):
+                        unusual_hours.append({
+                            "kind": "unusual_start_time",
+                            "light_id": lid,
+                            "circuit_id": first.get("circuit_id"),
+                            "name": first.get("name") or "Circuito",
+                            "location_name": first.get("location_name")
+                            or "Ambiente não informado",
+                            "started_at": s["started_at"],
+                            "start_hour": s["_local_start"].hour,
+                            "typical_start_hour": typical_start,
+                            "typical_end_hour": typical_end,
+                            "confidence_level": confidence_level,
+                            "confidence_score": confidence_score,
+                        })
+
+        circuit_profiles.sort(
+            key=lambda x: (
+                {"high": 0, "moderate": 1, "low": 2, "learning": 3}.get(
+                    x["confidence_level"], 4
+                ),
+                -x["sessions"],
+                x["location_name"].casefold(),
+                x["name"].casefold(),
+            )
+        )
+        duration_deviations.sort(
+            key=lambda x: (
+                -x["confidence_score"],
+                -x["duration_seconds"],
+            )
+        )
+        unusual_hours.sort(
+            key=lambda x: (
+                -x["confidence_score"],
+                x["started_at"],
+            ),
+            reverse=True,
+        )
+
+        # -----------------------------------------------------------------
+        # Sequential behavior: A -> B when B starts soon after A.
+        # -----------------------------------------------------------------
+        sequence_window_seconds = 10 * 60
+        sequence_counts = {}
+        source_start_counts = {}
+        ordered = sorted(rows, key=lambda r: r["_start"])
+
+        for i, source in enumerate(ordered):
+            source_start_counts[source["light_id"]] = (
+                source_start_counts.get(source["light_id"], 0) + 1
+            )
+            for target in ordered[i + 1:]:
+                delta = (target["_start"] - source["_start"]).total_seconds()
+                if delta > sequence_window_seconds:
+                    break
+                if target["light_id"] == source["light_id"]:
+                    continue
+                key = (source["light_id"], target["light_id"])
+                entry = sequence_counts.setdefault(key, {
+                    "from_light_id": source["light_id"],
+                    "from_name": source.get("name") or "Circuito",
+                    "from_location": source.get("location_name")
+                    or "Ambiente não informado",
+                    "to_light_id": target["light_id"],
+                    "to_name": target.get("name") or "Circuito",
+                    "to_location": target.get("location_name")
+                    or "Ambiente não informado",
+                    "count": 0,
+                    "deltas": [],
+                })
+                entry["count"] += 1
+                entry["deltas"].append(int(delta))
+                break
+
+        sequences = []
+        for entry in sequence_counts.values():
+            source_total = source_start_counts.get(entry["from_light_id"], 0)
+            probability = (
+                entry["count"] / source_total if source_total else 0.0
+            )
+            median_delta = self._median(entry["deltas"])
+            consistency = (
+                1.0 - min(
+                    1.0,
+                    self._mad(entry["deltas"], median_delta)
+                    / max(median_delta, 60.0),
+                )
+                if entry["deltas"] else 0.0
+            )
+            score, level = self._behavior_confidence(
+                observation_days,
+                entry["count"],
+                consistency,
+            )
+            entry.update({
+                "probability_pct": round(probability * 100.0, 1),
+                "median_delay_seconds": int(median_delta),
+                "confidence_score": score,
+                "confidence_level": level,
+            })
+            if entry["count"] >= 2:
+                sequences.append(entry)
+
+        sequences.sort(
+            key=lambda x: (
+                -x["confidence_score"],
+                -x["probability_pct"],
+                -x["count"],
+            )
+        )
+
+        # -----------------------------------------------------------------
+        # Co-usage: sessions that overlap in time.
+        # -----------------------------------------------------------------
+        pair_stats = {}
+        light_ids = sorted(by_light)
+        for a_index in range(len(light_ids)):
+            for b_index in range(a_index + 1, len(light_ids)):
+                a_id = light_ids[a_index]
+                b_id = light_ids[b_index]
+                a_sessions = by_light[a_id]
+                b_sessions = by_light[b_id]
+                overlap_seconds = 0
+                overlap_count = 0
+
+                i = j = 0
+                a_sorted = sorted(a_sessions, key=lambda x: x["_start"])
+                b_sorted = sorted(b_sessions, key=lambda x: x["_start"])
+
+                while i < len(a_sorted) and j < len(b_sorted):
+                    a = a_sorted[i]
+                    b = b_sorted[j]
+                    overlap_start = max(a["_start"], b["_start"])
+                    overlap_end = min(a["_end"], b["_end"])
+                    overlap = int(
+                        max(0, (overlap_end - overlap_start).total_seconds())
+                    )
+                    if overlap >= 60:
+                        overlap_seconds += overlap
+                        overlap_count += 1
+
+                    if a["_end"] <= b["_end"]:
+                        i += 1
+                    else:
+                        j += 1
+
+                if overlap_count:
+                    a_first = a_sessions[0]
+                    b_first = b_sessions[0]
+                    combined_sessions = min(len(a_sessions), len(b_sessions))
+                    overlap_ratio = overlap_count / max(combined_sessions, 1)
+                    score, level = self._behavior_confidence(
+                        observation_days,
+                        overlap_count,
+                        min(1.0, overlap_ratio),
+                    )
+                    pair_stats[(a_id, b_id)] = {
+                        "a_light_id": a_id,
+                        "a_name": a_first.get("name") or "Circuito",
+                        "a_location": a_first.get("location_name")
+                        or "Ambiente não informado",
+                        "b_light_id": b_id,
+                        "b_name": b_first.get("name") or "Circuito",
+                        "b_location": b_first.get("location_name")
+                        or "Ambiente não informado",
+                        "overlap_count": overlap_count,
+                        "overlap_seconds": overlap_seconds,
+                        "overlap_share_pct": round(
+                            overlap_ratio * 100.0, 1
+                        ),
+                        "confidence_score": score,
+                        "confidence_level": level,
+                    }
+
+        co_usage = list(pair_stats.values())
+        co_usage.sort(
+            key=lambda x: (
+                -x["confidence_score"],
+                -x["overlap_seconds"],
+                -x["overlap_count"],
+            )
+        )
+
+        # -----------------------------------------------------------------
+        # Frequency deviation: compare last 24h with prior complete days.
+        # -----------------------------------------------------------------
+        frequency_deviations = []
+        if observation_days >= 5:
+            recent_cutoff = now - timedelta(hours=24)
+            for lid, sessions in by_light.items():
+                baseline = [s for s in sessions if s["_start"] < recent_cutoff]
+                recent = [s for s in sessions if s["_start"] >= recent_cutoff]
+                if len(baseline) < 5:
+                    continue
+
+                daily = {}
+                for s in baseline:
+                    day = s["_local_start"].date().isoformat()
+                    daily[day] = daily.get(day, 0) + 1
+                counts = list(daily.values())
+                if len(counts) < 3:
+                    continue
+
+                mean_count = sum(counts) / len(counts)
+                variance = (
+                    sum((x - mean_count) ** 2 for x in counts) / len(counts)
+                )
+                std_count = variance ** 0.5
+                threshold = max(
+                    mean_count * 1.75,
+                    mean_count + 2.0 * std_count,
+                )
+                consistency = 1.0 - min(
+                    1.0, std_count / max(mean_count, 1.0)
+                )
+                score, level = self._behavior_confidence(
+                    observation_days,
+                    len(baseline),
+                    consistency,
+                )
+                if (
+                    level in {"moderate", "high"}
+                    and len(recent) > threshold
+                    and len(recent) >= 3
+                ):
+                    first = sessions[0]
+                    frequency_deviations.append({
+                        "kind": "unusual_frequency",
+                        "light_id": lid,
+                        "circuit_id": first.get("circuit_id"),
+                        "name": first.get("name") or "Circuito",
+                        "location_name": first.get("location_name")
+                        or "Ambiente não informado",
+                        "last_24h_sessions": len(recent),
+                        "baseline_daily_average": round(mean_count, 1),
+                        "threshold": round(threshold, 1),
+                        "confidence_score": score,
+                        "confidence_level": level,
+                    })
+
+        frequency_deviations.sort(
+            key=lambda x: (-x["confidence_score"], -x["last_24h_sessions"])
+        )
+
+        # Overall learning confidence is intentionally conservative.
+        closed_total = sum(
+            1 for r in rows if r.get("ended_at") and r["_observed_seconds"] > 0
+        )
+        profile_consistency = (
+            sum(p["consistency"] for p in circuit_profiles)
+            / len(circuit_profiles)
+            if circuit_profiles else 0.0
+        )
+        overall_score, overall_level = self._behavior_confidence(
+            observation_days,
+            closed_total,
+            profile_consistency,
+        )
+
+        deviations = (
+            duration_deviations[:5]
+            + unusual_hours[:5]
+            + frequency_deviations[:5]
+        )
+        deviations.sort(
+            key=lambda x: (
+                -x.get("confidence_score", 0),
+                str(x.get("started_at") or ""),
+            ),
+            reverse=False,
+        )
+        deviations = sorted(
+            deviations,
+            key=lambda x: -x.get("confidence_score", 0),
+        )[:8]
+
+        return {
+            "period": {
+                "hours": hours,
+                "start": period_start.isoformat(),
+                "end": now.isoformat(),
+                "timezone": self.timezone_name,
+            },
+            "filters": {
+                "location_name": location_filter,
+                "light_id": light_filter,
+            },
+            "filter_options": filter_options,
+            "learning": {
+                "days_observed": round(observation_days, 1),
+                "sessions_observed": len(rows),
+                "closed_sessions": closed_total,
+                "confidence_score": overall_score,
+                "confidence_level": overall_level,
+                "circuits_observed": len(by_light),
+            },
+            "profiles": circuit_profiles,
+            "sequences": sequences[:10],
+            "co_usage": co_usage[:10],
+            "deviations": deviations,
+            "open_prolonged": open_long_sessions[:5],
+            "parameters": {
+                "sequence_window_seconds": sequence_window_seconds,
+                "typical_start_coverage_pct": 80,
+                "confidence_basis": "tempo observado + volume + consistência",
+            },
+        }
+
     def dashboard(self, hours=24, action_page=1, action_page_size=10):
         since = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
         action_page = max(1, int(action_page or 1))

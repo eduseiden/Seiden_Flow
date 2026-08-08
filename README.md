@@ -1,4 +1,26 @@
-# Seiden FLOW 0.16.3
+# Seiden FLOW 0.17.0
+
+## LCA 0.5.0 — Behavioral Patterns
+
+A Seiden One passa a aprender **o que é normal no comportamento da iluminação**
+antes de destacar o que está diferente.
+
+A nova camada analítica inclui:
+
+- perfis aprendidos de duração por circuito;
+- sequências recorrentes entre circuitos;
+- circuitos que costumam permanecer ligados juntos;
+- horários típicos de início;
+- identificação conservadora de uso prolongado, horário incomum e frequência incomum;
+- confiança explícita em toda conclusão.
+
+A confiança não depende apenas do número de dias. Ela combina **tempo observado,
+volume de sessões e consistência do padrão**. Enquanto a base ainda é pequena,
+a interface mostra claramente `Padrão ainda em formação`.
+
+O Behavioral Patterns utiliza exclusivamente as sessões canônicas já existentes
+e não altera a lógica estabilizada de ingestão, correlação ou estado do LCA.
+
 
 ## LCA 0.4.2 — Interaction Preference
 

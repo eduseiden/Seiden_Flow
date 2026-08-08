@@ -340,3 +340,33 @@ Principais leituras:
 - comparação com o período anterior de mesma duração.
 
 Endpoint dedicado: `/api/v1/lca/interaction-preference`.
+
+
+## Flow 0.17.0 / LCA 0.5.0 — Behavioral Patterns
+
+O Behavioral Patterns aprende a rotina operacional a partir de
+`lca_circuit_sessions`. A camada é somente leitura e não altera o pipeline
+de ingestão/correlação.
+
+### Confiança
+
+Cada padrão recebe um nível de confiança calculado a partir de três sinais:
+
+1. tempo observado;
+2. quantidade de sessões;
+3. consistência estatística do comportamento.
+
+A interface usa quatro estados: `Em aprendizado`, `Baixa confiança`,
+`Confiança moderada` e `Alta confiança`.
+
+### Capacidades
+
+- perfil robusto de duração por circuito;
+- faixa típica de horário de início;
+- sequências recorrentes em janela de 10 minutos;
+- uso simultâneo por sobreposição de sessões;
+- desvios conservadores de duração, horário e frequência.
+
+Endpoint: `/api/v1/lca/behavioral-patterns`.
+
+Nenhuma tabela nova é criada; database schema permanece 19.

@@ -24,6 +24,12 @@ def create_lca_blueprint(repo,version,ingress_path_fn,timezone_name):
         location_name=request.args.get('location_name')
         light_id=request.args.get('light_id')
         return jsonify(repo.interaction_preference(hours,location_name,light_id))
+    @bp.get('/api/v1/lca/behavioral-patterns')
+    def behavioral_patterns():
+        hours=max(24,min(720,int(request.args.get('hours',720))))
+        location_name=request.args.get('location_name')
+        light_id=request.args.get('light_id')
+        return jsonify(repo.behavioral_patterns(hours,location_name,light_id))
     @bp.get('/api/v1/lca/devices')
     def devices():return jsonify({'items':repo.devices(request.args.get('include_ignored','false').lower()=='true')})
     @bp.get('/api/v1/lca/devices/ignored')

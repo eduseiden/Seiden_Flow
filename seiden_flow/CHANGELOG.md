@@ -1,3 +1,22 @@
+## 0.17.0 — LCA 0.5.0 · Behavioral Patterns
+
+- Nova camada **Behavioral Patterns**: aprende o comportamento normal antes de destacar diferenças.
+- Perfis de duração aprendidos por circuito usando mediana e dispersão robusta; **não existe limite universal de uso prolongado**.
+- Confiança explícita em cada leitura: `Em aprendizado`, `Baixa confiança`, `Confiança moderada` e `Alta confiança`.
+- A confiança combina tempo observado, volume de sessões e consistência do comportamento.
+- Sequências recorrentes de circuitos dentro de uma janela de 10 minutos.
+- Uso conjunto por sobreposição real das sessões canônicas.
+- Horários típicos aprendidos por circuito, cobrindo 80% dos inícios observados.
+- Identificação conservadora de uso prolongado, horário incomum e frequência incomum.
+- Desvios só são apresentados quando existe evidência de confiança moderada ou alta.
+- Estado inicial naturalmente mostra `Padrão ainda em formação` enquanto a base histórica cresce.
+- Filtros por ambiente e circuito.
+- Endpoint dedicado `/api/v1/lca/behavioral-patterns`.
+- Analytics calculados exclusivamente sobre `lca_circuit_sessions`; nenhuma tabela nova e schema permanece 19.
+- Cinco funções críticas de ingestão/correlação preservadas byte a byte.
+- README da raiz atualizado para **Seiden FLOW 0.17.0 / LCA 0.5.0**.
+- DOCS e changelog atualizados.
+
 ## 0.16.3 — LCA 0.4.2 · Interaction Preference
 
 - Adiciona **Preferências de interação** sem alterar a baseline estabilizada de ingestão, correlação, estado canônico ou sessões.
