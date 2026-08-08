@@ -1,3 +1,15 @@
+## 0.16.1.3 — LCA 0.4.0.6 · Interaction Baseline Restore
+
+- Restaura integralmente a semântica de `lighting_interaction` comprovada na LCA 0.3.9.3.
+- Mantém as evoluções atuais de sessões, MQTT State Driver e HA State Driver.
+- Corrige detecção de paralelo considerando `light_asset_id` **ou** `related_light_id`.
+- Impede que `state_transition` crie uma segunda ação quando o circuito possui paralelo virtual.
+- Adiciona supressão analítica de ecos de sincronização: para o mesmo circuito e mesmo estado solicitado, a primeira interação é preservada e mudanças subsequentes de outros pontos dentro da janela causal de 4,5 s não viram novas ações.
+- As mensagens MQTT brutas continuam preservadas em `lca_messages`; apenas a duplicação analítica é descartada.
+- Não altera HTML/CSS/UX do LCA 0.4.0.5.
+- Mantém `0 execuções`, `1 execução`, `2 execuções`.
+- Schema de banco permanece 19.
+
 ## 0.16.1.2 — LCA 0.4.0.5 · Direct/Parallel Regression Fix
 
 - Compara e restaura a semântica comprovada da LCA 0.3.9.3 para circuitos com paralelo virtual.

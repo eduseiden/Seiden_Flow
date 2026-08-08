@@ -701,19 +701,24 @@ class LCARepository:
 
     @staticmethod
     def _circuit_has_parallel(c, light_id):
-        """True when the logical circuit has at least one enabled virtual parallel."""
+        """True when the logical circuit has at least one enabled virtual parallel.
+
+        Supports both current and legacy bindings. Some installations have
+        parallel channels linked through related_light_id, while newer saves
+        also populate light_asset_id.
+        """
         if not light_id:
             return False
         return bool(c.execute("""
             SELECT 1
             FROM lca_channels ch
             JOIN lca_devices d ON d.device_id=ch.device_id
-            WHERE ch.light_asset_id=?
+            WHERE (ch.light_asset_id=? OR ch.related_light_id=?)
               AND ch.enabled=1
               AND ch.relationship_type='parallel'
               AND d.status<>'ignored'
             LIMIT 1
-        """, (light_id,)).fetchone())
+        """, (light_id, light_id)).fetchone())
 
     def _set_circuit_state(self, c, light_id, state, changed_at, source_type, source_event_id, now):
         if not light_id or str(state or '').lower() not in {'on','off'}:
@@ -1082,11 +1087,58 @@ class LCARepository:
         ).fetchone()
         if recent and self._parse_time(recent["occurred_at"]) >= cutoff:
             return False
-        # Interactions describe intention/origin. They NEVER write the
-        # canonical circuit state. Confirmation must come from a real state
-        # transition of the configured direct point.
+
+        # A virtual-parallel synchronization can produce state changes on other
+        # points of the same logical circuit. Node-RED may publish those echoes
+        # as additional lighting_interaction messages. They are evidence of the
+        # same operation, not new human actions.
+        #
+        # Keep the FIRST analytical interaction for a circuit/requested_state
+        # and suppress later interactions from OTHER points inside a short causal
+        # window. The raw MQTT message is still preserved in lca_messages.
+        light_id = None
+        if cfg is not None:
+            light_id = cfg["light_asset_id"] or cfg["related_light_id"]
+
+        if light_id and item.get("requested_state") in {"on", "off"}:
+            echo_cutoff = (
+                self._parse_time(item["occurred_at"]) - timedelta(seconds=4.5)
+            ).isoformat()
+            prior = c.execute("""
+                SELECT e.lca_event_id,e.device_id,e.channel_key,e.occurred_at
+                FROM lca_events e
+                LEFT JOIN lca_channels ch
+                  ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+                WHERE e.kind='interaction'
+                  AND e.requested_state=?
+                  AND (ch.light_asset_id=? OR ch.related_light_id=?)
+                  AND julianday(e.occurred_at) BETWEEN julianday(?) AND julianday(?)
+                ORDER BY julianday(e.occurred_at) DESC
+                LIMIT 1
+            """, (
+                item["requested_state"], light_id, light_id,
+                echo_cutoff, item["occurred_at"],
+            )).fetchone()
+
+            if prior and (
+                prior["device_id"] != item["device_id"]
+                or (prior["channel_key"] or "") != (item.get("channel") or "")
+            ):
+                return False
+        # A direct point event is emitted from the state transition itself.
+        # Therefore it is already a valid effect confirmation, even when the
+        # entity has a free-form name and no separate technical event exists.
+        if cfg is not None and cfg["relationship_type"] == "direct" and item.get("requested_state") in {"on","off"}:
+            event["interaction_status"] = "confirmed"
+            event["effect_confirmed_at"] = item["occurred_at"]
+            event["confirmation_latency_ms"] = 0
+            event["causal_confidence"] = 1.0
         inserted=self._insert_event(c,event,cfg,now)
-        if inserted:
+        if inserted and event.get("interaction_status") == "confirmed" and cfg is not None:
+            self._set_circuit_state(c, cfg["light_asset_id"], item.get("requested_state"),
+                                    event.get("effect_confirmed_at") or item["occurred_at"],
+                                    "confirmed_interaction", item["lca_event_id"], now)
+        elif inserted:
             self._correlate_existing_effect(c,event,cfg,now)
         return inserted
 
@@ -1117,18 +1169,12 @@ class LCARepository:
         c.execute("""UPDATE lca_events SET effect_event_id=?,effect_confirmed_at=?,confirmation_latency_ms=?,interaction_status='confirmed'
             WHERE lca_event_id=?""",(effect_id,effect_at,latency,interaction_id))
         c.execute("""UPDATE lca_events SET cause_type='interaction',cause_id=?,causal_confidence=1.0 WHERE lca_event_id=? AND cause_type IS NULL""",(interaction_id,effect_id))
-        # Restore the proven 0.15.9.3 semantics for virtual parallels:
-        # interaction = logical action/origin; direct state change = effect.
         resolved=c.execute("""SELECT e.requested_state,ch.light_asset_id
-            FROM lca_events e
-            LEFT JOIN lca_channels ch
-              ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+            FROM lca_events e LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
             WHERE e.lca_event_id=?""",(interaction_id,)).fetchone()
-        if resolved and resolved["light_asset_id"] and self._circuit_has_parallel(c, resolved["light_asset_id"]):
-            self._set_circuit_state(
-                c, resolved["light_asset_id"], resolved["requested_state"], effect_at,
-                "confirmed_parallel_interaction", interaction_id, now
-            )
+        if resolved:
+            self._set_circuit_state(c,resolved["light_asset_id"],resolved["requested_state"],effect_at,
+                                    "confirmed_interaction",interaction_id,now)
 
     @staticmethod
     def _learn_scene_effect(c, scene_id, light_id, state, occurred_at, now):
