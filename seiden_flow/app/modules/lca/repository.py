@@ -22,7 +22,6 @@ class LCARepository:
         self._migrate_037_infrastructure_identity()
         self._migrate_0393_canonical_circuit_state()
         self._migrate_040_circuit_usage_sessions()
-        self._migrate_0404_direct_state_authority()
 
     def ensure_schema(self):
         with self.db.connect() as c:
@@ -700,6 +699,22 @@ class LCARepository:
                 (key, "completed", now),
             )
 
+    @staticmethod
+    def _circuit_has_parallel(c, light_id):
+        """True when the logical circuit has at least one enabled virtual parallel."""
+        if not light_id:
+            return False
+        return bool(c.execute("""
+            SELECT 1
+            FROM lca_channels ch
+            JOIN lca_devices d ON d.device_id=ch.device_id
+            WHERE ch.light_asset_id=?
+              AND ch.enabled=1
+              AND ch.relationship_type='parallel'
+              AND d.status<>'ignored'
+            LIMIT 1
+        """, (light_id,)).fetchone())
+
     def _set_circuit_state(self, c, light_id, state, changed_at, source_type, source_event_id, now):
         if not light_id or str(state or '').lower() not in {'on','off'}:
             return
@@ -833,12 +848,26 @@ class LCARepository:
             pending_circuit=self._normalize_identifier(row["circuit_id"])
             if not pending_circuit or not (pending_circuit==circuit or pending_circuit.endswith("_"+circuit) or circuit.endswith("_"+pending_circuit)):
                 continue
-            item=json.loads(row["item_json"]); item["device_id"]=state_item["device_id"]
-            dev=c.execute("SELECT name FROM lca_devices WHERE device_id=?", (state_item["device_id"],)).fetchone()
-            item["device_name"]=dev["name"] if dev else state_item.get("device_name")
-            item["channel"]=state_item.get("channel")
+            item=json.loads(row["item_json"])
+            resolved_source=self._resolve_interaction_source(c,item)
+            if resolved_source:
+                item["device_id"]=resolved_source["device_id"]
+                item["device_name"]=resolved_source["name"]
+                item["channel"]=resolved_source["resolved_channel_key"] or item.get("source_channel") or item.get("channel")
+                interaction_cfg=c.execute(
+                    "SELECT * FROM lca_channels WHERE device_id=? AND channel_key=?",
+                    (item["device_id"],item.get("channel"))
+                ).fetchone()
+            else:
+                # Compatibility fallback. Keep source_device/source_channel metadata;
+                # direct transition identifies the circuit, not necessarily the origin.
+                item["device_id"]=state_item["device_id"]
+                dev=c.execute("SELECT name FROM lca_devices WHERE device_id=?",(state_item["device_id"],)).fetchone()
+                item["device_name"]=dev["name"] if dev else state_item.get("device_name")
+                item["channel"]=state_item.get("channel")
+                interaction_cfg=cfg
             self._record_message(c,item,now)
-            self._process_interaction(c,item,cfg,now)
+            self._process_interaction(c,item,interaction_cfg,now)
             c.execute("DELETE FROM lca_pending_interactions WHERE lca_event_id=?", (row["lca_event_id"],))
             break
 
@@ -944,24 +973,34 @@ class LCARepository:
         )
         self._update_session(c, event, cfg, now)
 
-        # A configured direct point is the physical state source of the logical
-        # circuit, independent of whether that change originated locally, via a
-        # virtual parallel or remotely. This updates the canonical circuit state
-        # and circuit-level usage sessions. Parallel points never do this.
-        if cfg is not None and cfg["relationship_type"] == "direct" and cfg["light_asset_id"]:
+        direct_light_id = (
+            cfg["light_asset_id"]
+            if cfg is not None
+            and cfg["relationship_type"] == "direct"
+            and cfg["light_asset_id"]
+            else None
+        )
+        has_parallel = self._circuit_has_parallel(c, direct_light_id) if direct_light_id else False
+
+        # Standalone direct circuit: the observed direct transition is enough.
+        # This covers MQTT/Zigbee2MQTT and Home Assistant sources equally.
+        if direct_light_id and not has_parallel:
             self._set_circuit_state(
-                c, cfg["light_asset_id"], new_state, item["occurred_at"],
-                "direct_state_transition", event["lca_event_id"], now,
+                c, direct_light_id, new_state, item["occurred_at"],
+                "standalone_direct_state_transition", event["lca_event_id"], now,
             )
 
         if not event.get("cause_type"):
             self._correlate_pending_interaction(c,event,cfg,now)
 
-        # With no explicit Node-RED interaction to explain a Bridge transition,
-        # a direct point transition is itself a comprehended action. Its origin
-        # remains unknown: a state change alone cannot prove a physical press.
-        if item.get("explicit_transition") and cfg is not None and cfg["relationship_type"] == "direct":
-            persisted = c.execute("SELECT cause_type FROM lca_events WHERE lca_event_id=?", (event["lca_event_id"],)).fetchone()
+        # Only standalone direct circuits create a synthetic comprehended action.
+        # Circuits with a virtual parallel wait for the real lighting_interaction,
+        # avoiding the race/double-count introduced after 0.15.9.3.
+        if item.get("explicit_transition") and direct_light_id and not has_parallel:
+            persisted = c.execute(
+                "SELECT cause_type FROM lca_events WHERE lca_event_id=?",
+                (event["lca_event_id"],),
+            ).fetchone()
             if persisted and not persisted["cause_type"]:
                 self._record_direct_transition_action(c, event, cfg, now)
 
@@ -1078,9 +1117,18 @@ class LCARepository:
         c.execute("""UPDATE lca_events SET effect_event_id=?,effect_confirmed_at=?,confirmation_latency_ms=?,interaction_status='confirmed'
             WHERE lca_event_id=?""",(effect_id,effect_at,latency,interaction_id))
         c.execute("""UPDATE lca_events SET cause_type='interaction',cause_id=?,causal_confidence=1.0 WHERE lca_event_id=? AND cause_type IS NULL""",(interaction_id,effect_id))
-        # Confirmation links intention to observed effect. The canonical
-        # circuit state is already written by _process_state() from the direct
-        # point transition and must never be derived from requested_state.
+        # Restore the proven 0.15.9.3 semantics for virtual parallels:
+        # interaction = logical action/origin; direct state change = effect.
+        resolved=c.execute("""SELECT e.requested_state,ch.light_asset_id
+            FROM lca_events e
+            LEFT JOIN lca_channels ch
+              ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+            WHERE e.lca_event_id=?""",(interaction_id,)).fetchone()
+        if resolved and resolved["light_asset_id"] and self._circuit_has_parallel(c, resolved["light_asset_id"]):
+            self._set_circuit_state(
+                c, resolved["light_asset_id"], resolved["requested_state"], effect_at,
+                "confirmed_parallel_interaction", interaction_id, now
+            )
 
     @staticmethod
     def _learn_scene_effect(c, scene_id, light_id, state, occurred_at, now):

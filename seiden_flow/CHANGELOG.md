@@ -1,3 +1,15 @@
+## 0.16.1.2 — LCA 0.4.0.5 · Direct/Parallel Regression Fix
+
+- Compara e restaura a semântica comprovada da LCA 0.3.9.3 para circuitos com paralelo virtual.
+- **Sem paralelo:** `state_transition` do ponto direto atualiza o estado e gera uma única ação com origem desconhecida.
+- **Com paralelo:** `lighting_interaction` mantém a origem/intenção; a transição do ponto direto confirma o efeito; a interação confirmada atualiza o estado lógico.
+- A regra é idêntica para ponto direto MQTT/Zigbee2MQTT e ponto direto Home Assistant.
+- Remove a criação prematura de ação direta sintética em circuitos com paralelo.
+- Corrige a resolução pendente para preservar a identidade real do paralelo sempre que `source_device/source_channel` permitirem.
+- Remove a reconciliação 0.4.0.4 que conflitava com a semântica de circuitos com paralelo.
+- Mantém Cenas: `0 execuções`, `1 execução`, `2 execuções`.
+- Schema permanece 19.
+
 ## 0.16.1.1 — LCA 0.4.0.4 · Canonical State Authority Fix
 
 - Corrige regressão em que `lighting_interaction` podia alterar `lca_circuit_state`.
