@@ -1,4 +1,4 @@
-# Seiden FLOW 0.16.0.2
+# Seiden FLOW 0.16.1
 
 ## LCA 0.4.0.2 — Bridge State Transition Support
 
@@ -339,3 +339,15 @@ Um dispositivo pode expor vários gangs, relés ou tomadas, mas somente os canai
 ## LCA 0.2.1 — ciclo de vida de dispositivos
 
 O LCA permite ignorar, reativar e remover dispositivos. A opção **Ignorar** é indicada quando o Bridge assina um prefixo amplo, mas um dispositivo específico não deve participar da análise. Dispositivos ignorados são descartados antes do registro de mensagens, estados, sessões ou eventos. A remoção pode preservar o histórico e, opcionalmente, bloquear uma nova descoberta.
+
+## LCA — Home Assistant Direct Points
+
+Flow 0.16.1 / LCA 0.4.0.3 aceita `state_transition` do HA State Driver do
+Seiden Bridge.
+
+`Home Assistant entity → Bridge HA State Driver → state_transition → LCA`
+
+Após a primeira transição, a entidade aparece em **Infraestrutura** como fonte
+Home Assistant. Configure seu ponto `Estado` como **Controla uma luz diretamente**,
+defina nome e ambiente e associe normalmente os gangs Zigbee que funcionam como
+paralelos virtuais.

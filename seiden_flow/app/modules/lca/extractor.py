@@ -49,47 +49,117 @@ def extract_lca_events(payload: dict[str,Any], ha_event_type: str|None=None, top
         or topic.rstrip("/").lower()=="seiden/lca/interactions"
     )
 
-    # Bridge 0.14.x MQTT State Driver emits compact transition events instead
-    # of the full Zigbee2MQTT payload. They are already filtered to real
-    # changes, so consume current_state + previous_state directly.
+    # Bridge State Drivers emit compact transition events instead of raw
+    # technology-specific payloads. LCA consumes one canonical transition
+    # contract for MQTT and Home Assistant sources.
     explicit_state_transition = event_type in {"state_transition", "lighting.state_transition"}
     if explicit_state_transition:
-        connector = str(payload.get("connector") or (payload.get("connection") or {}).get("connector") or "").lower()
-        if connector and connector != "mqtt":
-            return []
-        if not topic or not _allowed(topic, topic_prefixes):
-            return []
+        connection = payload.get("connection") if isinstance(payload.get("connection"), dict) else {}
+        connector = str(payload.get("connector") or connection.get("connector") or "").strip().lower()
         operation = payload.get("operation") if isinstance(payload.get("operation"), dict) else {}
-        current_state = _state(merged.get("current_state") if merged.get("current_state") is not None else operation.get("current_state"))
-        previous_state = _state(merged.get("previous_state") if merged.get("previous_state") is not None else operation.get("previous_state"))
-        channel = str(merged.get("channel") or operation.get("channel") or "main").strip().lower() or "main"
+        current_state = _state(
+            merged.get("current_state")
+            if merged.get("current_state") is not None
+            else operation.get("current_state")
+        )
+        previous_state = _state(
+            merged.get("previous_state")
+            if merged.get("previous_state") is not None
+            else operation.get("previous_state")
+        )
         if current_state is None:
             return []
-        leaf = topic.rstrip("/").split("/")[-1]
-        # Preserve the infrastructure identity used by the LCA for ordinary
-        # Zigbee2MQTT messages, avoiding duplicate devices after enabling the
-        # State Driver on an already configured installation.
-        device_id = f"mqtt_{_slug(topic)}"
-        device_name = str(payload.get("device_name") or (payload.get("device") or {}).get("name") or leaf or device_id).strip()
+
         occurred = _utc(merged.get("timestamp") or merged.get("occurred_at"))
-        base_id = str(payload.get("event_id") or "") or "lca-"+hashlib.sha256(json.dumps(payload,sort_keys=True,ensure_ascii=False,default=str).encode()).hexdigest()[:28]
-        common = {
-            "message_id": base_id, "device_id": device_id, "device_name": device_name,
-            "topic": topic, "occurred_at": occurred, "model": None, "manufacturer": None,
-            "payload": payload,
-        }
-        return [{
-            **common,
-            "lca_event_id": f"{base_id}:state:{_slug(channel)}",
-            "kind": "state",
-            "state": current_state,
-            "previous_state": previous_state,
-            "channel": channel,
-            "action": None,
-            "brightness": None,
-            "explicit_transition": True,
-            "transition_source": "bridge_mqtt_state_driver",
-        }]
+        base_id = str(payload.get("event_id") or "") or "lca-" + hashlib.sha256(
+            json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str).encode()
+        ).hexdigest()[:28]
+
+        if connector == "home_assistant":
+            device = payload.get("device") if isinstance(payload.get("device"), dict) else {}
+            entity_id = str(
+                merged.get("entity_id")
+                or device.get("entity_id")
+                or device.get("id")
+                or ""
+            ).strip()
+            if not entity_id:
+                return []
+
+            # One HA entity is one direct state source. The LCA channel is
+            # deliberately technology-neutral and stable.
+            channel = "main"
+            device_id = f"ha_{_slug(entity_id)}"
+            device_name = str(
+                payload.get("device_name")
+                or device.get("name")
+                or entity_id
+            ).strip()
+            common = {
+                "message_id": base_id,
+                "device_id": device_id,
+                "device_name": device_name,
+                "topic": None,
+                "occurred_at": occurred,
+                "model": None,
+                "manufacturer": None,
+                "payload": payload,
+            }
+            return [{
+                **common,
+                "lca_event_id": f"{base_id}:state:main",
+                "kind": "state",
+                "state": current_state,
+                "previous_state": previous_state,
+                "channel": channel,
+                "action": None,
+                "brightness": None,
+                "source_entity": entity_id,
+                "explicit_transition": True,
+                "transition_source": "bridge_ha_state_driver",
+            }]
+
+        if connector in {"", "mqtt"}:
+            if not topic or not _allowed(topic, topic_prefixes):
+                return []
+
+            channel = str(
+                merged.get("channel") or operation.get("channel") or "main"
+            ).strip().lower() or "main"
+            leaf = topic.rstrip("/").split("/")[-1]
+            device_id = f"mqtt_{_slug(topic)}"
+            device_name = str(
+                payload.get("device_name")
+                or (payload.get("device") or {}).get("name")
+                or leaf
+                or device_id
+            ).strip()
+            common = {
+                "message_id": base_id,
+                "device_id": device_id,
+                "device_name": device_name,
+                "topic": topic,
+                "occurred_at": occurred,
+                "model": None,
+                "manufacturer": None,
+                "payload": payload,
+            }
+            return [{
+                **common,
+                "lca_event_id": f"{base_id}:state:{_slug(channel)}",
+                "kind": "state",
+                "state": current_state,
+                "previous_state": previous_state,
+                "channel": channel,
+                "action": None,
+                "brightness": None,
+                "explicit_transition": True,
+                "transition_source": "bridge_mqtt_state_driver",
+            }]
+
+        # Future connectors require an explicit identity mapping before LCA
+        # interprets them as lighting points.
+        return []
     canonical=event_type.startswith("lighting.") or explicit_interaction
     mqtt=("mqtt" in event_type or bool(topic) or str(payload.get("connector") or "").lower()=="mqtt")
     if not canonical and (not mqtt or not _allowed(topic,topic_prefixes)):return []

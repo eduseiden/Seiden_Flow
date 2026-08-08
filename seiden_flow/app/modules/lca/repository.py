@@ -1071,6 +1071,14 @@ class LCARepository:
             channels = c.execute("SELECT * FROM lca_channels WHERE device_id=? ORDER BY channel_key", (did,)).fetchall()
             out = dict(d)
             out["channels"] = [dict(x) for x in channels]
+            for channel in out["channels"]:
+                source_row = c.execute(
+                    """SELECT source_entity FROM lca_events
+                       WHERE device_id=? AND channel_key=? AND source_entity IS NOT NULL
+                       ORDER BY occurred_at DESC LIMIT 1""",
+                    (did, channel.get("channel_key")),
+                ).fetchone()
+                channel["sample_source_entity"] = source_row["source_entity"] if source_row else None
             out["configured_channel_count"] = self._configured_channel_count(c, did)
             out["channel_count"] = len(channels)
             out["monitored_channel_count"] = sum(1 for x in channels if bool(x["enabled"]))

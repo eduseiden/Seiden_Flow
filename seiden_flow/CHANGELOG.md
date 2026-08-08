@@ -1,3 +1,15 @@
+## 0.16.1 — LCA 0.4.0.3 · Home Assistant Direct Points
+
+- LCA passa a consumir `state_transition` do **HA State Driver** do Seiden Bridge 0.15.x.
+- Entidades HA monitoradas pelo Bridge são descobertas como fontes de estado com canal lógico `main`.
+- Uma fonte HA pode ser configurada como **ponto direto** de um circuito.
+- O ponto direto segue como fonte canônica do estado; paralelos virtuais continuam chegando por `seiden/lca/interactions`.
+- Mantém correlação entre intenção do paralelo e mudança do ponto direto, sem dupla contagem.
+- O LCA não consulta o Home Assistant diretamente: continua consumindo somente eventos normalizados do Bridge.
+- UI identifica fontes Home Assistant e apresenta `Estado` no lugar do canal técnico `main`.
+- Corrige `execução` / `execuções` na seção Cenas.
+- Sem alteração de banco: schema permanece 19.
+
 ## 0.16.0.2 — LCA 0.4.0.2: Circuit Usage UX Refinement
 
 - Corrige pluralização de `sessão/sessões` na utilização por circuito.
