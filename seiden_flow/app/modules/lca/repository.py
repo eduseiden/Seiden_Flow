@@ -22,6 +22,7 @@ class LCARepository:
         self._migrate_037_infrastructure_identity()
         self._migrate_0393_canonical_circuit_state()
         self._migrate_040_circuit_usage_sessions()
+        self._migrate_0404_direct_state_authority()
 
     def ensure_schema(self):
         with self.db.connect() as c:
@@ -555,6 +556,150 @@ class LCARepository:
                     current = state
             c.execute("INSERT INTO lca_metadata(key,value,updated_at) VALUES(?,?,?)", (key,"completed",now))
 
+    def _migrate_0404_direct_state_authority(self):
+        """Reconcile current circuit state from direct-point evidence only.
+
+        Earlier LCA builds could let a confirmed interaction write
+        `lca_circuit_state`. That violates the core invariant:
+
+          interaction = intention/origin
+          direct state transition = actual circuit state
+
+        This one-time reconciliation repairs existing installations using the
+        latest configured DIRECT point evidence. It does not rewrite historical
+        interactions and does not destroy closed usage sessions.
+        """
+        key = "lca_direct_state_authority_0404"
+        with self.db.connect() as c:
+            if c.execute("SELECT value FROM lca_metadata WHERE key=?", (key,)).fetchone():
+                return
+
+            now = datetime.now(timezone.utc).isoformat()
+            lights = c.execute(
+                "SELECT light_id FROM lca_light_assets WHERE archived_at IS NULL"
+            ).fetchall()
+
+            for light in lights:
+                light_id = light["light_id"]
+
+                # Prefer an analytical state_change event emitted by the direct
+                # point. This carries the precise transition timestamp.
+                latest = c.execute("""
+                    SELECT e.state,e.occurred_at,e.lca_event_id
+                    FROM lca_events e
+                    JOIN lca_channels ch
+                      ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
+                    JOIN lca_devices d ON d.device_id=ch.device_id
+                    WHERE ch.light_asset_id=?
+                      AND ch.enabled=1
+                      AND ch.relationship_type='direct'
+                      AND d.status<>'ignored'
+                      AND e.kind='state_change'
+                      AND e.state IN ('on','off')
+                    ORDER BY julianday(e.occurred_at) DESC,e.id DESC
+                    LIMIT 1
+                """, (light_id,)).fetchone()
+
+                if latest:
+                    state = str(latest["state"]).lower()
+                    changed_at = latest["occurred_at"]
+                    source_event_id = latest["lca_event_id"]
+                else:
+                    # If no historical event exists, use only the current state
+                    # of the configured direct point. Never infer circuit state
+                    # from a parallel point or from an interaction.
+                    latest = c.execute("""
+                        SELECT cs.state,
+                               COALESCE(cs.last_changed_at,cs.last_observed_at) occurred_at
+                        FROM lca_channels ch
+                        JOIN lca_channel_state cs
+                          ON cs.device_id=ch.device_id AND cs.channel_key=ch.channel_key
+                        JOIN lca_devices d ON d.device_id=ch.device_id
+                        WHERE ch.light_asset_id=?
+                          AND ch.enabled=1
+                          AND ch.relationship_type='direct'
+                          AND d.status<>'ignored'
+                          AND cs.state IN ('on','off')
+                        ORDER BY julianday(COALESCE(cs.last_changed_at,cs.last_observed_at)) DESC
+                        LIMIT 1
+                    """, (light_id,)).fetchone()
+                    if not latest:
+                        continue
+                    state = str(latest["state"]).lower()
+                    changed_at = latest["occurred_at"]
+                    source_event_id = None
+
+                existing = c.execute(
+                    "SELECT first_observed_at FROM lca_circuit_state WHERE light_id=?",
+                    (light_id,),
+                ).fetchone()
+                first_observed_at = (
+                    existing["first_observed_at"] if existing else changed_at
+                )
+
+                c.execute("""
+                    INSERT INTO lca_circuit_state(
+                        light_id,state,first_observed_at,last_changed_at,
+                        source_type,source_event_id,updated_at
+                    )
+                    VALUES(?,?,?,?,?,?,?)
+                    ON CONFLICT(light_id) DO UPDATE SET
+                        state=excluded.state,
+                        last_changed_at=excluded.last_changed_at,
+                        source_type=excluded.source_type,
+                        source_event_id=excluded.source_event_id,
+                        updated_at=excluded.updated_at
+                """, (
+                    light_id, state, first_observed_at, changed_at,
+                    "direct_state_reconciliation_0404", source_event_id, now
+                ))
+
+                # Reconcile only the currently open session. Closed historical
+                # sessions are preserved.
+                open_row = c.execute("""
+                    SELECT session_id,started_at
+                    FROM lca_circuit_sessions
+                    WHERE light_id=? AND status='open'
+                    ORDER BY started_at DESC LIMIT 1
+                """, (light_id,)).fetchone()
+
+                if state == "on" and not open_row:
+                    session_id = f"{light_id}:circuit:{changed_at}"
+                    c.execute("""
+                        INSERT OR IGNORE INTO lca_circuit_sessions(
+                            session_id,light_id,started_at,start_event_id,status,
+                            source_type,created_at,updated_at
+                        ) VALUES(?,?,?,?,?,?,?,?)
+                    """, (
+                        session_id, light_id, changed_at, source_event_id, "open",
+                        "direct_state_reconciliation_0404", now, now
+                    ))
+                elif state == "off" and open_row:
+                    try:
+                        duration = max(
+                            0,
+                            int((
+                                self._parse_time(changed_at)
+                                - self._parse_time(open_row["started_at"])
+                            ).total_seconds()),
+                        )
+                    except Exception:
+                        duration = 0
+                    c.execute("""
+                        UPDATE lca_circuit_sessions
+                        SET ended_at=?,duration_seconds=?,end_event_id=?,
+                            status='closed',updated_at=?
+                        WHERE session_id=?
+                    """, (
+                        changed_at, duration, source_event_id, now,
+                        open_row["session_id"]
+                    ))
+
+            c.execute(
+                "INSERT INTO lca_metadata(key,value,updated_at) VALUES(?,?,?)",
+                (key, "completed", now),
+            )
+
     def _set_circuit_state(self, c, light_id, state, changed_at, source_type, source_event_id, now):
         if not light_id or str(state or '').lower() not in {'on','off'}:
             return
@@ -898,20 +1043,11 @@ class LCARepository:
         ).fetchone()
         if recent and self._parse_time(recent["occurred_at"]) >= cutoff:
             return False
-        # A direct point event is emitted from the state transition itself.
-        # Therefore it is already a valid effect confirmation, even when the
-        # entity has a free-form name and no separate technical event exists.
-        if cfg is not None and cfg["relationship_type"] == "direct" and item.get("requested_state") in {"on","off"}:
-            event["interaction_status"] = "confirmed"
-            event["effect_confirmed_at"] = item["occurred_at"]
-            event["confirmation_latency_ms"] = 0
-            event["causal_confidence"] = 1.0
+        # Interactions describe intention/origin. They NEVER write the
+        # canonical circuit state. Confirmation must come from a real state
+        # transition of the configured direct point.
         inserted=self._insert_event(c,event,cfg,now)
-        if inserted and event.get("interaction_status") == "confirmed" and cfg is not None:
-            self._set_circuit_state(c, cfg["light_asset_id"], item.get("requested_state"),
-                                    event.get("effect_confirmed_at") or item["occurred_at"],
-                                    "confirmed_interaction", item["lca_event_id"], now)
-        elif inserted:
+        if inserted:
             self._correlate_existing_effect(c,event,cfg,now)
         return inserted
 
@@ -942,12 +1078,9 @@ class LCARepository:
         c.execute("""UPDATE lca_events SET effect_event_id=?,effect_confirmed_at=?,confirmation_latency_ms=?,interaction_status='confirmed'
             WHERE lca_event_id=?""",(effect_id,effect_at,latency,interaction_id))
         c.execute("""UPDATE lca_events SET cause_type='interaction',cause_id=?,causal_confidence=1.0 WHERE lca_event_id=? AND cause_type IS NULL""",(interaction_id,effect_id))
-        resolved=c.execute("""SELECT e.requested_state,ch.light_asset_id
-            FROM lca_events e LEFT JOIN lca_channels ch ON ch.device_id=e.device_id AND ch.channel_key=e.channel_key
-            WHERE e.lca_event_id=?""",(interaction_id,)).fetchone()
-        if resolved:
-            self._set_circuit_state(c,resolved["light_asset_id"],resolved["requested_state"],effect_at,
-                                    "confirmed_interaction",interaction_id,now)
+        # Confirmation links intention to observed effect. The canonical
+        # circuit state is already written by _process_state() from the direct
+        # point transition and must never be derived from requested_state.
 
     @staticmethod
     def _learn_scene_effect(c, scene_id, light_id, state, occurred_at, now):

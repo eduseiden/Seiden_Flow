@@ -1,4 +1,4 @@
-# Seiden FLOW 0.16.1 — Documentação técnica
+# Seiden FLOW 0.16.1.1 — Documentação técnica
 
 ## LCA 0.4.0.2 — Bridge State Transition Support
 
@@ -275,3 +275,15 @@ Após a primeira transição, a entidade aparece em **Infraestrutura** como font
 Home Assistant. Configure seu ponto `Estado` como **Controla uma luz diretamente**,
 defina nome e ambiente e associe normalmente os gangs Zigbee que funcionam como
 paralelos virtuais.
+
+
+## LCA — Canonical State Authority
+
+A partir do LCA 0.4.0.4, o estado lógico de um circuito só pode ser alterado
+por uma transição observada no ponto configurado como **direto**.
+
+`lighting_interaction` registra intenção, origem e correlação, mas nunca grava
+o estado canônico do circuito.
+
+Essa regra vale igualmente para pontos diretos vindos do MQTT State Driver e
+do HA State Driver.

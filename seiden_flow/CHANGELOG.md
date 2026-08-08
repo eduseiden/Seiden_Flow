@@ -1,3 +1,15 @@
+## 0.16.1.1 — LCA 0.4.0.4 · Canonical State Authority Fix
+
+- Corrige regressão em que `lighting_interaction` podia alterar `lca_circuit_state`.
+- Reforça a invariável: **interação = intenção/origem; transição do ponto direto = estado real**.
+- `lighting_interaction` nunca mais grava estado canônico do circuito.
+- A confirmação de uma interação continua correlacionando intenção e efeito, mas não altera estado.
+- Adiciona reconciliação única na atualização para reparar estados atuais usando apenas o último estado do ponto direto configurado.
+- Preserva sessões históricas fechadas e reconcilia somente a sessão atualmente aberta.
+- Mantém suporte a MQTT State Driver e HA State Driver.
+- Mantém banco no schema 19.
+- Confirma correção de português em Cenas: `0 execuções`, `1 execução`, `2 execuções`.
+
 ## 0.16.1 — LCA 0.4.0.3 · Home Assistant Direct Points
 
 - LCA passa a consumir `state_transition` do **HA State Driver** do Seiden Bridge 0.15.x.
