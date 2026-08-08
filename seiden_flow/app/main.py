@@ -54,7 +54,7 @@ app=Flask(__name__);app.config['MAX_CONTENT_LENGTH']=settings.webhook_max_body_m
 module_registry=build_module_registry()
 app.register_blueprint(create_platform_blueprint(module_registry,VERSION,SCHEMA_VERSION))
 db=FlowDatabase(os.path.join(settings.config_dir,'seiden_flow.db'),settings.organization_id,settings.organization_name,settings.site_id,settings.site_name)
-lca_repository=LCARepository(db)
+lca_repository=LCARepository(db,settings.timezone)
 ha=HomeAssistantClient();service=FlowService(db,ha,settings.publish_summary_to_home_assistant,settings);service.lca_repository=lca_repository;service.publish_summary();service.start_cleanup(settings.retention_days,settings.cleanup_interval_hours)
 if settings.subscribe_home_assistant_events:
  event_types=[settings.bridge_event,settings.connection_online_event,settings.connection_offline_event]

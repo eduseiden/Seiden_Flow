@@ -12,6 +12,12 @@ def create_lca_blueprint(repo,version,ingress_path_fn,timezone_name):
         page=max(1,int(request.args.get('action_page',1)))
         page_size=max(5,min(50,int(request.args.get('action_page_size',10))))
         return jsonify(repo.dashboard(hours,page,page_size))
+    @bp.get('/api/v1/lca/time-patterns')
+    def time_patterns():
+        hours=max(1,min(720,int(request.args.get('hours',168))))
+        location_name=request.args.get('location_name')
+        light_id=request.args.get('light_id')
+        return jsonify(repo.time_patterns(hours,location_name,light_id))
     @bp.get('/api/v1/lca/devices')
     def devices():return jsonify({'items':repo.devices(request.args.get('include_ignored','false').lower()=='true')})
     @bp.get('/api/v1/lca/devices/ignored')

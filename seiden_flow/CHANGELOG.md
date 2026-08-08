@@ -1,3 +1,19 @@
+## 0.16.2 — LCA 0.4.1 · Time Patterns
+
+- Adiciona **Padrões de uso** sem alterar a baseline lógica congelada da LCA 0.4.0.6.
+- Uso por hora do dia calculado por **tempo efetivamente ligado**, não por quantidade de acionamentos.
+- Sessões que atravessam horas são distribuídas corretamente entre cada faixa horária.
+- Uso por dia da semana com tempo ligado, sessões e participação no período.
+- Heatmap semanal `dia × hora`, calculado no timezone operacional configurado.
+- Calcula faixa típica de uso como a menor janela horária circular que concentra pelo menos 70% do tempo ligado.
+- Identifica horário de pico e participação de dias úteis, finais de semana e período noturno.
+- Comparação entre ambientes: tempo ligado, sessões, duração média, maior sessão e circuitos utilizados.
+- Filtros independentes por ambiente e circuito.
+- Analytics derivados exclusivamente de `lca_circuit_sessions`; nenhuma nova tabela ou alteração de schema.
+- Endpoint dedicado `/api/v1/lca/time-patterns` para evitar acoplar o cálculo ao dashboard principal.
+- Mantém schema de banco 19.
+- README da raiz e documentação do add-on atualizados.
+
 ## 0.16.1.3 — LCA 0.4.0.6 · Interaction Baseline Restore
 
 - Restaura integralmente a semântica de `lighting_interaction` comprovada na LCA 0.3.9.3.

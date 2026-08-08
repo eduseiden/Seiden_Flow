@@ -287,3 +287,21 @@ o estado canônico do circuito.
 
 Essa regra vale igualmente para pontos diretos vindos do MQTT State Driver e
 do HA State Driver.
+
+
+## Flow 0.16.2 / LCA 0.4.1 — Time Patterns
+
+Esta versão parte da baseline estável **Flow 0.16.1.3 / LCA 0.4.0.6** e adiciona
+somente analytics temporais, sem modificar a lógica de ingestão, correlação,
+pontos diretos, paralelos virtuais ou estado canônico.
+
+O LCA passa a responder:
+
+- quando cada circuito costuma ser utilizado;
+- quanto tempo permanece ligado em cada hora do dia;
+- como o uso se distribui pelos dias da semana;
+- qual é a faixa típica e o horário de pico;
+- como os ambientes se comparam em tempo ligado e sessões.
+
+O heatmap e os agregados são calculados a partir das sessões lógicas já
+existentes (`lca_circuit_sessions`) e respeitam o timezone operacional.

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 
 class LCARepository:
@@ -13,8 +14,14 @@ class LCARepository:
     observed.
     """
 
-    def __init__(self, db):
+    def __init__(self, db, timezone_name="UTC"):
         self.db = db
+        self.timezone_name = str(timezone_name or "UTC")
+        try:
+            self.local_timezone = ZoneInfo(self.timezone_name)
+        except Exception:
+            self.timezone_name = "UTC"
+            self.local_timezone = timezone.utc
         self.ensure_schema()
         self._migrate_010_history()
         self._migrate_035_channel_aliases()
@@ -1462,6 +1469,265 @@ class LCARepository:
                           AND (e.channel_key IS NULL OR ch.enabled=1)
                         ORDER BY e.occurred_at DESC LIMIT ?"""
             return [dict(r) for r in c.execute(query, params).fetchall()]
+
+    @staticmethod
+    def _typical_hour_window(hour_seconds, coverage=0.70):
+        """Shortest circular hour window covering the requested usage share."""
+        values = [max(0, int(x or 0)) for x in (hour_seconds or [0] * 24)]
+        if len(values) != 24:
+            values = (values + [0] * 24)[:24]
+        total = sum(values)
+        if total <= 0:
+            return None, None, 0.0
+
+        target = total * float(coverage)
+        doubled = values + values
+        best = None
+        for start in range(24):
+            acc = 0
+            for length in range(1, 25):
+                acc += doubled[start + length - 1]
+                if acc >= target:
+                    candidate = (length, -acc, start)
+                    if best is None or candidate < best:
+                        best = candidate
+                    break
+
+        if best is None:
+            return None, None, 0.0
+        length, neg_acc, start = best
+        end = (start + length) % 24
+        covered = (-neg_acc) * 100.0 / total
+        return start, end, round(covered, 1)
+
+    def _split_interval_into_local_hours(self, start_utc, end_utc):
+        """Yield (weekday, hour, seconds) slices in configured local timezone."""
+        cursor = start_utc
+        while cursor < end_utc:
+            local = cursor.astimezone(self.local_timezone)
+            local_hour_start = local.replace(minute=0, second=0, microsecond=0)
+            next_local = local_hour_start + timedelta(hours=1)
+            boundary = next_local.astimezone(timezone.utc)
+            if boundary <= cursor:
+                boundary = cursor + timedelta(hours=1)
+            segment_end = min(end_utc, boundary)
+            seconds = max(0, int((segment_end - cursor).total_seconds()))
+            if seconds:
+                yield local.weekday(), local.hour, seconds
+            cursor = segment_end
+
+    def time_patterns(self, hours=168, location_name=None, light_id=None):
+        """LCA 0.4.1 Time Patterns derived only from canonical circuit sessions."""
+        hours = max(1, min(720, int(hours or 168)))
+        period_end = datetime.now(timezone.utc)
+        period_start = period_end - timedelta(hours=hours)
+        location_filter = str(location_name or "").strip() or None
+        light_filter = str(light_id or "").strip() or None
+
+        hour_seconds = [0] * 24
+        weekday_seconds = [0] * 7
+        weekday_sessions = [0] * 7
+        heatmap_seconds = [[0] * 24 for _ in range(7)]
+        location_map = {}
+        circuit_map = {}
+
+        with self.db.connect() as c:
+            lights = [dict(r) for r in c.execute("""
+                SELECT light_id,circuit_id,name,COALESCE(location_name,'Ambiente não informado') location_name
+                FROM lca_light_assets
+                WHERE archived_at IS NULL
+                ORDER BY location_name,name
+            """).fetchall()]
+
+            filter_options = {
+                "locations": sorted(
+                    {str(x["location_name"]) for x in lights},
+                    key=lambda x: x.casefold(),
+                ),
+                "circuits": [
+                    {
+                        "light_id": x["light_id"],
+                        "circuit_id": x.get("circuit_id"),
+                        "name": x.get("name") or "Circuito",
+                        "location_name": x.get("location_name") or "Ambiente não informado",
+                    }
+                    for x in lights
+                ],
+            }
+
+            allowed = {
+                x["light_id"]
+                for x in lights
+                if (not location_filter or x["location_name"] == location_filter)
+                and (not light_filter or x["light_id"] == light_filter)
+            }
+
+            sessions = [dict(r) for r in c.execute("""
+                SELECT s.session_id,s.light_id,s.started_at,s.ended_at,s.status,
+                       l.circuit_id,l.name,
+                       COALESCE(l.location_name,'Ambiente não informado') location_name
+                FROM lca_circuit_sessions s
+                JOIN lca_light_assets l ON l.light_id=s.light_id
+                WHERE l.archived_at IS NULL
+                  AND s.started_at<=?
+                  AND (s.ended_at IS NULL OR s.ended_at>=?)
+                ORDER BY s.started_at
+            """, (period_end.isoformat(), period_start.isoformat())).fetchall()]
+
+        observed_sessions = 0
+        total_seconds = 0
+        longest_seconds = 0
+
+        for session in sessions:
+            if session["light_id"] not in allowed:
+                continue
+            raw_start = self._parse_time(session["started_at"])
+            raw_end = self._parse_time(session["ended_at"]) if session.get("ended_at") else period_end
+            observed_start = max(period_start, raw_start)
+            observed_end = min(period_end, raw_end)
+            if observed_end <= observed_start:
+                continue
+
+            observed = max(0, int((observed_end - observed_start).total_seconds()))
+            if observed <= 0:
+                continue
+
+            observed_sessions += 1
+            total_seconds += observed
+            longest_seconds = max(longest_seconds, observed)
+
+            start_local = observed_start.astimezone(self.local_timezone)
+            weekday_sessions[start_local.weekday()] += 1
+
+            location = session.get("location_name") or "Ambiente não informado"
+            loc = location_map.setdefault(location, {
+                "location_name": location,
+                "total_on_seconds": 0,
+                "session_count": 0,
+                "longest_session_seconds": 0,
+                "circuits": set(),
+            })
+            loc["total_on_seconds"] += observed
+            loc["session_count"] += 1
+            loc["longest_session_seconds"] = max(loc["longest_session_seconds"], observed)
+            loc["circuits"].add(session["light_id"])
+
+            circuit = circuit_map.setdefault(session["light_id"], {
+                "light_id": session["light_id"],
+                "circuit_id": session.get("circuit_id"),
+                "name": session.get("name") or "Circuito",
+                "location_name": location,
+                "total_on_seconds": 0,
+                "session_count": 0,
+            })
+            circuit["total_on_seconds"] += observed
+            circuit["session_count"] += 1
+
+            for weekday, hour, seconds in self._split_interval_into_local_hours(observed_start, observed_end):
+                hour_seconds[hour] += seconds
+                weekday_seconds[weekday] += seconds
+                heatmap_seconds[weekday][hour] += seconds
+
+        peak_hour = max(range(24), key=lambda h: hour_seconds[h]) if total_seconds else None
+        typical_start, typical_end, typical_coverage = self._typical_hour_window(hour_seconds, 0.70)
+
+        weekday_total = sum(weekday_seconds[:5])
+        weekend_total = sum(weekday_seconds[5:])
+        night_total = sum(hour_seconds[22:]) + sum(hour_seconds[:6])
+
+        by_hour = [
+            {
+                "hour": h,
+                "seconds": hour_seconds[h],
+                "minutes": round(hour_seconds[h] / 60.0, 1),
+                "share_pct": round(hour_seconds[h] * 100.0 / total_seconds, 1) if total_seconds else 0.0,
+            }
+            for h in range(24)
+        ]
+        by_weekday = [
+            {
+                "weekday": idx,
+                "label": ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"][idx],
+                "seconds": weekday_seconds[idx],
+                "minutes": round(weekday_seconds[idx] / 60.0, 1),
+                "session_count": weekday_sessions[idx],
+                "share_pct": round(weekday_seconds[idx] * 100.0 / total_seconds, 1) if total_seconds else 0.0,
+            }
+            for idx in range(7)
+        ]
+
+        heatmap = [
+            {
+                "weekday": day,
+                "label": ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"][day],
+                "hours": [
+                    {
+                        "hour": hour,
+                        "seconds": heatmap_seconds[day][hour],
+                        "minutes": round(heatmap_seconds[day][hour] / 60.0, 1),
+                    }
+                    for hour in range(24)
+                ],
+            }
+            for day in range(7)
+        ]
+
+        locations = []
+        for item in location_map.values():
+            sessions_count = item["session_count"]
+            locations.append({
+                "location_name": item["location_name"],
+                "total_on_seconds": item["total_on_seconds"],
+                "session_count": sessions_count,
+                "average_session_seconds": int(item["total_on_seconds"] / sessions_count) if sessions_count else 0,
+                "longest_session_seconds": item["longest_session_seconds"],
+                "circuits_used": len(item["circuits"]),
+            })
+        locations.sort(key=lambda x: (-x["total_on_seconds"], x["location_name"].casefold()))
+
+        circuits = list(circuit_map.values())
+        for item in circuits:
+            item["average_session_seconds"] = (
+                int(item["total_on_seconds"] / item["session_count"])
+                if item["session_count"] else 0
+            )
+        circuits.sort(key=lambda x: (-x["total_on_seconds"], str(x["name"]).casefold()))
+
+        insights = {
+            "typical_window_start_hour": typical_start,
+            "typical_window_end_hour": typical_end,
+            "typical_window_coverage_pct": typical_coverage,
+            "peak_hour": peak_hour,
+            "weekday_share_pct": round(weekday_total * 100.0 / total_seconds, 1) if total_seconds else 0.0,
+            "weekend_share_pct": round(weekend_total * 100.0 / total_seconds, 1) if total_seconds else 0.0,
+            "night_share_pct": round(night_total * 100.0 / total_seconds, 1) if total_seconds else 0.0,
+        }
+
+        return {
+            "period": {
+                "hours": hours,
+                "start": period_start.isoformat(),
+                "end": period_end.isoformat(),
+                "timezone": self.timezone_name,
+            },
+            "filters": {
+                "location_name": location_filter,
+                "light_id": light_filter,
+            },
+            "filter_options": filter_options,
+            "summary": {
+                "total_on_seconds": total_seconds,
+                "session_count": observed_sessions,
+                "average_session_seconds": int(total_seconds / observed_sessions) if observed_sessions else 0,
+                "longest_session_seconds": longest_seconds,
+            },
+            "insights": insights,
+            "by_hour": by_hour,
+            "by_weekday": by_weekday,
+            "heatmap": heatmap,
+            "by_location": locations,
+            "by_circuit": circuits,
+        }
 
     def dashboard(self, hours=24, action_page=1, action_page_size=10):
         since = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
