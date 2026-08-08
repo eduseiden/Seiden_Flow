@@ -1,3 +1,18 @@
+## 0.16.2.1 — LCA 0.4.1.1 · UX/UI Refinement
+
+- Refinamento visual da tela administrativa sem alteração da lógica analítica ou de correlação.
+- **Uso por horário:** baseline horizontal fixa; todas as barras partem da mesma linha e os horários ficam sempre abaixo do gráfico.
+- **Heatmap semanal:** escala sequencial de seis níveis com legenda `Menor uso → Maior uso`, sem reutilizar cores de estado ou alerta.
+- **Tempo de uso:** 6 circuitos por padrão, com expansão sob demanda.
+- **Comparação entre ambientes:** Top 5 por padrão, microbarras comparativas e opção de expandir.
+- **Ações recentes:** 5 ações por página como padrão, mantendo paginação completa.
+- **Circuitos monitorados:** circuitos ligados priorizados; 6 itens por padrão e expansão sob demanda.
+- **Configuração:** infraestrutura e cenas recolhidas por padrão em `Gerenciar infraestrutura e cenas`.
+- Atualiza o identificador visual do rodapé para LCA 0.4.1.1.
+- Backend `repository.py` preservado byte a byte em relação ao Flow 0.16.2 / LCA 0.4.1.
+- README da raiz, DOCS e changelog atualizados.
+- Schema permanece 19.
+
 ## 0.16.2 — LCA 0.4.1 · Time Patterns
 
 - Adiciona **Padrões de uso** sem alterar a baseline lógica congelada da LCA 0.4.0.6.

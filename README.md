@@ -381,3 +381,21 @@ O LCA passa a responder:
 
 O heatmap e os agregados são calculados a partir das sessões lógicas já
 existentes (`lca_circuit_sessions`) e respeitam o timezone operacional.
+
+
+## Flow 0.16.2.1 / LCA 0.4.1.1 — UX/UI Refinement
+
+Refinamento da visão administrativa do LCA, sem alterar a baseline analítica
+ou a lógica estabilizada de pontos diretos, paralelos, MQTT State Driver e
+HA State Driver.
+
+A versão melhora hierarquia e densidade visual com:
+
+- baseline fixa no gráfico de uso por horário;
+- heatmap sequencial de intensidade com legenda;
+- progressive disclosure em listas extensas;
+- Top 5 na comparação entre ambientes;
+- 5 ações recentes por página como padrão;
+- configuração administrativa recolhida por padrão.
+
+Toda a profundidade administrativa permanece disponível sob demanda.
