@@ -1,3 +1,19 @@
+## 0.18.0 — TCA 0.6.0 · UX Foundation
+
+- Redesign da experiência TCA sem alterar ingestão, cálculo térmico ou correlação.
+- Nova arquitetura de perspectivas: **Operação | Executivo | Análise**.
+- **Operação**: interface tablet-friendly, leitura em poucos segundos e Exceptions First.
+- **Executivo**: condição agregada da operação e prioridades atuais, sem expor complexidade técnica.
+- **Análise**: preserva toda a profundidade existente do TCA — envelopes, período, porta, energia, recuperação, sessões e configuração.
+- Qualquer ativo pode ser aberto em análise completa independentemente do dispositivo.
+- Layout adaptativo para tablet landscape/portrait, desktop e celular.
+- A perspectiva escolhida é lembrada pelo navegador; o dispositivo influencia apenas a apresentação, nunca limita funcionalidades.
+- Cards de ativos priorizam estado, temperatura, área/perfil, porta, potência e atualização.
+- Sem multi-site: nenhuma nova hierarquia de organização/filiais, agregação central ou lógica corporativa foi adicionada.
+- Nenhuma nova inteligência térmica foi criada nesta etapa; objetivo é validar UX com dados reais antes das próximas evoluções.
+- Backend TCA (`tca.py`, `tca_analytics.py`, `tca_profiles.py`) preservado byte a byte.
+- README raiz, DOCS, changelog e manifest atualizados.
+
 ## 0.17.0.1 — LCA 0.5.0.1 · Bridge State Driver topic compatibility
 
 - Corrige descoberta de dispositivos MQTT normalizados pelo Bridge cujo tópico não começa com `zigbee2mqtt/Interruptor`.

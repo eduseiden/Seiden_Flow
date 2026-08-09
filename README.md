@@ -1,4 +1,21 @@
-# Seiden FLOW 0.17.0.1
+# Seiden FLOW 0.18.0
+
+## TCA 0.6.0 — UX Foundation
+
+A primeira evolução comercial do TCA reorganiza a experiência em três perspectivas
+sobre os mesmos dados: **Operação**, **Executivo** e **Análise**.
+
+A interface é adaptativa e pensada para uso real em tablet, desktop e celular.
+O dispositivo influencia a apresentação, mas nunca remove informação: a análise
+completa de cada ativo permanece sempre acessível.
+
+A visão Operação aplica **Exceptions First** e mostra imediatamente se existe algum
+ativo que exige atenção. A visão Executiva resume a condição atual da operação.
+A visão Análise preserva todos os recursos técnicos e históricos já existentes.
+
+Esta release não adiciona multi-site nem muda a inteligência térmica existente.
+O foco é validar UX/UI com dados reais antes da próxima camada funcional.
+
 
 ## LCA 0.5.0.1 — MQTT State Driver topic compatibility
 

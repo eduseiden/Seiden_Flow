@@ -379,3 +379,17 @@ explícita em `state_driver_topics`. Por isso, o LCA não reaplica
 `lca_topic_prefixes` sobre esse evento canônico.
 
 O filtro de prefixos permanece ativo para MQTT bruto.
+
+
+## Flow 0.18.0 / TCA 0.6.0 — UX Foundation
+
+O TCA passa a ter três perspectivas sobre a mesma base de dados:
+
+- **Operação** — Exceptions First e leitura rápida, otimizada para acompanhamento diário e tablets.
+- **Executivo** — condição agregada e prioridades atuais.
+- **Análise** — experiência completa já existente, com período, envelope térmico, porta, energia, sessões e configuração.
+
+Nenhuma perspectiva restringe outra. Um tablet pode abrir toda a análise, e um desktop
+pode permanecer em Operação. A preferência é lembrada no navegador.
+
+Não há multi-site nesta release e não há mudança no backend analítico do TCA.
