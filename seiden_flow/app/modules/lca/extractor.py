@@ -120,7 +120,14 @@ def extract_lca_events(payload: dict[str,Any], ha_event_type: str|None=None, top
             }]
 
         if connector in {"", "mqtt"}:
-            if not topic or not _allowed(topic, topic_prefixes):
+            # Explicit Bridge State Driver transitions are already allowlisted
+            # by Bridge.state_driver_topics. Do not apply the legacy raw-MQTT
+            # LCA prefix filter again here, otherwise valid devices such as
+            # zigbee2mqtt/ReleCozinhaBancada are discarded simply because their
+            # friendly name does not start with "Interruptor".
+            #
+            # The legacy prefix filter remains active below for raw MQTT payloads.
+            if not topic:
                 return []
 
             channel = str(

@@ -1,4 +1,15 @@
-# Seiden FLOW 0.17.0
+# Seiden FLOW 0.17.0.1
+
+## LCA 0.5.0.1 — MQTT State Driver topic compatibility
+
+O LCA passa a aceitar qualquer tópico MQTT que já tenha sido explicitamente
+normalizado pelo **Seiden Bridge MQTT State Driver** como `state_transition`.
+O filtro legado `lca_topic_prefixes` continua valendo apenas para payloads MQTT brutos.
+
+Isso permite, por exemplo:
+
+`zigbee2mqtt/ReleCozinhaBancada` → Bridge `state_transition` → LCA canal `main`.
+
 
 ## LCA 0.5.0 — Behavioral Patterns
 

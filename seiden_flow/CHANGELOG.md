@@ -1,3 +1,14 @@
+## 0.17.0.1 — LCA 0.5.0.1 · Bridge State Driver topic compatibility
+
+- Corrige descoberta de dispositivos MQTT normalizados pelo Bridge cujo tópico não começa com `zigbee2mqtt/Interruptor`.
+- Eventos canônicos `state_transition` vindos do MQTT State Driver deixam de ser filtrados novamente pelo prefixo legado do LCA.
+- O Bridge já faz a seleção explícita por `state_driver_topics`; portanto o Flow passa a confiar nesse contrato canônico.
+- Payloads MQTT brutos continuam sujeitos a `lca_topic_prefixes`, preservando o filtro histórico e evitando ingestão indiscriminada.
+- Caso validado: `zigbee2mqtt/ReleCozinhaBancada` com canal `main`.
+- `repository.py` permanece byte a byte idêntico à 0.17.0; nenhuma lógica de correlação, sessões ou Behavioral Patterns foi alterada.
+- README da raiz, DOCS e changelog atualizados.
+- Schema permanece 19.
+
 ## 0.17.0 — LCA 0.5.0 · Behavioral Patterns
 
 - Nova camada **Behavioral Patterns**: aprende o comportamento normal antes de destacar diferenças.

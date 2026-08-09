@@ -370,3 +370,12 @@ A interface usa quatro estados: `Em aprendizado`, `Baixa confiança`,
 Endpoint: `/api/v1/lca/behavioral-patterns`.
 
 Nenhuma tabela nova é criada; database schema permanece 19.
+
+
+## Flow 0.17.0.1 / LCA 0.5.0.1 — MQTT State Driver topic compatibility
+
+`state_transition` MQTT vindo do Seiden Bridge já é resultado de uma seleção
+explícita em `state_driver_topics`. Por isso, o LCA não reaplica
+`lca_topic_prefixes` sobre esse evento canônico.
+
+O filtro de prefixos permanece ativo para MQTT bruto.
