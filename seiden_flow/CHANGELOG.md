@@ -1,8 +1,8 @@
-## 0.19.0.2 — Complete i18n Runtime Polish
+## 0.19.0.3 — Residual i18n Audit & Polish
 
-- General PT/EN audit across FLOW, HEA, EEA, TCA and LCA.
+- Final residual PT/EN audit across FLOW, HEA, EEA, TCA and LCA, including backend/profile values rendered in the UI.
 - Expanded runtime translation for compound/dynamic strings, counters, singular/plural, relative time, weekday abbreviations and configuration labels.
-- Fixed residual Portuguese in English LCA views including recent actions, interaction preferences, weekly heatmap, time patterns and utilization.
+- Fixed residual Portuguese in EEA technical context, TCA profile/range/no-data text, LCA configuration counters/buttons, timestamps and technical labels.
 - Preserved user-defined names (assets, locations, circuits and devices) exactly as configured.
 - Presentation-only patch: no analytics, database, API, MQTT, ingestion or business-rule changes.
 

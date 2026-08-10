@@ -1,6 +1,6 @@
-# Seiden FLOW 0.19.0.2
+# Seiden FLOW 0.19.0.3
 
-## 0.19.0.2 — Complete i18n Runtime Polish
+## 0.19.0.3 — Residual i18n Audit & Polish
 
 Patch release focused exclusively on presentation. No analytics, ingestion, MQTT, database, API or module business logic was changed.
 

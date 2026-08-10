@@ -420,6 +420,6 @@ Database schema permanece 19.
 Presentation-only patch over 0.19.0. Language and appearance selectors now follow the same visual convention in all portals. English translation coverage was expanded to dynamic content, tooltips, placeholders and runtime text updates. No analytics, storage, API, MQTT, ingestion or business-rule logic changed.
 
 
-## Flow 0.19.0.2 — Complete i18n Runtime Polish
+## Flow 0.19.0.3 — Complete i18n Runtime Polish
 
 Presentation-only patch over 0.19.0.1. A second full PT/EN audit hardened runtime translation for compound labels, dynamic counters, singular/plural grammar, relative-time phrases, weekday abbreviations, configuration labels and module-generated messages across FLOW, HEA, EEA, TCA and LCA. User-defined entity names remain untouched. No analytics, storage, API, MQTT, ingestion or business-rule logic changed.
