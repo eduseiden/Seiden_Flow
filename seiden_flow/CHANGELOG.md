@@ -1,3 +1,11 @@
+## 0.19.0.2 — Complete i18n Runtime Polish
+
+- General PT/EN audit across FLOW, HEA, EEA, TCA and LCA.
+- Expanded runtime translation for compound/dynamic strings, counters, singular/plural, relative time, weekday abbreviations and configuration labels.
+- Fixed residual Portuguese in English LCA views including recent actions, interaction preferences, weekly heatmap, time patterns and utilization.
+- Preserved user-defined names (assets, locations, circuits and devices) exactly as configured.
+- Presentation-only patch: no analytics, database, API, MQTT, ingestion or business-rule changes.
+
 ## 0.19.0.1 — Global UX Translation & Controls Polish
 
 - UX-only patch; no functional/analytics/backend behavior changes.

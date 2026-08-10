@@ -1,6 +1,6 @@
-# Seiden FLOW 0.19.0.1
+# Seiden FLOW 0.19.0.2
 
-## 0.19.0.1 — Global UX Translation & Controls Polish
+## 0.19.0.2 — Complete i18n Runtime Polish
 
 Patch release focused exclusively on presentation. No analytics, ingestion, MQTT, database, API or module business logic was changed.
 
