@@ -1,3 +1,15 @@
+## 0.19.0 — Global UX Foundation · PT/EN + Light/System/Dark
+
+- Idioma global persistente PT-BR / EN-US em Flow, HEA, EEA, TCA e LCA.
+- Aparência global persistente Light / System / Dark em toda a plataforma.
+- TCA 0.6.0 recebe dark mode sem alteração da lógica térmica ou da arquitetura de perspectivas.
+- LCA passa a compartilhar `seiden-flow-theme`, com migração compatível da preferência anterior.
+- Formatação visual de números e datas passa a respeitar o idioma selecionado.
+- Tradução aplicada também a conteúdo criado dinamicamente no navegador.
+- Nenhuma alteração em APIs, banco, schema, ingestão, MQTT, correlação ou analytics.
+- Backend TCA e lógica LCA preservados; database schema permanece 19.
+- README raiz e DOCS atualizados.
+
 ## 0.18.0 — TCA 0.6.0 · UX Foundation
 
 - Redesign da experiência TCA sem alterar ingestão, cálculo térmico ou correlação.

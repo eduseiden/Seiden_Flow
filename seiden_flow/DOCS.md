@@ -393,3 +393,23 @@ Nenhuma perspectiva restringe outra. Um tablet pode abrir toda a análise, e um 
 pode permanecer em Operação. A preferência é lembrada no navegador.
 
 Não há multi-site nesta release e não há mudança no backend analítico do TCA.
+
+
+## Flow 0.19.0 — Global UX Foundation
+
+A camada visual do Flow passa a compartilhar duas preferências persistentes entre
+o dashboard principal e os portais HEA, EEA, TCA e LCA:
+
+- `seiden-flow-language`: `pt-BR` ou `en-US`;
+- `seiden-flow-theme`: `light`, `system` ou `dark`.
+
+A internacionalização é aplicada exclusivamente na camada de apresentação. Valores
+de domínio, APIs, payloads, banco e lógica analítica não são traduzidos nem alterados.
+Datas e números apresentados pela UI usam o locale escolhido.
+
+O TCA recebe somente a camada visual necessária para dark mode. Suas perspectivas
+Operação, Executivo e Análise, bem como todo o backend térmico, permanecem inalterados.
+O LCA mantém compatibilidade com a antiga chave local `seiden_theme` apenas para
+migração da preferência, passando a persistir o valor na chave global.
+
+Database schema permanece 19.

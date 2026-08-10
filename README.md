@@ -1,4 +1,22 @@
-# Seiden FLOW 0.18.0
+# Seiden FLOW 0.19.0
+
+## Global UX Foundation — PT/EN + Light/System/Dark
+
+Esta release adiciona uma camada transversal de experiência à Seiden One sem alterar
+a lógica operacional ou analítica dos módulos. **Flow, HEA, EEA, TCA e LCA** passam
+a compartilhar preferência global de idioma e aparência.
+
+- idioma global persistente: **PT-BR / EN-US**;
+- aparência global persistente: **Light / System / Dark**;
+- TCA recebe suporte completo a tema escuro, preservando sua UX 0.6.0;
+- LCA passa a usar a mesma chave global de tema dos demais módulos;
+- datas e números apresentados pela interface respeitam o idioma selecionado;
+- textos estáticos e conteúdos renderizados dinamicamente recebem tradução na camada de UI;
+- nenhuma alteração em banco, schema, ingestão, MQTT, correlação, analytics ou regras de negócio.
+
+As versões funcionais dos módulos permanecem inalteradas: **TCA 0.6.0** e **LCA 0.5.0.1**.
+Database Schema permanece **19**.
+
 
 ## TCA 0.6.0 — UX Foundation
 
