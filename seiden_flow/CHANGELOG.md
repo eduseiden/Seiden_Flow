@@ -1,3 +1,11 @@
+## 0.19.0.1 — Global UX Translation & Controls Polish
+
+- UX-only patch; no functional/analytics/backend behavior changes.
+- Standardized language and appearance controls across FLOW, HEA, EEA, TCA and LCA to the FLOW home selector pattern.
+- Completed additional PT/EN coverage for dynamic labels, empty states, tooltips, placeholders, runtime messages and generated dashboard text.
+- Translation observer now also handles runtime text-node changes and tooltip attributes.
+- TCA remains 0.6.0; LCA remains 0.5.0.1; database schema remains 19.
+
 ## 0.19.0 — Global UX Foundation · PT/EN + Light/System/Dark
 
 - Idioma global persistente PT-BR / EN-US em Flow, HEA, EEA, TCA e LCA.

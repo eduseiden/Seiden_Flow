@@ -413,3 +413,8 @@ O LCA mantém compatibilidade com a antiga chave local `seiden_theme` apenas par
 migração da preferência, passando a persistir o valor na chave global.
 
 Database schema permanece 19.
+
+
+## Flow 0.19.0.1 — Translation & Controls Polish
+
+Presentation-only patch over 0.19.0. Language and appearance selectors now follow the same visual convention in all portals. English translation coverage was expanded to dynamic content, tooltips, placeholders and runtime text updates. No analytics, storage, API, MQTT, ingestion or business-rule logic changed.

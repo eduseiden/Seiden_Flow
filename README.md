@@ -1,4 +1,14 @@
-# Seiden FLOW 0.19.0
+# Seiden FLOW 0.19.0.1
+
+## 0.19.0.1 — Global UX Translation & Controls Polish
+
+Patch release focused exclusively on presentation. No analytics, ingestion, MQTT, database, API or module business logic was changed.
+
+- Standardizes PT/EN and Light/System/Dark selectors across FLOW, HEA, EEA, TCA and LCA using the FLOW home visual convention.
+- Expands English coverage for static and dynamically generated UI text, including tooltips, placeholders, empty states, runtime status messages and labels.
+- Improves runtime translation observation so text updated after page load is translated consistently.
+- Keeps TCA at 0.6.0, LCA at 0.5.0.1 and database schema at 19.
+
 
 ## Global UX Foundation — PT/EN + Light/System/Dark
 
