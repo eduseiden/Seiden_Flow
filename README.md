@@ -1,4 +1,17 @@
-# Seiden FLOW 0.19.0.3
+# Seiden FLOW 0.20.0
+
+## 0.20.0 — Infrastructure Thermal Analytics (ITA) 0.1.0
+
+Nova versão funcional do Seiden Flow, construída sobre a baseline bilíngue 0.19.0.3.
+
+- Adiciona **ITA — Infrastructure Thermal Analytics** como quinto módulo analítico.
+- Consome `infrastructure.telemetry_snapshot` do Seiden Bridge.
+- Arquitetura **vendor-agnostic**, baseada em semântica de telemetria (`physical_context`, unidades, saúde, thresholds e relações), sem dependência de IDs específicos de fabricante.
+- Persiste histórico por sistema e sensor e calcula visão térmica consolidada, deltas, potência, ventilação e distância para thresholds nativos.
+- Adiciona portal ITA bilíngue PT/EN e APIs `/api/v1/ita/*`.
+- Database Schema atualizado para **20**.
+- HEA, EEA, TCA, LCA e a fundação global PT/EN + Light/System/Dark da 0.19.0.3 são preservados.
+
 
 ## 0.19.0.3 — Residual i18n Audit & Polish
 

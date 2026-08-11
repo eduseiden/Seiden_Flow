@@ -1,3 +1,13 @@
+# Changelog
+
+## 0.20.0 — ITA 0.1.0
+- Adiciona Infrastructure Thermal Analytics (ITA) como quinto módulo analítico do Seiden Flow.
+- Consome `infrastructure.telemetry_snapshot` do Seiden Bridge e persiste telemetria histórica por sistema e sensor.
+- Modelo vendor-agnostic: classificação por `physical_context`, unidade, saúde, thresholds e relações Redfish; IDs do fabricante são preservados apenas como evidência.
+- Portal bilíngue PT/EN em `/ita`, com visão de portfólio, caminho térmico, deltas, potência, ventilação, thresholds nativos e histórico.
+- APIs `/api/v1/ita/*` para sistemas, portfólio, estado atual e histórico.
+- Schema de banco atualizado para 20.
+
 ## 0.19.0.3 — Residual i18n Audit & Polish
 
 - Final residual PT/EN audit across FLOW, HEA, EEA, TCA and LCA, including backend/profile values rendered in the UI.

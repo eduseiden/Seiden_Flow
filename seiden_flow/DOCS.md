@@ -423,3 +423,18 @@ Presentation-only patch over 0.19.0. Language and appearance selectors now follo
 ## Flow 0.19.0.3 — Complete i18n Runtime Polish
 
 Presentation-only patch over 0.19.0.1. A second full PT/EN audit hardened runtime translation for compound labels, dynamic counters, singular/plural grammar, relative-time phrases, weekday abbreviations, configuration labels and module-generated messages across FLOW, HEA, EEA, TCA and LCA. User-defined entity names remain untouched. No analytics, storage, API, MQTT, ingestion or business-rule logic changed.
+
+## Flow 0.20.0 — ITA 0.1.0
+
+### Infrastructure Thermal Analytics
+O ITA consome eventos canônicos `infrastructure.telemetry_snapshot` produzidos pelo Seiden Bridge. O módulo não depende de fabricante nem de IDs específicos de sensores: classifica telemetria por `physical_context`, unidade, saúde, thresholds e relações do modelo Redfish.
+
+Portal: `/ita`
+
+APIs:
+- `GET /api/v1/ita/systems`
+- `GET /api/v1/ita/portfolio`
+- `GET /api/v1/ita/systems/<system_id>/current`
+- `GET /api/v1/ita/systems/<system_id>/history?hours=24`
+
+A versão 0.1.0 persiste snapshots e medições, calcula deltas Ambiente→Intake, Intake→CPU e Intake→Exhaust, preserva limites nativos, acompanha potência e ventilação e apresenta histórico térmico. Baselines comportamentais e detecção de anomalias serão evoluções posteriores, após formação de histórico suficiente.

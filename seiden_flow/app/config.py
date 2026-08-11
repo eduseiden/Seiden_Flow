@@ -46,6 +46,7 @@ class Settings:
     hea_public_hostname: str = ""
     hea_public_restrict_routes: bool = False
     lca_enabled: bool = True
+    ita_enabled: bool = True
     lca_topic_prefixes: tuple[str, ...] = ("zigbee2mqtt/Interruptor",)
     config_dir: str = "/config"
 
@@ -103,5 +104,6 @@ def load_settings() -> Settings:
         hea_public_hostname=str(raw.get("hea_public_hostname","") or "").strip().lower().rstrip("."),
         hea_public_restrict_routes=_bool(raw.get("hea_public_restrict_routes"),False),
         lca_enabled=_bool(raw.get("lca_enabled"),True),
+        ita_enabled=_bool(raw.get("ita_enabled"),True),
         lca_topic_prefixes=_strings(raw.get("lca_topic_prefixes",["zigbee2mqtt/Interruptor"])),
         config_dir=os.getenv("FLOW_CONFIG_DIR","/config"))
