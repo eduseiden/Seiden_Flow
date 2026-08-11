@@ -1,3 +1,13 @@
+## 0.20.1 — ITA 0.1.1
+- Adiciona Thermal Headroom baseado no próximo threshold superior nativo aplicável à CPU mais quente.
+- Adiciona detecção adaptativa de telemetria stale usando a cadência histórica de snapshots.
+- Adiciona utilização relativa da faixa de potência, spread de ventiladores e tendências térmicas de 1 hora.
+- Adiciona `ita_events` para registrar mudanças de severidade e recuperação de telemetria.
+- Adiciona API `/api/v1/ita/systems/<system_id>/events`.
+- Evolui portal ITA PT/EN com indicadores comerciais e operacionais sem perder evidência técnica.
+- Mantém arquitetura vendor-agnostic; nenhuma regra depende de Dell, HPE, Lenovo ou IDs fixos de sensores.
+- Database Schema atualizado para 21.
+
 # Changelog
 
 ## 0.20.0 — ITA 0.1.0

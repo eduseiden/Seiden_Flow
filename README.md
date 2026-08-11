@@ -1,4 +1,18 @@
-# Seiden FLOW 0.20.0
+# Seiden FLOW 0.20.1
+
+
+## 0.20.1 — Infrastructure Thermal Analytics (ITA) 0.1.1
+
+Evolução do ITA com foco em uso comercial contínuo, operação de datacenters e captação de clientes, preservando o modelo vendor-agnostic.
+
+- Adiciona **Thermal Headroom**, indicando a margem até o próximo threshold térmico nativo aplicável.
+- Adiciona **Telemetry Freshness**, com detecção adaptativa de telemetria desatualizada a partir da cadência observada.
+- Adiciona contexto de **potência** (% da faixa reportada) e **assimetria de ventilação** (mínimo, máximo e spread dos fans).
+- Adiciona **tendência térmica de 1 hora** para CPU, intake, exhaust e ambiente, sem inferências preditivas prematuras.
+- Adiciona histórico de **eventos operacionais** para mudanças de severidade dos sensores e recuperação após lacunas de telemetria.
+- Melhora a visão de portfólio e o detalhe do ativo em PT/EN, inclusive estado de telemetria indisponível/desatualizada.
+- Mantém descoberta por semântica (`physical_context`, unidade, health, thresholds e relações), sem dependência de fabricante ou nomes fixos de sensores.
+- Database Schema atualizado para **21**.
 
 ## 0.20.0 — Infrastructure Thermal Analytics (ITA) 0.1.0
 
