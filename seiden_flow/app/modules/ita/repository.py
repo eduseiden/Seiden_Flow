@@ -33,6 +33,11 @@ class ITARepository:
               previous_state TEXT, current_state TEXT, details_json TEXT NOT NULL DEFAULT '{}', source_event_id TEXT,
               UNIQUE(source_event_id,event_type,sensor_id,current_state));
             CREATE INDEX IF NOT EXISTS idx_ita_events_system_time ON ita_events(system_id,occurred_at DESC);
+            CREATE TABLE IF NOT EXISTS ita_assets(
+              system_id TEXT PRIMARY KEY,status TEXT NOT NULL DEFAULT 'active',
+              status_changed_at TEXT NOT NULL,status_reason TEXT NOT NULL DEFAULT '',
+              updated_at TEXT NOT NULL);
+            CREATE INDEX IF NOT EXISTS idx_ita_assets_status ON ita_assets(status);
             ''')
 
     @staticmethod
@@ -93,12 +98,49 @@ class ITARepository:
         r = c.execute('SELECT occurred_at FROM ita_snapshots WHERE system_id=? ORDER BY occurred_at DESC LIMIT 1', (system_id,)).fetchone()
         return self._parse_dt(r['occurred_at']) if r else None
 
+    @staticmethod
+    def _normalize_asset_status(value):
+        status = str(value or 'active').strip().lower()
+        if status not in {'active', 'hidden', 'decommissioned'}:
+            raise ValueError('invalid_asset_status')
+        return status
+
+    def _ensure_asset(self, c, system_id):
+        now = datetime.now(timezone.utc).isoformat()
+        c.execute('''INSERT OR IGNORE INTO ita_assets(system_id,status,status_changed_at,status_reason,updated_at)
+          VALUES(?,?,?,?,?)''', (system_id, 'active', now, '', now))
+
+    def asset_status(self, system_id):
+        with self.db.connect() as c:
+            r = c.execute('SELECT system_id,status,status_changed_at,status_reason,updated_at FROM ita_assets WHERE system_id=?', (system_id,)).fetchone()
+        if not r:
+            return {'system_id': system_id, 'status': 'active', 'status_changed_at': None, 'status_reason': '', 'updated_at': None}
+        return dict(r)
+
+    def set_asset_status(self, system_id, status, reason=''):
+        status = self._normalize_asset_status(status)
+        reason = str(reason or '').strip()[:500]
+        now = datetime.now(timezone.utc).isoformat()
+        with self.db.connect() as c:
+            self._ensure_asset(c, system_id)
+            previous_row = c.execute('SELECT status FROM ita_assets WHERE system_id=?', (system_id,)).fetchone()
+            previous = previous_row['status'] if previous_row else 'active'
+            c.execute('''UPDATE ita_assets SET status=?,status_changed_at=?,status_reason=?,updated_at=? WHERE system_id=?''',
+                      (status, now, reason, now, system_id))
+            if previous != status:
+                c.execute('''INSERT INTO ita_events(occurred_at,system_id,event_type,severity,sensor_id,sensor_name,previous_state,current_state,details_json,source_event_id)
+                  VALUES(?,?,?,?,?,?,?,?,?,?)''',
+                  (now, system_id, 'asset_status_changed', 'normal', None, None, previous, status,
+                   json.dumps({'reason': reason}), None))
+        return self.asset_status(system_id)
+
     def ingest(self, snapshot: dict) -> int:
         now = datetime.now(timezone.utc).isoformat()
         eid = snapshot.get('event_id')
         if not eid:
             return 0
         with self.db.connect() as c:
+            self._ensure_asset(c, snapshot['system_id'])
             previous_time = self._previous_snapshot_time(c, snapshot['system_id'])
             previous_states = {
                 m['sensor_id']: self._previous_sensor_state(c, snapshot['system_id'], m['sensor_id'])
@@ -130,11 +172,24 @@ class ITARepository:
                     'stale', 'normal', json.dumps({'gap_seconds': round((current_time - previous_time).total_seconds())}), eid))
         return len(snapshot['measurements'])
 
-    def systems(self):
+    def systems(self, view='active'):
+        view = str(view or 'active').strip().lower()
+        if view not in {'active', 'all', 'hidden', 'decommissioned'}:
+            view = 'active'
+        where = ''
+        params = ()
+        if view != 'all':
+            where = " WHERE COALESCE(a.status,'active')=?"
+            params = (view,)
         with self.db.connect() as c:
-            rows = c.execute('''SELECT s.system_id,s.system_name,s.connection_id,s.connection_name,s.connector,s.occurred_at
-              FROM ita_snapshots s JOIN (SELECT system_id,MAX(occurred_at) mx FROM ita_snapshots GROUP BY system_id) x
-              ON s.system_id=x.system_id AND s.occurred_at=x.mx ORDER BY s.system_name''').fetchall()
+            rows = c.execute(f'''SELECT s.system_id,s.system_name,s.connection_id,s.connection_name,s.connector,s.occurred_at,
+              COALESCE(a.status,'active') asset_status,a.status_changed_at,a.status_reason
+              FROM ita_snapshots s
+              JOIN (SELECT system_id,MAX(occurred_at) mx FROM ita_snapshots GROUP BY system_id) x
+              ON s.system_id=x.system_id AND s.occurred_at=x.mx
+              LEFT JOIN ita_assets a ON a.system_id=s.system_id
+              {where}
+              ORDER BY s.system_name''', params).fetchall()
         return [dict(r) for r in rows]
 
     def _latest_measurements(self, system_id):
@@ -240,7 +295,7 @@ class ITARepository:
 
         fan_spread = round(max(fans) - min(fans), 1) if len(fans) >= 2 else None
         return {
-            'system': {'system_id': snap['system_id'], 'system_name': snap['system_name'], 'connection_id': snap['connection_id'], 'connection_name': snap['connection_name'], 'connector': snap['connector'], 'last_seen': snap['occurred_at']},
+            'system': {'system_id': snap['system_id'], 'system_name': snap['system_name'], 'connection_id': snap['connection_id'], 'connection_name': snap['connection_name'], 'connector': snap['connector'], 'last_seen': snap['occurred_at'], **self.asset_status(system_id)},
             'state': state,
             'freshness': freshness,
             'ambient_c': ambient,
@@ -268,16 +323,23 @@ class ITARepository:
             'measurements': items,
         }
 
-    def portfolio(self):
+    def portfolio(self, view='active'):
         out = []
-        for s in self.systems():
+        for s in self.systems(view):
             cur = self.current(s['system_id'])
             if cur:
                 out.append(cur)
         counts = {'normal': 0, 'attention': 0, 'critical': 0, 'stale': 0}
         for x in out:
             counts[x['state']] = counts.get(x['state'], 0) + 1
-        return {'items': out, 'counts': counts, 'total': len(out), 'updated_at': datetime.now(timezone.utc).isoformat()}
+        with self.db.connect() as c:
+            asset_rows = c.execute('''SELECT COALESCE(a.status,'active') status,COUNT(*) count
+              FROM (SELECT DISTINCT system_id FROM ita_snapshots) s
+              LEFT JOIN ita_assets a ON a.system_id=s.system_id GROUP BY COALESCE(a.status,'active')''').fetchall()
+        asset_counts = {'active': 0, 'hidden': 0, 'decommissioned': 0}
+        for r in asset_rows:
+            asset_counts[r['status']] = r['count']
+        return {'items': out, 'counts': counts, 'asset_counts': asset_counts, 'view': view, 'total': len(out), 'updated_at': datetime.now(timezone.utc).isoformat()}
 
     def history(self, system_id, hours=24):
         hours = max(1, min(int(hours), 8760))

@@ -1,4 +1,19 @@
-# Seiden FLOW 0.20.1
+# Seiden FLOW 0.20.2
+
+
+## 0.20.2 — Infrastructure Thermal Analytics (ITA) 0.1.2
+
+Evolução do ITA com **gestão de ciclo de vida dos ativos**, preservando integralmente a telemetria histórica.
+
+- Adiciona status de ativo: **Ativo**, **Oculto** e **Descomissionado**.
+- A visão operacional mostra **Ativos** por padrão e permite alternar para Todos, Ocultos ou Descomissionados.
+- Ocultar ou descomissionar um sistema **não apaga snapshots, medições ou eventos**.
+- Permite registrar motivo/observação para a alteração de status.
+- Registra mudanças de status no histórico de eventos do ITA.
+- Nova API de gestão: `GET/POST /api/v1/ita/systems/<system_id>/asset-status`.
+- Telemetria recebida continua sendo armazenada para ativos ocultos/descomissionados; o status não é reativado automaticamente.
+- Mantém arquitetura vendor-agnostic e toda a lógica analítica da ITA 0.1.1.
+- Database Schema atualizado para **22**.
 
 
 ## 0.20.1 — Infrastructure Thermal Analytics (ITA) 0.1.1

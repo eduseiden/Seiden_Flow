@@ -1,3 +1,14 @@
+## 0.20.2 — ITA 0.1.2
+- Adiciona `ita_assets` para gestão não destrutiva do ciclo de vida dos sistemas monitorados.
+- Status suportados: `active`, `hidden` e `decommissioned`; histórico ITA é sempre preservado.
+- Portfólio passa a exibir ativos por padrão e aceita filtros de visualização por status.
+- Adiciona `GET/POST /api/v1/ita/systems/<system_id>/asset-status`.
+- Portal PT/EN permite alterar status e registrar motivo/observação sem apagar telemetria.
+- Mudanças de status são registradas em `ita_events` como `asset_status_changed`.
+- Telemetria nova não reativa automaticamente ativos ocultos ou descomissionados.
+- Mantém ITA vendor-agnostic e preserva HEA, EEA, TCA, LCA e demais fluxos.
+- Database Schema atualizado para 22.
+
 ## 0.20.1 — ITA 0.1.1
 - Adiciona Thermal Headroom baseado no próximo threshold superior nativo aplicável à CPU mais quente.
 - Adiciona detecção adaptativa de telemetria stale usando a cadência histórica de snapshots.

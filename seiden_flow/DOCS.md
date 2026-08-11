@@ -438,3 +438,8 @@ APIs:
 - `GET /api/v1/ita/systems/<system_id>/history?hours=24`
 
 A versão 0.1.0 persiste snapshots e medições, calcula deltas Ambiente→Intake, Intake→CPU e Intake→Exhaust, preserva limites nativos, acompanha potência e ventilação e apresenta histórico térmico. Baselines comportamentais e detecção de anomalias serão evoluções posteriores, após formação de histórico suficiente.
+
+
+## Flow 0.20.2 — ITA 0.1.2 · Asset Lifecycle
+
+O ITA passa a separar a existência histórica do ativo de sua visibilidade operacional. Um sistema pode ser `active`, `hidden` ou `decommissioned` sem qualquer exclusão de snapshots, measurements ou eventos. A visão padrão do portfólio retorna apenas ativos `active`; filtros permitem consultar todos os estados. Alterações de status são auditadas em `ita_events`. Telemetria posterior continua sendo persistida e não reativa o ativo automaticamente. Database schema: 22.
