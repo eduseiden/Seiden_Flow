@@ -4,20 +4,45 @@ from typing import Any
 TEMP_UNITS={"cel","c","celsius","degc","°c"}
 POWER_UNITS={"w","watt","watts"}
 PERCENT_UNITS={"%","percent","pct"}
+BYTE_UNITS={"b","byte","bytes","by"}
+SECOND_UNITS={"s","sec","second","seconds"}
 
 
 def _norm_unit(v:Any)->str:
     return str(v or '').strip().lower()
 
 
+def _tokens(item:dict)->str:
+    return ' '.join(str(item.get(k) or '') for k in ('id','name','physical_context')).strip().lower()
+
+
 def _metric_kind(item:dict)->str:
+    """Classifica por semântica, sem depender do fabricante.
+
+    IDs e nomes são usados como pistas quando o protocolo não fornece uma
+    taxonomia tão rica quanto Redfish. O valor original continua preservado.
+    """
     unit=_norm_unit(item.get('units'))
     ctx=str(item.get('physical_context') or '').strip().lower()
-    name=str(item.get('name') or '').lower()
-    sid=str(item.get('id') or '').lower()
+    t=_tokens(item)
     if unit in TEMP_UNITS:return 'temperature'
     if unit in POWER_UNITS:return 'power'
-    if unit in PERCENT_UNITS and ('fan' in name or 'fan' in sid or ctx=='fan'):return 'fan_speed'
+    if unit in PERCENT_UNITS:
+        if 'fan' in t or ctx=='fan':return 'fan_speed'
+        if 'swap' in t:return 'swap_used_pct'
+        if 'memory' in t or 'ram' in t:return 'memory_used_pct'
+        if 'disk' in t or 'storage' in t or 'filesystem' in t:return 'storage_used_pct'
+        if 'cpu' in t:return 'cpu_used_pct'
+        return 'utilization_pct'
+    if unit in BYTE_UNITS:
+        if ('available' in t or 'free' in t) and ('memory' in t or 'ram' in t):return 'memory_available_bytes'
+        if ('available' in t or 'free' in t) and ('disk' in t or 'storage' in t):return 'storage_available_bytes'
+        if ('network' in t or ctx=='network') and ('rx' in t or 'received' in t):return 'network_rx_bytes'
+        if ('network' in t or ctx=='network') and ('tx' in t or 'transmitted' in t):return 'network_tx_bytes'
+        return 'bytes'
+    if unit in SECOND_UNITS and ('uptime' in t or ctx=='system'):return 'uptime_seconds'
+    if unit=='load' or 'load average' in t or t.startswith('load') or 'system load' in t:return 'load'
+    if unit in {'count','items'} and ('process' in t or ctx=='system'):return 'process_count'
     return 'other'
 
 

@@ -426,7 +426,7 @@ Presentation-only patch over 0.19.0.1. A second full PT/EN audit hardened runtim
 
 ## Flow 0.20.1 — ITA 0.1.0
 
-### Infrastructure Thermal Analytics
+### Infrastructure Telemetry Analytics
 O ITA consome eventos canônicos `infrastructure.telemetry_snapshot` produzidos pelo Seiden Bridge. O módulo não depende de fabricante nem de IDs específicos de sensores: classifica telemetria por `physical_context`, unidade, saúde, thresholds e relações do modelo Redfish.
 
 Portal: `/ita`
@@ -443,3 +443,8 @@ A versão 0.1.0 persiste snapshots e medições, calcula deltas Ambiente→Intak
 ## Flow 0.20.2 — ITA 0.1.2 · Asset Lifecycle
 
 O ITA passa a separar a existência histórica do ativo de sua visibilidade operacional. Um sistema pode ser `active`, `hidden` ou `decommissioned` sem qualquer exclusão de snapshots, measurements ou eventos. A visão padrão do portfólio retorna apenas ativos `active`; filtros permitem consultar todos os estados. Alterações de status são auditadas em `ita_events`. Telemetria posterior continua sendo persistida e não reativa o ativo automaticamente. Database schema: 22.
+
+
+## Flow 0.21.0 — ITA 0.2.0 · Adaptive Infrastructure Telemetry
+
+O ITA passa a representar telemetria de infraestrutura de forma adaptativa. O portal detecta as capacidades presentes no snapshot e apresenta somente os domínios aplicáveis: compute, memória, storage, rede, térmica, energia/refrigeração e disponibilidade. Fontes Redfish e Linux podem coexistir no mesmo portfólio. Thresholds nativos continuam prioritários; guardrails do Flow são aplicados apenas quando a fonte não fornece limites e somente para métricas percentuais amplamente interpretáveis.

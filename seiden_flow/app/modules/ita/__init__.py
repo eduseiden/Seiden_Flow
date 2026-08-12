@@ -1,1 +1,1 @@
-"""Infrastructure Thermal Analytics (ITA)."""
+"""Infrastructure Telemetry Analytics (ITA)."""

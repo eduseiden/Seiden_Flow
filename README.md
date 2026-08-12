@@ -1,5 +1,20 @@
-# Seiden FLOW 0.20.2
+# Seiden FLOW 0.21.0
 
+
+## 0.21.0 — Infrastructure Telemetry Analytics (ITA) 0.2.0
+
+Evolução estrutural do ITA para uma camada de observabilidade adaptativa de infraestrutura, mantendo a sigla e ampliando o escopo além da telemetria térmica.
+
+- Renomeia **ITA** para **Infrastructure Telemetry Analytics**.
+- Interface passa a ser **capability-aware**: mostra apenas os blocos que a fonte realmente fornece.
+- Suporta, na mesma visão, Redfish físico e telemetria Linux/VM sem preencher campos inexistentes com cartões vazios.
+- Categorias adaptativas: Compute, Memória, Storage, Rede, Térmica, Energia/Refrigeração e Disponibilidade.
+- Cards principais são escolhidos conforme as capacidades do ativo.
+- Adiciona guardrails conservadores para memória, swap, storage e CPU percentual quando a fonte não traz thresholds nativos.
+- Mantém thresholds nativos como evidência prioritária e preserva integralmente histórico e ciclo de vida dos ativos.
+- Freshness inicial para conectores Linux respeita cadência de coleta mais espaçada, evitando falso stale antes da aprendizagem da cadência.
+- Mantém arquitetura vendor-agnostic e compatibilidade com `infrastructure.telemetry_snapshot`.
+- Database Schema permanece **22** (sem migração destrutiva).
 
 ## 0.20.2 — Infrastructure Thermal Analytics (ITA) 0.1.2
 

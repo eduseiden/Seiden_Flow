@@ -85,14 +85,49 @@ class ITARepository:
             return 'attention'
         return 'normal'
 
+    @staticmethod
+    def _software_severity(item):
+        """Guardrails genéricos quando a fonte não fornece thresholds nativos.
+
+        Aplicados somente a métricas percentuais amplamente interpretáveis.
+        Thresholds nativos, quando presentes, continuam tendo precedência e
+        são sempre preservados como evidência.
+        """
+        kind = str(item.get('metric_kind') or '')
+        try:
+            reading = float(item.get('reading'))
+        except (TypeError, ValueError):
+            return 'normal'
+        limits = {
+            'memory_used_pct': (80.0, 95.0),
+            'swap_used_pct': (60.0, 85.0),
+            'storage_used_pct': (80.0, 90.0),
+            'cpu_used_pct': (85.0, 95.0),
+        }
+        if kind not in limits:
+            return 'normal'
+        attention, critical = limits[kind]
+        if reading >= critical:
+            return 'critical'
+        if reading >= attention:
+            return 'attention'
+        return 'normal'
+
+    @classmethod
+    def _item_severity(cls, item):
+        native = cls._severity(item.get('health'), float(item.get('reading')), item.get('thresholds') or {})
+        software = cls._software_severity(item)
+        rank = {'normal': 0, 'attention': 1, 'critical': 2}
+        return native if rank.get(native, 0) >= rank.get(software, 0) else software
+
     def _previous_sensor_state(self, c, system_id, sensor_id):
-        r = c.execute('''SELECT reading,health,thresholds_json FROM ita_measurements
+        r = c.execute('''SELECT sensor_id,sensor_name,physical_context,metric_kind,reading,units,health,thresholds_json FROM ita_measurements
           WHERE system_id=? AND sensor_id=? ORDER BY occurred_at DESC LIMIT 1''', (system_id, sensor_id)).fetchone()
         if not r:
             return None
         d = dict(r)
-        thresholds = json.loads(d.get('thresholds_json') or '{}')
-        return self._severity(d.get('health'), float(d.get('reading')), thresholds)
+        d['thresholds'] = json.loads(d.pop('thresholds_json') or '{}')
+        return self._item_severity(d)
 
     def _previous_snapshot_time(self, c, system_id):
         r = c.execute('SELECT occurred_at FROM ita_snapshots WHERE system_id=? ORDER BY occurred_at DESC LIMIT 1', (system_id,)).fetchone()
@@ -156,7 +191,7 @@ class ITARepository:
             for m in snapshot['measurements']:
                 c.execute('INSERT OR IGNORE INTO ita_measurements(event_id,occurred_at,system_id,sensor_id,sensor_name,physical_context,metric_kind,reading,units,health,state,range_min,range_max,thresholds_json,related_items_json,odata_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (
                     eid, snapshot['occurred_at'], snapshot['system_id'], m['sensor_id'], m['sensor_name'], m['physical_context'], m['metric_kind'], m['reading'], m['units'], m['health'], m['state'], m.get('range_min'), m.get('range_max'), json.dumps(m.get('thresholds', {})), json.dumps(m.get('related_items', [])), m.get('odata_id')))
-                current = self._severity(m['health'], m['reading'], m.get('thresholds', {}))
+                current = self._item_severity(m)
                 previous = previous_states.get(m['sensor_id'])
                 if previous is not None and previous != current:
                     c.execute('''INSERT OR IGNORE INTO ita_events(occurred_at,system_id,event_type,severity,sensor_id,sensor_name,previous_state,current_state,details_json,source_event_id)
@@ -203,7 +238,7 @@ class ITARepository:
             d = dict(r)
             d['thresholds'] = json.loads(d.pop('thresholds_json') or '{}')
             d['related_items'] = json.loads(d.pop('related_items_json') or '[]')
-            d['severity'] = self._severity(d['health'], d['reading'], d['thresholds'])
+            d['severity'] = self._item_severity(d)
             items.append(d)
         return dict(snap), items
 
@@ -224,12 +259,13 @@ class ITARepository:
                 diffs.append(d)
         return median(diffs) if diffs else None
 
-    def _telemetry_freshness(self, system_id, occurred_at):
+    def _telemetry_freshness(self, system_id, occurred_at, connector=None):
         last = self._parse_dt(occurred_at)
         if not last:
-            return {'stale': True, 'age_seconds': None, 'expected_interval_seconds': None, 'stale_after_seconds': 180}
+            return {'stale': True, 'age_seconds': None, 'expected_interval_seconds': None, 'stale_after_seconds': 1800 if str(connector).lower()=='linux' else 180}
         cadence = self._cadence_seconds(system_id)
-        stale_after = max(90, int((cadence or 60) * 3))
+        default_cadence = 900 if str(connector).lower() == 'linux' else 60
+        stale_after = max(90, int((cadence or default_cadence) * 3))
         age = max(0, (datetime.now(timezone.utc) - last).total_seconds())
         return {'stale': age > stale_after, 'age_seconds': round(age), 'expected_interval_seconds': round(cadence) if cadence else None, 'stale_after_seconds': stale_after}
 
@@ -263,6 +299,51 @@ class ITARepository:
         direction = 'rising' if delta >= 2 else ('falling' if delta <= -2 else 'stable')
         return {'direction': direction, 'delta_c': delta}
 
+    @staticmethod
+    def _find_kind(items, kind):
+        vals = [x for x in items if x.get('metric_kind') == kind]
+        return vals[0] if vals else None
+
+    @staticmethod
+    def _measurement_value(items, kind):
+        item = ITARepository._find_kind(items, kind)
+        return float(item['reading']) if item else None
+
+    @staticmethod
+    def _capabilities(items):
+        kinds = {x.get('metric_kind') for x in items}
+        return {
+            'thermal': 'temperature' in kinds,
+            'power': 'power' in kinds,
+            'cooling': 'fan_speed' in kinds,
+            'compute': bool(kinds & {'load','cpu_used_pct','process_count'}),
+            'memory': bool(kinds & {'memory_used_pct','memory_available_bytes','swap_used_pct'}),
+            'storage': bool(kinds & {'storage_used_pct','storage_available_bytes'}),
+            'network': bool(kinds & {'network_rx_bytes','network_tx_bytes'}),
+            'availability': bool(kinds & {'uptime_seconds'}),
+        }
+
+    @staticmethod
+    def _primary_cards(capabilities, values, thermal_headroom):
+        cards = []
+        if capabilities.get('thermal'):
+            if values.get('intake_c') is not None: cards.append({'key':'intake','value':values['intake_c'],'format':'temperature'})
+            if values.get('cpu_c') is not None: cards.append({'key':'hottest_cpu','value':values['cpu_c'],'format':'temperature'})
+            if thermal_headroom: cards.append({'key':'thermal_headroom','value':thermal_headroom.get('headroom'),'format':'temperature_delta','note_key':thermal_headroom.get('label')})
+            if values.get('power_w') is not None: cards.append({'key':'power','value':values['power_w'],'format':'power'})
+            if len(cards) < 4 and values.get('fan_avg_pct') is not None: cards.append({'key':'fan_avg','value':values['fan_avg_pct'],'format':'percent'})
+        else:
+            priorities = [
+                ('memory_used','memory_used_pct','percent'),('swap_used','swap_used_pct','percent'),
+                ('storage_used','storage_used_pct','percent'),('cpu_usage','cpu_used_pct','percent'),
+                ('load_1m','load_1m','number'),('uptime','uptime_seconds','duration'),
+                ('processes','process_count','integer')]
+            for label, key, fmt in priorities:
+                if values.get(key) is not None:
+                    cards.append({'key':label,'value':values[key],'format':fmt})
+                if len(cards) >= 4: break
+        return cards[:4]
+
     def current(self, system_id):
         snap, items = self._latest_measurements(system_id)
         if not snap:
@@ -282,44 +363,49 @@ class ITARepository:
             power_util = round((float(power_item['reading']) / float(power_item['range_max'])) * 100, 1)
         fan_items = [x for x in items if x['metric_kind'] == 'fan_speed']
         fans = [x['reading'] for x in fan_items]
+
         rank = {'normal': 0, 'attention': 1, 'critical': 2}
-        state = max((x['severity'] for x in items), key=lambda v: rank[v], default='normal')
+        state = max((x['severity'] for x in items), key=lambda v: rank.get(v, 0), default='normal')
         if any(str(x['state']).lower() not in {'enabled', 'unknown'} for x in items):
             state = 'attention' if state == 'normal' else state
-        freshness = self._telemetry_freshness(system_id, snap['occurred_at'])
+        freshness = self._telemetry_freshness(system_id, snap['occurred_at'], snap.get('connector'))
         if freshness['stale']:
             state = 'stale'
 
         def delta(a, b):
             return round(a - b, 2) if a is not None and b is not None else None
+        def value(kind):
+            x = self._find_kind(items, kind)
+            return float(x['reading']) if x else None
+        def find_load(token):
+            candidates=[x for x in items if x.get('metric_kind')=='load' and token in (str(x.get('sensor_id',''))+' '+str(x.get('sensor_name',''))).lower()]
+            return float(candidates[0]['reading']) if candidates else None
 
         fan_spread = round(max(fans) - min(fans), 1) if len(fans) >= 2 else None
+        capabilities = self._capabilities(items)
+        thermal_headroom = self._next_upper_threshold(hottest_cpu)
+        values = {
+            'ambient_c': ambient, 'intake_c': intake, 'cpu_c': cpu, 'exhaust_c': exhaust,
+            'power_w': power, 'power_utilization_pct': power_util,
+            'fan_avg_pct': round(sum(fans) / len(fans), 1) if fans else None,
+            'fan_spread_pct': fan_spread, 'fan_min_pct': min(fans) if fans else None, 'fan_max_pct': max(fans) if fans else None,
+            'memory_used_pct': value('memory_used_pct'), 'memory_available_bytes': value('memory_available_bytes'),
+            'swap_used_pct': value('swap_used_pct'), 'storage_used_pct': value('storage_used_pct'),
+            'storage_available_bytes': value('storage_available_bytes'), 'cpu_used_pct': value('cpu_used_pct'),
+            'uptime_seconds': value('uptime_seconds'), 'process_count': value('process_count'),
+            'network_rx_bytes': value('network_rx_bytes'), 'network_tx_bytes': value('network_tx_bytes'),
+            'load_1m': find_load('1m') or find_load('load1'), 'load_5m': find_load('5m') or find_load('load5'),
+            'load_15m': find_load('15m') or find_load('load15'),
+        }
+        values['primary_cards'] = self._primary_cards(capabilities, values, thermal_headroom)
+
         return {
             'system': {'system_id': snap['system_id'], 'system_name': snap['system_name'], 'connection_id': snap['connection_id'], 'connection_name': snap['connection_name'], 'connector': snap['connector'], 'last_seen': snap['occurred_at'], **self.asset_status(system_id)},
-            'state': state,
-            'freshness': freshness,
-            'ambient_c': ambient,
-            'intake_c': intake,
-            'cpu_c': cpu,
-            'exhaust_c': exhaust,
-            'power_w': power,
-            'power_utilization_pct': power_util,
-            'fan_avg_pct': round(sum(fans) / len(fans), 1) if fans else None,
-            'fan_spread_pct': fan_spread,
-            'fan_min_pct': min(fans) if fans else None,
-            'fan_max_pct': max(fans) if fans else None,
-            'thermal_headroom': self._next_upper_threshold(hottest_cpu),
-            'deltas': {
-                'ambient_to_intake_c': delta(intake, ambient),
-                'intake_to_cpu_c': delta(cpu, intake),
-                'intake_to_exhaust_c': delta(exhaust, intake),
-            },
-            'trends': {
-                'cpu': self._trend(system_id, 'CPU'),
-                'intake': self._trend(system_id, 'Intake'),
-                'exhaust': self._trend(system_id, 'Exhaust'),
-                'ambient': self._trend(system_id, 'Room'),
-            },
+            'state': state, 'freshness': freshness, 'capabilities': capabilities,
+            **values,
+            'thermal_headroom': thermal_headroom,
+            'deltas': {'ambient_to_intake_c': delta(intake, ambient),'intake_to_cpu_c': delta(cpu, intake),'intake_to_exhaust_c': delta(exhaust, intake)},
+            'trends': {'cpu': self._trend(system_id, 'CPU'),'intake': self._trend(system_id, 'Intake'),'exhaust': self._trend(system_id, 'Exhaust'),'ambient': self._trend(system_id, 'Room')},
             'measurements': items,
         }
 

@@ -1,3 +1,11 @@
+## 0.21.0 — ITA 0.2.0
+- Renomeia ITA para Infrastructure Telemetry Analytics.
+- Portal passa a adaptar cards e seções às capabilities reais de cada ativo.
+- Adiciona semântica para compute, memória, storage, rede, uptime, processos e telemetria Linux, preservando Redfish térmico/potência/fans.
+- Adiciona guardrails não destrutivos para percentuais comuns quando não há thresholds nativos.
+- Melhora freshness inicial de fontes Linux com polling espaçado.
+- Mantém Asset Lifecycle e histórico; Database Schema permanece 22.
+
 ## 0.20.2 — ITA 0.1.2
 - Adiciona `ita_assets` para gestão não destrutiva do ciclo de vida dos sistemas monitorados.
 - Status suportados: `active`, `hidden` e `decommissioned`; histórico ITA é sempre preservado.
