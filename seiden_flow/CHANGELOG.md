@@ -1,107 +1,14 @@
-## 0.22.1.5 — ITA 0.3.1.4 · Zigbee Device-Level Alert Details
-
-- Alertas Zigbee passam a exibir devices afetados individualmente.
-- Mostra friendly name quando enviado pela Pulse, com fallback para device_key/IEEE.
-- Exibe tipo do device, IEEE e modelo quando disponíveis.
-- Missing, Offline e New recebem identificação visual distinta.
-- Se houver muitos devices, exibe até 5 por grupo e resume o restante com `+ N`.
-- A seção Zigbee também mostra a lista de devices afetados enquanto houver alerta ativo.
-- Dados vêm dos `details` dos alertas já armazenados no Receiver; não exige alteração no Receiver.
-- Backend ITA, APIs, lifecycle e banco permanecem inalterados.
-
-## 0.22.1.4 — ITA 0.3.1.3 · Observability UX
-
-- Hierarquia operacional coerente para Redfish, Linux e CAST/Pulse.
-- Alertas/problemas ativos aparecem no topo somente quando existem.
-- Saúde operacional e freshness da telemetria são exibidas separadamente.
-- Freshness ganha leitura relativa (`há 20 s`, `há 4 min`).
-- Gestão do ativo vai para o final e fica recolhida por padrão.
-- Diagnóstico técnico permanece recolhível.
-- Visão geral é ordenada automaticamente por necessidade de atenção:
-  crítico → atenção → stale/offline → normal.
-- Cards/capacidades sem dados deixam de ocupar espaço no detalhe Pulse.
-- Backend, lifecycle, API Fleet e banco permanecem inalterados.
-
-## 0.22.1.3 — ITA 0.3.1.2 · Pulse Asset Lifecycle
-
-- Gestão do ativo disponível também para CAST/Pulse.
-- Status: Ativo / Oculto / Descomissionado.
-- Filtro geral passa a aplicar lifecycle também aos ativos Pulse.
-- Exclusão definitiva disponível em Zona de risco, com confirmação pelo Pulse ID.
-- Exclusão é executada no Receiver; se o Pulse continuar enviando, o ativo reaparece.
-- Lifecycle Redfish/Linux existente permanece inalterado.
-- Default de instalação nova do Receiver corrigido para porta privada 8788.
-
-## 0.22.1.2 — ITA 0.3.1.1 · UX/UI Polish
-
-- Capabilities do CAST consolidadas e deduplicadas em linguagem de produto.
-- `started/stopped` traduzidos para estados operacionais legíveis.
-- Contadores de rede renomeados para `Tráfego acumulado`.
-- CPU/memória dos Apps explicitamente identificadas como métricas agregadas.
-- Fonte de temperatura da CPU indicada como `sensor.cpu_temperatura`.
-- Apps ativos ganham prioridade visual sobre o total.
-- Diagnóstico/performance da Pulse movido para bloco recolhível, reduzindo ruído.
-- Estrutura Unified Assets, APIs, backend e demais módulos preservados.
-
-## 0.22.1.1 — Startup Memory Fix
-
-- Corrige pico de memória em `_migrate_legacy()`.
-- Substitui `fetchall()` da tabela `events` por processamento em lotes de 250 registros.
-- Preserva a ordem e a lógica de reconciliação.
-- Adiciona logs de progresso a cada 1000 eventos.
-- ITA 0.3.1 Unified Assets e demais módulos permanecem inalterados.
-
-## 0.22.1 — ITA 0.3.1 · Unified Assets
-
-- Servidores Bridge/Redfish/Linux e CAST/Pulse na mesma visão `/ita`.
-- Removido o link visual Fleet.
-- CAST com Host Health: CPU temperature, uptime e storage.
-- Zigbee Inventory Integrity, Apps, backups, runtime e alertas no detalhe CAST.
-- Receiver indisponível não derruba a visão de ativos locais.
-- Filtros de lifecycle continuam aplicados aos ativos locais.
-- Rotas e APIs Fleet preservadas por compatibilidade.
-- Nenhuma lógica dos demais módulos foi removida.
-
-## 0.22.0 — ITA 0.3.0 · Fleet
-
-- Nova visão central `/ita/fleet`.
-- Proxy seguro Flow → Telemetry Receiver: token de leitura permanece server-side.
-- KPIs de frota: CASTs, Healthy, Degraded, Offline e alertas ativos.
-- Resumo por CAST: último contato, versão Pulse, disco, Zigbee, Apps e backup.
-- Detalhe por CAST com plataforma, Zigbee Inventory Integrity, alertas e performance de coleta.
-- Configuração explícita de Receiver URL, read token, timeout e refresh.
-- Baseline Flow 0.21.0 / ITA 0.2.0 preservada; nenhuma lógica dos demais módulos foi removida.
-
-## 0.21.0 — ITA 0.2.0
-- Renomeia ITA para Infrastructure Telemetry Analytics.
-- Portal passa a adaptar cards e seções às capabilities reais de cada ativo.
-- Adiciona semântica para compute, memória, storage, rede, uptime, processos e telemetria Linux, preservando Redfish térmico/potência/fans.
-- Adiciona guardrails não destrutivos para percentuais comuns quando não há thresholds nativos.
-- Melhora freshness inicial de fontes Linux com polling espaçado.
-- Mantém Asset Lifecycle e histórico; Database Schema permanece 22.
-
-## 0.20.2 — ITA 0.1.2
-- Adiciona `ita_assets` para gestão não destrutiva do ciclo de vida dos sistemas monitorados.
-- Status suportados: `active`, `hidden` e `decommissioned`; histórico ITA é sempre preservado.
-- Portfólio passa a exibir ativos por padrão e aceita filtros de visualização por status.
-- Adiciona `GET/POST /api/v1/ita/systems/<system_id>/asset-status`.
-- Portal PT/EN permite alterar status e registrar motivo/observação sem apagar telemetria.
-- Mudanças de status são registradas em `ita_events` como `asset_status_changed`.
-- Telemetria nova não reativa automaticamente ativos ocultos ou descomissionados.
-- Mantém ITA vendor-agnostic e preserva HEA, EEA, TCA, LCA e demais fluxos.
-- Database Schema atualizado para 22.
-
-## 0.20.1 — ITA 0.1.1
-- Adiciona Thermal Headroom baseado no próximo threshold superior nativo aplicável à CPU mais quente.
-- Adiciona detecção adaptativa de telemetria stale usando a cadência histórica de snapshots.
-- Adiciona utilização relativa da faixa de potência, spread de ventiladores e tendências térmicas de 1 hora.
-- Adiciona `ita_events` para registrar mudanças de severidade e recuperação de telemetria.
-- Adiciona API `/api/v1/ita/systems/<system_id>/events`.
-- Evolui portal ITA PT/EN com indicadores comerciais e operacionais sem perder evidência técnica.
-- Mantém arquitetura vendor-agnostic; nenhuma regra depende de Dell, HPE, Lenovo ou IDs fixos de sensores.
-- Database Schema atualizado para 21.
-
 # Changelog
+
+## 0.22.1.6 / ITA 0.3.1.5 — Linux Host UX
+
+- ITA passa a reconhecer `linux_host` recebido pela Seiden Pulse Linux.
+- Detalhe Linux usa o `latest_snapshot.telemetry.linux` já exposto pelo Receiver 0.2.3.1.
+- Remove cards HAOS/CAST sem sentido em hosts Linux (Apps, Home Assistant Core, Supervisor).
+- Exibe CPU, load, memória, swap, armazenamento, uptime, processos, rede, sistema e serviços conforme capabilities.
+- Temperatura só aparece quando realmente disponível.
+- Humaniza capabilities Linux e amplia o subtítulo do ITA para infraestrutura conectada à Seiden One.
+- Backend, APIs, banco e lifecycle preservados.
 
 ## 0.20.0 — ITA 0.1.0
 - Adiciona Infrastructure Thermal Analytics (ITA) como quinto módulo analítico do Seiden Flow.

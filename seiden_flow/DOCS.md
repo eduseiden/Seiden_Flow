@@ -553,7 +553,7 @@ Hierarquia padrão do detalhe de um ativo:
 
 A visão geral ordena ativos automaticamente pela necessidade de atenção.
 
-## Flow 0.22.1.5 — ITA 0.3.1.4 · Zigbee Device-Level Alert Details
+## Flow 0.22.1.6 — ITA 0.3.1.5 · Zigbee Device-Level Alert Details
 
 Compatível com Pulse 0.1.1.4.
 

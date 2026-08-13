@@ -114,7 +114,7 @@ html[data-theme="light"]{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#64748b
   <div id="detailBody"></div>
 </div>
 
-<div class="footer">Seiden Flow {{ version }} · ITA 0.3.1.4 · <span data-i18n="agnostic">Modelo adaptativo e agnóstico de fabricante</span></div>
+<div class="footer">Seiden Flow {{ version }} · ITA 0.3.1.5 · <span data-i18n="agnostic">Modelo adaptativo e agnóstico de fabricante</span></div>
 </div>
 
 <script>
@@ -126,13 +126,13 @@ let currentId=null,currentSource=null;
 const T={
 'pt-BR':{
 title:'Infrastructure Telemetry Analytics',
-subtitle:'Saúde operacional unificada de servidores, hosts e ambientes Seiden CAST.',
+subtitle:'Saúde operacional unificada de servidores, hosts e infraestrutura conectada à Seiden One.',
 refresh:'Atualizar',infra:'Infraestrutura monitorada',back:'← Visão geral',
 agnostic:'Modelo adaptativo e agnóstico de fabricante',systems:'Ativos',normal:'Normais',attention:'Atenção',critical:'Críticos',stale:'Sem telemetria',
 latest:'Última telemetria',details:'Abrir análise',state:'Estado',noData:'Nenhuma telemetria ITA recebida ainda.',updated:'Atualizado',
 viewActive:'Ativos',viewAll:'Todos',viewHidden:'Ocultos',viewDecommissioned:'Descomissionados',
 normalState:'Normal',attentionState:'Atenção',criticalState:'Crítico',staleState:'Telemetria desatualizada',
-capabilities:'Capacidades detectadas',compute:'Compute',memory:'Memória',storage:'Storage',network:'Rede',thermal:'Térmica',
+capabilities:'Capacidades detectadas',compute:'Compute',memory:'Memória',storage:'Armazenamento',network:'Rede',thermal:'Térmica',
 powerCooling:'Energia e refrigeração',cooling:'Refrigeração',power:'Potência',availability:'Disponibilidade',
 intake:'Entrada de ar',hottest_cpu:'CPU mais quente',thermal_headroom:'Margem térmica',fan_avg:'Ventilação média',
 memory_used:'Memória usada',swap_used:'Swap usado',storage_used:'Disco usado',cpu_usage:'CPU usada',load_1m:'Load 1 min',
@@ -156,11 +156,11 @@ expected:'Esperados',offline:'offline',unknown:'unknown',newDevices:'novos',back
 activeAlerts:'Alertas ativos',noAlerts:'Nenhum alerta ativo.',totalApps:'Total',runningApps:'Ativos',stoppedApps:'Parados',
 cpuRuntime:'Runtime CPU',memoryRuntime:'Memória do runtime',networkRuntime:'Tráfego acumulado',ioRuntime:'I/O acumulado',
 pulseVersion:'Pulse',lastHeartbeat:'Heartbeat',lastSnapshot:'Snapshot',tenant:'Tenant',hostname:'Hostname',diskLife:'Vida útil consumida',
-collectionPerformance:'Diagnóstico da Pulse',source:'Origem',cpuAppsAggregated:'CPU agregada dos Apps',memoryAppsAggregated:'Memória agregada dos Apps',trafficAccumulated:'Tráfego acumulado',ioAccumulated:'I/O acumulado',running:'Em execução',stopped:'Parado',tempSource:'Fonte: sensor.cpu_temperatura',operationalApps:'Operação dos Apps',pulseDiagnostics:'Diagnóstico da Pulse',capHost:'Host',capRuntime:'Runtime',capApps:'Apps',capBackup:'Backup',capCpuTemp:'Temperatura CPU',capZigbee:'Zigbee'
+collectionPerformance:'Diagnóstico da Pulse',source:'Origem',cpuAppsAggregated:'CPU agregada dos Apps',memoryAppsAggregated:'Memória agregada dos Apps',trafficAccumulated:'Tráfego acumulado',ioAccumulated:'I/O acumulado',running:'Em execução',stopped:'Parado',tempSource:'Fonte: sensor.cpu_temperatura',operationalApps:'Operação dos Apps',pulseDiagnostics:'Diagnóstico da Pulse',capHost:'Host',capRuntime:'Runtime',capApps:'Apps',capBackup:'Backup',capCpuTemp:'Temperatura CPU',capZigbee:'Zigbee',capLinux:'Linux',capServices:'Serviços',capConnectivity:'Conectividade',linuxSystem:'Sistema Linux',linuxServices:'Serviços',linuxNoSwap:'Não configurado',distribution:'Distribuição',kernel:'Kernel',architecture:'Arquitetura',vendor:'Fabricante',model:'Modelo',logicalCpus:'CPUs lógicas'
 },
 'en-US':{
 title:'Infrastructure Telemetry Analytics',
-subtitle:'Unified operational health for servers, hosts, and Seiden CAST environments.',
+subtitle:'Unified operational health for servers, hosts, and infrastructure connected to Seiden One.',
 refresh:'Refresh',infra:'Monitored infrastructure',back:'← Overview',
 agnostic:'Adaptive, vendor-agnostic analytical model',systems:'Assets',normal:'Normal',attention:'Attention',critical:'Critical',stale:'No telemetry',
 latest:'Latest telemetry',details:'Open analysis',state:'State',noData:'No ITA telemetry received yet.',updated:'Updated',
@@ -190,7 +190,7 @@ expected:'Expected',offline:'offline',unknown:'unknown',newDevices:'new',backups
 activeAlerts:'Active alerts',noAlerts:'No active alerts.',totalApps:'Total',runningApps:'Running',stoppedApps:'Stopped',
 cpuRuntime:'Runtime CPU',memoryRuntime:'Runtime memory',networkRuntime:'Cumulative traffic',ioRuntime:'Cumulative I/O',
 pulseVersion:'Pulse',lastHeartbeat:'Heartbeat',lastSnapshot:'Snapshot',tenant:'Tenant',hostname:'Hostname',diskLife:'Life consumed',
-collectionPerformance:'Pulse diagnostics',source:'Source',cpuAppsAggregated:'Aggregated Apps CPU',memoryAppsAggregated:'Aggregated Apps memory',trafficAccumulated:'Cumulative traffic',ioAccumulated:'Cumulative I/O',running:'Running',stopped:'Stopped',tempSource:'Source: sensor.cpu_temperatura',operationalApps:'Apps operation',pulseDiagnostics:'Pulse diagnostics',capHost:'Host',capRuntime:'Runtime',capApps:'Apps',capBackup:'Backup',capCpuTemp:'CPU temperature',capZigbee:'Zigbee'
+collectionPerformance:'Pulse diagnostics',source:'Source',cpuAppsAggregated:'Aggregated Apps CPU',memoryAppsAggregated:'Aggregated Apps memory',trafficAccumulated:'Cumulative traffic',ioAccumulated:'Cumulative I/O',running:'Running',stopped:'Stopped',tempSource:'Source: sensor.cpu_temperatura',operationalApps:'Apps operation',pulseDiagnostics:'Pulse diagnostics',capHost:'Host',capRuntime:'Runtime',capApps:'Apps',capBackup:'Backup',capCpuTemp:'CPU temperature',capZigbee:'Zigbee',capLinux:'Linux',capServices:'Services',capConnectivity:'Connectivity',linuxSystem:'Linux system',linuxServices:'Services',linuxNoSwap:'Not configured',distribution:'Distribution',kernel:'Kernel',architecture:'Architecture',vendor:'Vendor',model:'Model',logicalCpus:'Logical CPUs'
 }};
 
 const lang=()=>window.SeidenUXLocale?window.SeidenUXLocale():'pt-BR';
@@ -272,12 +272,14 @@ function capLabel(k){
    platform:'capRuntime',platform_runtime_stats:'capRuntime',
    apps:'capApps',backup:'capBackup',
    host_cpu_temperature:'capCpuTemp',
-   zigbee:'capZigbee',zigbee_inventory_integrity:'capZigbee'
+   zigbee:'capZigbee',zigbee_inventory_integrity:'capZigbee',
+   linux_host:'capLinux',compute:'compute',memory:'memory',storage:'storage',network:'network',
+   availability:'availability',processes:'processes',services:'capServices',connectivity:'capConnectivity',thermal:'thermal'
  };
  return tr(known[k]||k);
 }
 function capabilityChips(caps){
- const preferred=['capHost','capRuntime','capApps','capBackup','capCpuTemp','capZigbee'];
+ const preferred=['capLinux','capHost','compute','memory','storage','network','availability','processes','capServices','capConnectivity','capRuntime','capApps','capBackup','capCpuTemp','capZigbee'];
  const seen=new Set(),labels=[];
  (caps||[]).forEach(k=>{const label=capLabel(k);if(label&&!seen.has(label)){seen.add(label);labels.push(label)}});
  labels.sort((a,b)=>{
@@ -398,6 +400,68 @@ function platformItems(platform){
  }).join('')}</div>`;
 }
 
+
+function linuxServiceBody(services){
+ return (services||[]).map(s=>{
+   const st=appStateLabel(s.state);
+   return `<div class="platform-item"><span>${escapeHtml(s.name||'service')}</span><div class="state-row"><span class="app-state ${st.cls}"><i class="mini-dot"></i>${escapeHtml(st.label)}</span></div></div>`;
+ }).join('');
+}
+function linuxPulseDetail(a,s,h,state,caps,alerts,asset,perf){
+ const snap=a.latest_snapshot||{},tel=snap.telemetry||{},linux=tel.linux||{};
+ const cpu=linux.cpu||{},mem=linux.memory||{},disk=linux.storage||{},net=linux.network||{},thermal=linux.thermal||{},plat=linux.platform||{},services=linux.services||[];
+ const hostBody=
+   (cpu.used_percent!=null?kv(tr('cpu_usage'),pct(cpu.used_percent),cpu.logical_cpus!=null?`${tr('logicalCpus')}: ${n(cpu.logical_cpus,0)}`:''):'')+
+   (mem.used_percent!=null?kv(tr('memory_used'),pct(mem.used_percent),mem.available_bytes!=null?`${tr('memoryAvailable')}: ${bytes(mem.available_bytes)}`:''):'')+
+   (disk.used_percent!=null?kv(tr('disk'),pct(disk.used_percent),`${bytes(disk.used_bytes)} / ${bytes(disk.total_bytes)}`):'')+
+   (linux.uptime_seconds!=null?kv(tr('uptime'),duration(linux.uptime_seconds)):'');
+ const computeBody=
+   (cpu.load_1m!=null?kv(tr('load_1m'),n(cpu.load_1m,2)):'')+
+   (cpu.load_5m!=null?kv(tr('load5'),n(cpu.load_5m,2)):'')+
+   (cpu.load_15m!=null?kv(tr('load15'),n(cpu.load_15m,2)):'')+
+   (linux.process_count!=null?kv(tr('processes'),n(linux.process_count,0)):'');
+ const memoryBody=
+   (mem.swap_total_bytes===0?kv(tr('swap_used'),tr('linuxNoSwap')):(mem.swap_used_percent!=null?kv(tr('swap_used'),pct(mem.swap_used_percent),`${bytes(mem.swap_used_bytes)} / ${bytes(mem.swap_total_bytes)}`):''));
+ const tempBody=thermal.available&&thermal.cpu_temperature_c!=null?kv(tr('cpuTemp'),temp(thermal.cpu_temperature_c)):'';
+ const systemBody=
+   (plat.distribution_version?kv(tr('distribution'),escapeHtml(plat.distribution_version)):'')+
+   (plat.kernel?kv(tr('kernel'),escapeHtml(plat.kernel)):'')+
+   (plat.architecture?kv(tr('architecture'),escapeHtml(plat.architecture)):'')+
+   (plat.vendor?kv(tr('vendor'),escapeHtml(plat.vendor)):'')+
+   (plat.model?kv(tr('model'),escapeHtml(plat.model)):'');
+ const networkBody=
+   (net.rx_bytes!=null?kv(tr('networkRx'),bytes(net.rx_bytes)):'')+
+   (net.tx_bytes!=null?kv(tr('networkTx'),bytes(net.tx_bytes)):'');
+ const serviceBody=linuxServiceBody(services);
+ const perfBody=Object.entries(perf||{}).slice(0,10).map(([k,v])=>kv(escapeHtml(k.replaceAll('_',' ')),typeof v==='number'?n(v,2)+' s':escapeHtml(v))).join('');
+ const pulseLabel=lang()==='en-US'?'Seiden Pulse Linux':'Seiden Pulse Linux';
+ $('detailBody').innerHTML=`
+ <div class="section-head"><div><h2 style="font-size:22px;margin:0">${escapeHtml(a.asset_name||asset.name||a.hostname||a.pulse_id)}</h2>
+   <div class="muted">${tr('tenant')}: ${escapeHtml(a.tenant_id)} · ${tr('hostname')}: ${escapeHtml(a.hostname||'—')} · ${pulseLabel} ${escapeHtml(a.pulse_version||'—')}</div>
+   <span class="source-badge pulse">${pulseLabel}</span>
+   <div class="cap-strip">${capabilityChips(caps)}</div>
+   <div class="summary-line"><span><strong>${tr('healthLabel')}:</strong> ${stateLabel(state)}</span><span><strong>${tr('telemetryLabel')}:</strong> ${a.connection_state==='healthy'?tr('telemetryFresh'):tr('telemetryStale')} · ${relativeTime(a.last_seen_at)}</span></div>
+ </div><span class="state ${state}"><span class="dot"></span>${stateLabel(state)}</span></div>
+ <div class="notice">${tr('latest')}: ${fmtTime(a.last_seen_at)} · ${tr('lastSnapshot')}: ${fmtTime(a.last_snapshot_at)} · ${tr('lastHeartbeat')}: ${fmtTime(a.last_heartbeat_at)}</div>
+ ${alerts.length?`<div class="incident-banner ${a.highest_alert_severity==='critical'?'critical':'warning'}"><div class="incident-title">${tr('incidentTitle')} · ${alerts.length} ${tr('activeProblems')}</div><div class="incident-list">${alerts.map(x=>`<div class="incident-item"><strong>${escapeHtml(x.title||x.key)}</strong><span>${escapeHtml(x.severity||'warning')} · ${relativeTime(x.activated_at||x.updated_at)}</span></div>`).join('')}</div></div>`:''}
+ <div class="section"><div class="category-grid">
+   ${hostBody?category(tr('hostHealth'),hostBody):''}
+   ${computeBody?category(tr('compute'),computeBody):''}
+   ${memoryBody?category(tr('memory'),memoryBody):''}
+   ${tempBody?category(tr('thermal'),tempBody):''}
+ </div></div>
+ ${systemBody?`<div class="section"><div class="section-head"><h2>${tr('linuxSystem')}</h2></div><div class="category-grid">${category(tr('linuxSystem'),systemBody)}${networkBody?category(tr('network'),networkBody):''}</div></div>`:''}
+ ${serviceBody?`<div class="section"><div class="section-head"><h2>${tr('linuxServices')}</h2></div><div class="card"><div class="platform-list">${serviceBody}</div></div></div>`:''}
+ ${perfBody?`<div class="section"><details class="diag-details"><summary><span>${tr('pulseDiagnostics')}</span><span class="muted">${pulseLabel} ${escapeHtml(a.pulse_version||'—')}</span></summary><div class="diag-body"><div class="category-grid">${category(tr('collectionPerformance'),perfBody)}</div></div></details></div>`:''}
+ <div class="section"><details class="collapsible-admin"><summary>${tr('adminAsset')}</summary><div class="collapsible-admin-body">
+   <div class="asset-manage"><div><label>${tr('assetStatus')}</label><select id="pulseAssetStatus"><option value="active" ${(a.asset_status||'active')==='active'?'selected':''}>${tr('assetActive')}</option><option value="hidden" ${a.asset_status==='hidden'?'selected':''}>${tr('assetHidden')}</option><option value="decommissioned" ${a.asset_status==='decommissioned'?'selected':''}>${tr('assetDecommissioned')}</option></select></div><div><label>${tr('statusReason')}</label><input id="pulseAssetReason" maxlength="500" value="${escapeHtml(a.asset_status_reason||'')}"></div><button id="savePulseAssetStatus">${tr('saveStatus')}</button></div>
+   <div class="system-meta" style="margin-top:8px">${tr('assetHistoryNotice')}</div>
+   <div class="danger-zone"><strong>${tr('deleteAssetTitle')}</strong><br><button id="deletePulseAsset" class="danger-btn" style="margin-top:9px">${tr('deleteAsset')}</button><span class="danger-help">${tr('deleteAssetHelp')}</span></div>
+ </div></details></div>`;
+ $('savePulseAssetStatus').onclick=()=>savePulseAssetStatus(a.pulse_id);
+ $('deletePulseAsset').onclick=()=>deletePulseAsset(a.pulse_id);
+}
+
 /* Pulse/CAST detail uses Receiver canonical state but lives inside the same ITA. */
 async function openPulse(id){
  currentId=id;currentSource='pulse';
@@ -406,6 +470,8 @@ async function openPulse(id){
  const a=await r.json(),s=a.summary||{},h=s.host||{},z=s.zigbee||{},ap=s.apps||{},b=s.backups||{},rt=s.platform_runtime||{},perf=s.collection_performance||{};
  const state=mapPulseState(a),caps=s.capabilities||[],alerts=a.alerts||[],asset=s.asset||{};
  $('overview').style.display='none';$('detail').classList.add('active');
+ const isLinux=String(asset.class||'').toLowerCase()==='linux_host'||caps.includes('linux_host');
+ if(isLinux){linuxPulseDetail(a,s,h,state,caps,alerts,asset,perf);return;}
  const hostBody=
    (h.cpu_temperature_available?kv(tr('cpuTemp'),temp(h.cpu_temperature_c),tr('tempSource')):'')+
    (h.uptime_seconds!=null?kv(tr('uptime'),duration(h.uptime_seconds)):'')+
