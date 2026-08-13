@@ -91,7 +91,7 @@ html[data-theme="light"]{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#64748b
       <option value="hidden" data-i18n="viewHidden">Ocultos</option>
       <option value="decommissioned" data-i18n="viewDecommissioned">Descomissionados</option>
     </select>
-    <select id="period">
+    <select id="period" style="display:none">
       <option value="1">1 h</option><option value="6">6 h</option><option value="24" selected>24 h</option>
       <option value="168">7 d</option><option value="720">30 d</option>
     </select>
@@ -114,7 +114,7 @@ html[data-theme="light"]{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#64748b
   <div id="detailBody"></div>
 </div>
 
-<div class="footer">Seiden Flow {{ version }} · ITA 0.3.1.7 · <span data-i18n="agnostic">Modelo adaptativo e agnóstico de fabricante</span></div>
+<div class="footer">Seiden Flow {{ version }} · ITA 0.3.1.8 · <span data-i18n="agnostic">Modelo adaptativo e agnóstico de fabricante</span></div>
 </div>
 
 <script>
@@ -128,7 +128,7 @@ const T={
 title:'Infrastructure Telemetry Analytics',
 subtitle:'Saúde operacional unificada de servidores, hosts e infraestrutura conectada à Seiden One.',
 refresh:'Atualizar',infra:'Infraestrutura monitorada',back:'← Visão geral',
-agnostic:'Modelo adaptativo e agnóstico de fabricante',systems:'Ativos',normal:'Normais',attention:'Atenção',critical:'Críticos',stale:'Sem telemetria',
+agnostic:'Modelo adaptativo e agnóstico de fabricante',systems:'Monitorados',normal:'Normais',attention:'Atenção',critical:'Críticos',stale:'Sem telemetria',
 latest:'Última telemetria',details:'Abrir análise',state:'Estado',noData:'Nenhuma telemetria ITA recebida ainda.',updated:'Atualizado',
 viewActive:'Ativos',viewAll:'Todos',viewHidden:'Ocultos',viewDecommissioned:'Descomissionados',
 normalState:'Normal',attentionState:'Atenção',criticalState:'Crítico',staleState:'Telemetria desatualizada',filterAll:'Todos os ativos',filterEmptyNormal:'Nenhum ativo normal neste filtro.',filterEmptyAttention:'Nenhum ativo em atenção neste filtro.',filterEmptyCritical:'Nenhum ativo crítico neste filtro.',filterEmptyStale:'Nenhum ativo sem telemetria neste filtro.',
@@ -162,7 +162,7 @@ collectionPerformance:'Diagnóstico da Pulse',source:'Origem',cpuAppsAggregated:
 title:'Infrastructure Telemetry Analytics',
 subtitle:'Unified operational health for servers, hosts, and infrastructure connected to Seiden One.',
 refresh:'Refresh',infra:'Monitored infrastructure',back:'← Overview',
-agnostic:'Adaptive, vendor-agnostic analytical model',systems:'Assets',normal:'Normal',attention:'Attention',critical:'Critical',stale:'No telemetry',
+agnostic:'Adaptive, vendor-agnostic analytical model',systems:'Monitored',normal:'Normal',attention:'Attention',critical:'Critical',stale:'No telemetry',
 latest:'Latest telemetry',details:'Open analysis',state:'State',noData:'No ITA telemetry received yet.',updated:'Updated',
 viewActive:'Active',viewAll:'All',viewHidden:'Hidden',viewDecommissioned:'Decommissioned',
 normalState:'Normal',attentionState:'Attention',criticalState:'Critical',staleState:'Stale telemetry',filterAll:'All assets',filterEmptyNormal:'No normal assets in this filter.',filterEmptyAttention:'No assets requiring attention in this filter.',filterEmptyCritical:'No critical assets in this filter.',filterEmptyStale:'No assets without telemetry in this filter.',
@@ -211,11 +211,36 @@ function relativeTime(v){
  const h=Math.floor(m/60);if(h<24)return `${tr('ago')} ${h} h`;
  return `${tr('ago')} ${Math.floor(h/24)} d`;
 }
-function priorityFor(x){
- if(x.state==='critical')return 0;
- if(x.state==='attention')return 10;
- if(x.state==='stale')return 20;
- return 50;
+function alphaCompare(a,b){
+ return String(a.system?.system_name||'').localeCompare(String(b.system?.system_name||''),lang(),{sensitivity:'base'});
+}
+function issueTimestamp(x){
+ const raw=x.raw||{};
+ const alerts=Array.isArray(raw.alerts)?raw.alerts:Array.isArray(raw.active_alerts_detail)?raw.active_alerts_detail:[];
+ const times=alerts.map(a=>new Date(a.activated_at||a.updated_at||a.timestamp||0).getTime()).filter(Number.isFinite);
+ if(times.length)return Math.max(...times);
+ const direct=raw.latest_alert_at||raw.last_alert_at||raw.alert_updated_at;
+ const dt=direct?new Date(direct).getTime():NaN;
+ return Number.isFinite(dt)?dt:(new Date(x.system?.last_seen||0).getTime()||0);
+}
+function severityRank(x){
+ const sev=String(x.raw?.highest_alert_severity||'').toLowerCase();
+ if(sev==='critical')return 0;
+ if(sev==='warning'||sev==='attention')return 1;
+ return x.state==='critical'?0:x.state==='attention'?1:2;
+}
+function sortOverviewItems(items,filter){
+ const out=[...items];
+ if(filter==='attention'||filter==='critical'){
+   return out.sort((a,b)=>severityRank(a)-severityRank(b)||issueTimestamp(b)-issueTimestamp(a)||alphaCompare(a,b));
+ }
+ if(filter==='stale'){
+   return out.sort((a,b)=>{
+     const ta=new Date(a.system?.last_seen||0).getTime()||0,tb=new Date(b.system?.last_seen||0).getTime()||0;
+     return ta-tb||alphaCompare(a,b);
+   });
+ }
+ return out.sort(alphaCompare);
 }
 
 function deviceTypeLabel(t){
@@ -337,7 +362,7 @@ function setStatusFilter(next){
  renderOverview(window.__itaOverviewItems||[],window.__itaOverviewUpdatedAt||new Date().toISOString());
 }
 function renderOverview(items,updatedAt){
- items=[...items].sort((a,b)=>priorityFor(a)-priorityFor(b)||String(a.system?.system_name||'').localeCompare(String(b.system?.system_name||''),lang()));
+ items=[...items];
  window.__itaOverviewItems=items;window.__itaOverviewUpdatedAt=updatedAt;
  const counts={normal:0,attention:0,critical:0,stale:0};
  items.forEach(x=>counts[x.state]=(counts[x.state]||0)+1);
@@ -345,7 +370,8 @@ function renderOverview(items,updatedAt){
  $('kpis').innerHTML=kpis.map(([filter,k,v])=>`<button type="button" class="card kpi-card ${statusFilter===filter?'active':''}" data-status-filter="${filter}" aria-pressed="${statusFilter===filter?'true':'false'}"><div class="kpi-label">${tr(k)}</div><div class="kpi-value">${v}</div></button>`).join('');
  document.querySelectorAll('[data-status-filter]').forEach(e=>e.onclick=()=>setStatusFilter(e.dataset.statusFilter));
  $('updated').textContent=tr('updated')+' '+fmtTime(updatedAt);
- const visible=statusFilter==='all'?items:items.filter(x=>x.state===statusFilter);
+ const filtered=statusFilter==='all'?items:items.filter(x=>x.state===statusFilter);
+ const visible=sortOverviewItems(filtered,statusFilter);
  $('systems').innerHTML=visible.length?visible.map(x=>{
    const s=x.system,cards=x.primary_cards||[],badge=x.source==='pulse'?tr('pulseSource'):tr('bridgeSource');
    return`<div class="card system-card" data-source="${x.source}" data-id="${escapeHtml(x.id)}">
@@ -363,7 +389,7 @@ function formatMeasurement(m){if(m.metric_kind?.endsWith('_bytes'))return bytes(
 
 /* Existing Bridge/local ITA detail path, intentionally preserved. */
 async function openSystem(id){
- currentId=id;currentSource='local';
+ currentId=id;currentSource='local';$('period').style.display='';
  const [cr,er]=await Promise.all([
    fetch(api('/api/v1/ita/systems/'+encodeURIComponent(id)+'/current'),{cache:'no-store'}),
    fetch(api('/api/v1/ita/systems/'+encodeURIComponent(id)+'/events?limit=50'),{cache:'no-store'})
@@ -484,6 +510,7 @@ function linuxPulseDetail(a,s,h,state,caps,alerts,asset,perf){
 
 /* Pulse/CAST detail uses Receiver canonical state but lives inside the same ITA. */
 async function openPulse(id){
+ $('period').style.display='none';
  currentId=id;currentSource='pulse';
  const r=await fetch(api('/api/v1/ita/fleet/'+encodeURIComponent(id)),{cache:'no-store'});
  if(!r.ok)return;
@@ -588,6 +615,7 @@ function drawChart(items){
 
 async function refresh(){
  applyI18n();
+ if(!currentId)$('period').style.display='none';
  if(currentId&&$('detail').classList.contains('active'))return currentSource==='pulse'?openPulse(currentId):openSystem(currentId);
  const view=$('assetView').value;
  const localPromise=fetch(api('/api/v1/ita/portfolio?view='+encodeURIComponent(view)),{cache:'no-store'});
@@ -614,9 +642,9 @@ async function refresh(){
 }
 
 $('refresh').onclick=refresh;
-$('assetView').onchange=()=>{currentId=null;currentSource=null;$('detail').classList.remove('active');$('overview').style.display='block';refresh()};
+$('assetView').onchange=()=>{currentId=null;currentSource=null;$('period').style.display='none';$('detail').classList.remove('active');$('overview').style.display='block';refresh()};
 $('period').onchange=()=>currentId&&currentSource==='local'?loadHistory(currentId):null;
-$('back').onclick=()=>{currentId=null;currentSource=null;$('detail').classList.remove('active');$('overview').style.display='block';refresh()};
+$('back').onclick=()=>{currentId=null;currentSource=null;$('period').style.display='none';$('detail').classList.remove('active');$('overview').style.display='block';refresh()};
 window.addEventListener('storage',()=>{applyI18n();refresh()});
 applyI18n();refresh();setInterval(refresh,REFRESH);
 })();

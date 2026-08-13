@@ -1,3 +1,18 @@
+# Seiden FLOW 0.22.1.9 — Documentação técnica
+
+## ITA 0.3.1.8 — Operational Overview Refinement
+
+A home representa o estado atual da infraestrutura. O período fica contextual no detalhe local/Bridge.
+
+Ordenação:
+- Monitorados/Todos e Normais: alfabética;
+- Atenção/Críticos: severidade e ocorrência mais recente;
+- Sem telemetria: maior tempo sem atualização primeiro.
+
+Para `linux_host`, os cards principais são CPU, Memória, Disco e Uptime quando presentes no resumo Fleet.
+
+---
+
 # Seiden FLOW 0.16.1.1 — Documentação técnica
 
 ## LCA 0.4.0.2 — Bridge State Transition Support

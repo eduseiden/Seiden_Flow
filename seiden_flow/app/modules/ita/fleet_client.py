@@ -26,7 +26,7 @@ class ITAFleetClient:
             headers={
                 "Authorization": f"Bearer {self.read_token}",
                 "Accept": "application/json",
-                "User-Agent": "Seiden-Flow-ITA/0.3.1.2",
+                "User-Agent": "Seiden-Flow-ITA/0.3.1.8",
             },
             method="GET",
         )
@@ -58,7 +58,7 @@ class ITAFleetClient:
         headers = {
             "Authorization": f"Bearer {self.read_token}",
             "Accept": "application/json",
-            "User-Agent": "Seiden-Flow-ITA/0.3.1.2",
+            "User-Agent": "Seiden-Flow-ITA/0.3.1.8",
         }
         data = None
         if payload is not None:

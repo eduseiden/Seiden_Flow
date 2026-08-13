@@ -1,3 +1,12 @@
+## 0.22.1.9 — ITA 0.3.1.8 · Operational Overview Refinement
+
+- Renomeia o KPI `Ativos` para `Monitorados`.
+- Remove o seletor de período da home; mantém período no detalhe local/Bridge.
+- Ordenação: alfabética em Monitorados/Todos e Normais; severidade/recência em Atenção e Críticos; maior stale primeiro em Sem telemetria.
+- Home Linux prioriza CPU, Memória, Disco e Uptime.
+- Atualiza User-Agent do cliente Fleet para ITA 0.3.1.8.
+- Preserva banco, lifecycle, APIs e demais módulos.
+
 ## 0.22.1.8 — ITA 0.3.1.7 · Release Integrity + Smart Overview Filters
 
 - Reempacota a evolução Smart Overview Filters após auditoria completa de release.

@@ -1,22 +1,13 @@
-# Seiden FLOW 0.22.1.8
+# Seiden FLOW 0.22.1.9
 
-## ITA 0.3.1.7 — Smart Overview Filters + Release Integrity
+## ITA 0.3.1.8 — Operational Overview Refinement
 
-Evolução da visão geral do Infrastructure Telemetry Analytics com foco em
-navegação operacional e consistência de release.
+- `Ativos` no resumo passa a `Monitorados`.
+- Monitorados/Todos e Normais: ordem alfabética.
+- Atenção e Críticos: severidade e ocorrência mais recente.
+- Sem telemetria: maior tempo sem atualização primeiro.
+- O seletor de período deixa a home e permanece apenas no detalhe local/Bridge.
+- `linux_host`: CPU, Memória, Disco e Uptime quando disponíveis no resumo Fleet.
+- Mantidos filtros inteligentes, lifecycle e UX incident-first.
 
-### Destaques
-
-- Cards de resumo `Ativos`, `Normais`, `Atenção`, `Críticos` e `Sem telemetria`
-  funcionam como filtros clicáveis.
-- Filtro operacional é preservado durante a sessão.
-- Estado selecionado recebe feedback visual e `aria-pressed`.
-- Estado vazio possui mensagem contextual por filtro.
-- Cards de ativos Linux são capability-aware e não exibem `Apps 0/0`.
-- Em Linux, `Uptime` e `Disco` permanecem disponíveis na visão geral quando
-  presentes no resumo; CPU e memória aparecem quando a resposta Fleet as expõe.
-- Detalhe `linux_host` preserva a UX específica introduzida em 0.22.1.6.
-- Metadados de versão, footers e documentação foram auditados e sincronizados.
-- Histórico completo do CHANGELOG foi restaurado.
-
-Backend, APIs, banco, lifecycle e demais módulos permanecem inalterados.
+Para CPU e Memória Linux na home, use o Telemetry Receiver 0.2.3.2 ou superior.

@@ -3,7 +3,7 @@ from core.module_registry import ModuleManifest
 MANIFEST = ModuleManifest(
     module_id="ita",
     name="Infrastructure Telemetry Analytics",
-    version="0.3.1.7",
+    version="0.3.1.8",
     description="Saúde e contexto operacional unificados de servidores, hosts e infraestrutura conectada à Seiden One a partir de telemetria adaptativa e estado canônico do Seiden Pulse.",
     consumes=("infrastructure.telemetry_snapshot",),
     capabilities=("adaptive_telemetry", "compute", "memory", "storage", "network", "thermal", "power", "cooling", "availability", "native_thresholds", "telemetry_freshness", "events", "history", "asset_lifecycle", "unified_assets", "fleet", "pulse", "canonical_state", "host_health", "vendor_agnostic"),
