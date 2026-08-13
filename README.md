@@ -1,4 +1,10 @@
-# Seiden FLOW 0.22.1
+# Seiden FLOW 0.22.1.1
+
+## Startup Memory Fix
+
+Correção cirúrgica sobre a baseline 0.22.1 / ITA 0.3.1 Unified Assets.
+A rotina `_migrate_legacy()` passa a processar `events` em lotes de 250,
+evitando o pico de memória causado por `fetchall()` no startup.
 
 ## 0.22.1 — Infrastructure Telemetry Analytics (ITA) 0.3.1 · Unified Assets
 

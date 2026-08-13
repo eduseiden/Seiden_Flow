@@ -1,3 +1,11 @@
+## 0.22.1.1 — Startup Memory Fix
+
+- Corrige pico de memória em `_migrate_legacy()`.
+- Substitui `fetchall()` da tabela `events` por processamento em lotes de 250 registros.
+- Preserva a ordem e a lógica de reconciliação.
+- Adiciona logs de progresso a cada 1000 eventos.
+- ITA 0.3.1 Unified Assets e demais módulos permanecem inalterados.
+
 ## 0.22.1 — ITA 0.3.1 · Unified Assets
 
 - Servidores Bridge/Redfish/Linux e CAST/Pulse na mesma visão `/ita`.

@@ -491,3 +491,19 @@ ita_fleet_refresh_seconds: 30
 ```
 
 O token de leitura nunca é exposto ao navegador.
+
+## Flow 0.22.1.1 — Startup Memory Fix
+
+A migração legado → schema atual agora consome `events` em lotes de 250,
+evitando carregar todo o histórico em RAM durante o startup.
+
+Logs esperados:
+
+```text
+[STARTUP] Legacy migration: streaming events in batches of 250
+[STARTUP] Legacy migration: 1000 events processed
+...
+[STARTUP] Legacy migration complete: N events processed
+```
+
+Nenhuma lógica do ITA 0.3.1 foi alterada.

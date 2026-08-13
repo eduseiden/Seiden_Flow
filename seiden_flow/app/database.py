@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Any,Iterator
 from version import DATABASE_SCHEMA_VERSION
 from experience import calculate_stats, compare_periods
+import logging
+LOGGER=logging.getLogger("seiden_flow.database")
 
 class FlowDatabase:
     def __init__(self,path:str,organization_id="default_organization",organization_name="Organização padrão",site_id="default_site",site_name="Site padrão"):
@@ -154,11 +156,22 @@ class FlowDatabase:
         s=unicodedata.normalize('NFKD',str(v or '')).encode('ascii','ignore').decode().lower();return re.sub(r'[^a-z0-9]+','_',s).strip('_') or 'unknown'
     def _migrate_legacy(self):
         with self._lock,self.connect() as c:
-            rows=c.execute("SELECT * FROM events ORDER BY occurred_at").fetchall()
-            for r in rows:
-                payload=json.loads(r['payload_json']);flat={'reader_id':r['reader_id'],'reader_name':r['reader_name'],'location_id':r['location_id'],'person_id':r['person_id'],'person_name':r['person_name'],'action':r['action']}
-                ids=self._upsert_domain(c,payload,flat,r['event_id'],r['occurred_at'])
-                c.execute("UPDATE events SET organization_id=?,site_id=?,source_id=?,domain_person_id=? WHERE id=?",(self.organization_id,self.site_id,ids[0],ids[1],r['id']))
+            LOGGER.info("[STARTUP] Legacy migration: streaming events in batches of 250")
+            cursor=c.execute("SELECT * FROM events ORDER BY occurred_at")
+            batch_size=250
+            processed=0
+            while True:
+                rows=cursor.fetchmany(batch_size)
+                if not rows:
+                    break
+                for r in rows:
+                    payload=json.loads(r['payload_json']);flat={'reader_id':r['reader_id'],'reader_name':r['reader_name'],'location_id':r['location_id'],'person_id':r['person_id'],'person_name':r['person_name'],'action':r['action']}
+                    ids=self._upsert_domain(c,payload,flat,r['event_id'],r['occurred_at'])
+                    c.execute("UPDATE events SET organization_id=?,site_id=?,source_id=?,domain_person_id=? WHERE id=?",(self.organization_id,self.site_id,ids[0],ids[1],r['id']))
+                processed+=len(rows)
+                if processed%1000==0:
+                    LOGGER.info("[STARTUP] Legacy migration: %d events processed",processed)
+            LOGGER.info("[STARTUP] Legacy migration complete: %d events processed",processed)
             # reconstruct current presence from legacy state
             for p in c.execute("SELECT * FROM persons_state").fetchall():
                 pid=self._person_id(p['person_id'],p['person_name']);self._ensure_person(c,pid,p['person_id'],p['person_name'],p['updated_at'])
