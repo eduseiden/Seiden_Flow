@@ -567,3 +567,8 @@ mostrado na tela. IEEE permanece como contexto técnico.
 
 A interface limita a lista a 5 devices por grupo e mostra `+ N outros` quando
 necessário.
+
+
+## 0.22.1.7 / ITA 0.3.1.6
+- Home do ITA com cards-resumo clicáveis como filtros operacionais.
+- Home Linux capability-aware; uptime mantido como KPI prioritário.

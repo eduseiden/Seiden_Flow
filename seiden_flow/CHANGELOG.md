@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.22.1.7 / ITA 0.3.1.6 — Smart Overview Filters
+
+- Cards-resumo da home do ITA agora funcionam como filtros clicáveis: Ativos, Normais, Atenção, Críticos e Sem telemetria.
+- Contagens continuam representando toda a visão/lifecycle selecionado, independentemente do filtro operacional ativo.
+- Filtro operacional é preservado durante a sessão e combina com o filtro de lifecycle.
+- Estado selecionado tem feedback visual e acessibilidade via `aria-pressed`.
+- Home de ativos Linux fica capability-aware e nunca exibe Apps/Zigbee herdados de HAOS; prioriza CPU, memória, disco e uptime quando disponíveis no resumo.
+- Uptime permanece como KPI principal de Linux.
+- Mensagem vazia contextual para cada filtro.
+
 ## 0.22.1.6 / ITA 0.3.1.5 — Linux Host UX
 
 - ITA passa a reconhecer `linux_host` recebido pela Seiden Pulse Linux.
