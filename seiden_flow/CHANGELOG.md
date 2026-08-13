@@ -1,3 +1,14 @@
+## 0.22.1.2 — ITA 0.3.1.1 · UX/UI Polish
+
+- Capabilities do CAST consolidadas e deduplicadas em linguagem de produto.
+- `started/stopped` traduzidos para estados operacionais legíveis.
+- Contadores de rede renomeados para `Tráfego acumulado`.
+- CPU/memória dos Apps explicitamente identificadas como métricas agregadas.
+- Fonte de temperatura da CPU indicada como `sensor.cpu_temperatura`.
+- Apps ativos ganham prioridade visual sobre o total.
+- Diagnóstico/performance da Pulse movido para bloco recolhível, reduzindo ruído.
+- Estrutura Unified Assets, APIs, backend e demais módulos preservados.
+
 ## 0.22.1.1 — Startup Memory Fix
 
 - Corrige pico de memória em `_migrate_legacy()`.

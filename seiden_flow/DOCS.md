@@ -507,3 +507,16 @@ Logs esperados:
 ```
 
 Nenhuma lógica do ITA 0.3.1 foi alterada.
+
+## Flow 0.22.1.2 — ITA 0.3.1.1 · UX/UI Polish
+
+Ajustes exclusivamente de apresentação/semântica no detalhe CAST:
+
+- capabilities humanizadas e sem duplicações;
+- estados de Apps localizados;
+- runtime agregado dos Apps explicitado;
+- tráfego e I/O identificados como contadores acumulados;
+- temperatura com indicação da entidade fonte;
+- diagnóstico da Pulse recolhível.
+
+Nenhuma API ou lógica de ingestão foi alterada.

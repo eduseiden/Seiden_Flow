@@ -21,6 +21,26 @@ html[data-theme="light"]{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#64748b
 .alert-item{border:1px solid var(--line);border-radius:12px;padding:12px}
 .unified-note{margin:0 0 14px}
 @media(max-width:780px){.platform-list{grid-template-columns:1fr}}
+
+.cap-strip{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.cap{display:inline-flex;align-items:center;border:1px solid var(--line);background:var(--soft);border-radius:999px;padding:5px 9px;font-size:10px;font-weight:700;color:var(--muted)}
+.metric-note{font-size:10px;color:var(--muted);margin-top:3px}
+.metric.emphasis strong,.metric.emphasis b{font-size:19px}
+.state-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.app-state{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700}
+.app-state .mini-dot{width:7px;height:7px;border-radius:50%;background:var(--good)}
+.app-state.stopped{color:var(--muted)}
+.app-state.stopped .mini-dot{background:var(--muted)}
+.diag-details{border:1px solid var(--line);background:var(--card);border-radius:16px;overflow:hidden}
+.diag-details summary{cursor:pointer;list-style:none;padding:15px 17px;font-weight:750;display:flex;justify-content:space-between;align-items:center}
+.diag-details summary::-webkit-details-marker{display:none}
+.diag-details summary:after{content:"+";font-size:18px;color:var(--muted)}
+.diag-details[open] summary:after{content:"–"}
+.diag-body{padding:0 17px 17px}
+.source-note{font-size:10px;color:var(--muted);margin-top:4px}
+.platform-item{border:1px solid transparent}
+.platform-item:hover{border-color:var(--line)}
+
 </style></head>
 <body><div class="wrap">
 <div class="top">
@@ -59,7 +79,7 @@ html[data-theme="light"]{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#64748b
   <div id="detailBody"></div>
 </div>
 
-<div class="footer">Seiden Flow {{ version }} · ITA 0.3.1 · <span data-i18n="agnostic">Modelo adaptativo e agnóstico de fabricante</span></div>
+<div class="footer">Seiden Flow {{ version }} · ITA 0.3.1.1 · <span data-i18n="agnostic">Modelo adaptativo e agnóstico de fabricante</span></div>
 </div>
 
 <script>
@@ -99,9 +119,9 @@ hostHealth:'Saúde do host',connection:'Conexão',platformRuntime:'Runtime da pl
 supervisorRuntime:'Supervisor',managedApps:'Apps gerenciados',appPlatform:'Plataforma CAST',routers:'Routers',endDevices:'End devices',
 expected:'Esperados',offline:'offline',unknown:'unknown',newDevices:'novos',backups:'Backups',latestBackup:'Último backup',
 activeAlerts:'Alertas ativos',noAlerts:'Nenhum alerta ativo.',totalApps:'Total',runningApps:'Ativos',stoppedApps:'Parados',
-cpuRuntime:'CPU runtime',memoryRuntime:'Memória runtime',networkRuntime:'Rede acumulada',ioRuntime:'I/O acumulado',
+cpuRuntime:'Runtime CPU',memoryRuntime:'Memória do runtime',networkRuntime:'Tráfego acumulado',ioRuntime:'I/O acumulado',
 pulseVersion:'Pulse',lastHeartbeat:'Heartbeat',lastSnapshot:'Snapshot',tenant:'Tenant',hostname:'Hostname',diskLife:'Vida útil consumida',
-collectionPerformance:'Performance de coleta',source:'Origem'
+collectionPerformance:'Diagnóstico da Pulse',source:'Origem',cpuAppsAggregated:'CPU agregada dos Apps',memoryAppsAggregated:'Memória agregada dos Apps',trafficAccumulated:'Tráfego acumulado',ioAccumulated:'I/O acumulado',running:'Em execução',stopped:'Parado',tempSource:'Fonte: sensor.cpu_temperatura',operationalApps:'Operação dos Apps',pulseDiagnostics:'Diagnóstico da Pulse',capHost:'Host',capRuntime:'Runtime',capApps:'Apps',capBackup:'Backup',capCpuTemp:'Temperatura CPU',capZigbee:'Zigbee'
 },
 'en-US':{
 title:'Infrastructure Telemetry Analytics',
@@ -133,9 +153,9 @@ hostHealth:'Host health',connection:'Connection',platformRuntime:'Platform runti
 supervisorRuntime:'Supervisor',managedApps:'Managed apps',appPlatform:'CAST platform',routers:'Routers',endDevices:'End devices',
 expected:'Expected',offline:'offline',unknown:'unknown',newDevices:'new',backups:'Backups',latestBackup:'Latest backup',
 activeAlerts:'Active alerts',noAlerts:'No active alerts.',totalApps:'Total',runningApps:'Running',stoppedApps:'Stopped',
-cpuRuntime:'CPU runtime',memoryRuntime:'Memory runtime',networkRuntime:'Cumulative network',ioRuntime:'Cumulative I/O',
+cpuRuntime:'Runtime CPU',memoryRuntime:'Runtime memory',networkRuntime:'Cumulative traffic',ioRuntime:'Cumulative I/O',
 pulseVersion:'Pulse',lastHeartbeat:'Heartbeat',lastSnapshot:'Snapshot',tenant:'Tenant',hostname:'Hostname',diskLife:'Life consumed',
-collectionPerformance:'Collection performance',source:'Source'
+collectionPerformance:'Pulse diagnostics',source:'Source',cpuAppsAggregated:'Aggregated Apps CPU',memoryAppsAggregated:'Aggregated Apps memory',trafficAccumulated:'Cumulative traffic',ioAccumulated:'Cumulative I/O',running:'Running',stopped:'Stopped',tempSource:'Source: sensor.cpu_temperatura',operationalApps:'Apps operation',pulseDiagnostics:'Pulse diagnostics',capHost:'Host',capRuntime:'Runtime',capApps:'Apps',capBackup:'Backup',capCpuTemp:'CPU temperature',capZigbee:'Zigbee'
 }};
 
 const lang=()=>window.SeidenUXLocale?window.SeidenUXLocale():'pt-BR';
@@ -153,8 +173,24 @@ function escapeHtml(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;',
 function applyI18n(){document.documentElement.lang=lang();document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=tr(e.dataset.i18n))}
 function fmtCard(c){if(!c)return'—';if(c.format==='percent')return pct(c.value);if(c.format==='temperature'||c.format==='temperature_delta')return temp(c.value);if(c.format==='power')return power(c.value);if(c.format==='duration')return duration(c.value);if(c.format==='integer')return n(c.value,0);if(c.format==='ratio')return String(c.value??'—');return n(c.value,2)}
 function capLabel(k){
- const known={host_cpu_temperature:'cpuTemp',host_uptime:'uptime',host_storage:'storage',platform_runtime_stats:'platformRuntime',zigbee_inventory_integrity:'zigbee'};
+ const known={
+   host:'capHost',host_uptime:'capHost',host_storage:'capHost',
+   platform:'capRuntime',platform_runtime_stats:'capRuntime',
+   apps:'capApps',backup:'capBackup',
+   host_cpu_temperature:'capCpuTemp',
+   zigbee:'capZigbee',zigbee_inventory_integrity:'capZigbee'
+ };
  return tr(known[k]||k);
+}
+function capabilityChips(caps){
+ const preferred=['capHost','capRuntime','capApps','capBackup','capCpuTemp','capZigbee'];
+ const seen=new Set(),labels=[];
+ (caps||[]).forEach(k=>{const label=capLabel(k);if(label&&!seen.has(label)){seen.add(label);labels.push(label)}});
+ labels.sort((a,b)=>{
+   const ka=preferred.findIndex(k=>tr(k)===a),kb=preferred.findIndex(k=>tr(k)===b);
+   return (ka<0?99:ka)-(kb<0?99:kb);
+ });
+ return labels.map(label=>`<span class="cap">${escapeHtml(label)}</span>`).join('');
 }
 function kv(label,value,note=''){return`<div class="kv"><span>${label}</span><strong>${value}</strong>${note?`<span>${note}</span>`:''}</div>`}
 function category(title,body){return body?`<div class="category"><h3>${title}</h3><div class="category-metrics">${body}</div></div>`:''}
@@ -226,7 +262,7 @@ async function openSystem(id){
  if(c.availability)cats+=category(tr('availability'),kv(tr('uptime'),duration(d.uptime_seconds))+kv(tr('freshness'),d.freshness?.stale?tr('staleState'):tr('fresh')));
  if(c.power||c.cooling)cats+=category(tr('powerCooling'),(c.power?kv(tr('power'),power(d.power_w))+kv(tr('powerUse'),pct(d.power_utilization_pct)):'')+(c.cooling?kv(tr('fan_avg'),pct(d.fan_avg_pct))+kv(tr('fanSpread'),pct(d.fan_spread_pct)):''));
  const thermal=c.thermal?`<div class="section"><div class="section-head"><h2>${tr('thermalPath')}</h2></div><div class="thermal-path"><div class="thermal-node"><span>${tr('ambient')}</span><strong>${temp(d.ambient_c)}</strong></div><div class="thermal-node"><span>${tr('intake')}</span><strong>${temp(d.intake_c)}</strong></div><div class="thermal-node"><span>${tr('hottest_cpu')}</span><strong>${temp(d.cpu_c)}</strong></div><div class="thermal-node"><span>${tr('exhaust')}</span><strong>${temp(d.exhaust_c)}</strong></div></div><div class="delta-row"><div class="delta"><span class="muted">${tr('ambientIntake')}</span><br><b>${temp(d.deltas?.ambient_to_intake_c)}</b></div><div class="delta"><span class="muted">${tr('intakeCpu')}</span><br><b>${temp(d.deltas?.intake_to_cpu_c)}</b></div><div class="delta"><span class="muted">${tr('intakeExhaust')}</span><br><b>${temp(d.deltas?.intake_to_exhaust_c)}</b></div></div></div>`:'';
- $('detailBody').innerHTML=`<div class="section-head"><div><h2 style="font-size:22px;margin:0">${escapeHtml(s.system_name)}</h2><div class="muted">${escapeHtml(s.system_id)} · ${escapeHtml(s.connection_name||'')} · ${fmtTime(s.last_seen)}</div><span class="source-badge bridge">${tr('bridgeSource')}</span><div class="cap-strip">${Object.entries(c).filter(([,v])=>v).map(([k])=>`<span class="cap">${capLabel(k)}</span>`).join('')}</div></div><span class="state ${d.state}"><span class="dot"></span>${stateLabel(d.state)}</span></div>
+ $('detailBody').innerHTML=`<div class="section-head"><div><h2 style="font-size:22px;margin:0">${escapeHtml(s.system_name)}</h2><div class="muted">${escapeHtml(s.system_id)} · ${escapeHtml(s.connection_name||'')} · ${fmtTime(s.last_seen)}</div><span class="source-badge bridge">${tr('bridgeSource')}</span><div class="cap-strip">${capabilityChips(Object.entries(c).filter(([,v])=>v).map(([k])=>k))}</div></div><span class="state ${d.state}"><span class="dot"></span>${stateLabel(d.state)}</span></div>
  ${d.freshness?.stale?`<div class="notice warn">${tr('staleState')} · ${tr('age')} ${n(d.freshness.age_seconds,0)} ${tr('seconds')}</div>`:''}
  <div class="notice">${tr('native')}</div>
  <div class="section card"><div class="section-head"><h2>${tr('manageAsset')}</h2></div><div class="asset-manage"><div><label>${tr('assetStatus')}</label><select id="assetStatusControl"><option value="active" ${(s.status||'active')==='active'?'selected':''}>${tr('assetActive')}</option><option value="hidden" ${s.status==='hidden'?'selected':''}>${tr('assetHidden')}</option><option value="decommissioned" ${s.status==='decommissioned'?'selected':''}>${tr('assetDecommissioned')}</option></select></div><div><label>${tr('statusReason')}</label><input id="assetStatusReason" maxlength="500" value="${escapeHtml(s.status_reason||'')}"></div><button id="saveAssetStatus">${tr('saveStatus')}</button></div><div class="system-meta" style="margin-top:8px">${tr('assetHistoryNotice')}</div></div>
@@ -243,14 +279,25 @@ function runtimeBlock(title,r){
  return category(title,
    kv(tr('cpuRuntime'),r.cpu_percent!=null?pct(r.cpu_percent):'—')+
    kv(tr('memoryRuntime'),r.memory_usage!=null?bytes(r.memory_usage):'—',r.memory_percent!=null?pct(r.memory_percent):'')+
-   kv(tr('networkRuntime'),`${bytes(r.network_rx)} ↓ / ${bytes(r.network_tx)} ↑`)+
-   kv(tr('ioRuntime'),`${bytes(r.blk_read)} R / ${bytes(r.blk_write)} W`)
+   kv(tr('trafficAccumulated'),`${bytes(r.network_rx)} ↓ / ${bytes(r.network_tx)} ↑`)+
+   kv(tr('ioAccumulated'),`${bytes(r.blk_read)} R / ${bytes(r.blk_write)} W`)
  );
+}
+function appStateLabel(state){
+ const s=String(state||'').toLowerCase();
+ if(s==='started'||s==='running')return {label:tr('running'),cls:'running'};
+ if(s==='stopped')return {label:tr('stopped'),cls:'stopped'};
+ return {label:state||'—',cls:'stopped'};
 }
 function platformItems(platform){
  const values=Object.values(platform||{}).filter(Boolean);
  if(!values.length)return'<div class="muted">—</div>';
- return`<div class="platform-list">${values.map(x=>`<div class="platform-item"><span>${escapeHtml(x.name||x.slug||'App')}</span><strong>${escapeHtml(x.state||'—')}</strong><span>${escapeHtml(x.version||'—')}${x.update_available?' · update':''}</span></div>`).join('')}</div>`;
+ return`<div class="platform-list">${values.map(x=>{
+   const st=appStateLabel(x.state);
+   return`<div class="platform-item"><span>${escapeHtml(x.name||x.slug||'App')}</span>
+     <div class="state-row"><span class="app-state ${st.cls}"><i class="mini-dot"></i>${escapeHtml(st.label)}</span></div>
+     <span>${escapeHtml(x.version||'—')}${x.update_available?' · update':''}</span></div>`;
+ }).join('')}</div>`;
 }
 
 /* Pulse/CAST detail uses Receiver canonical state but lives inside the same ITA. */
@@ -262,7 +309,7 @@ async function openPulse(id){
  const state=mapPulseState(a),caps=s.capabilities||[],alerts=a.alerts||[],asset=s.asset||{};
  $('overview').style.display='none';$('detail').classList.add('active');
  const hostBody=
-   kv(tr('cpuTemp'),h.cpu_temperature_available?temp(h.cpu_temperature_c):'—')+
+   kv(tr('cpuTemp'),h.cpu_temperature_available?temp(h.cpu_temperature_c):'—',h.cpu_temperature_available?tr('tempSource'):'')+
    kv(tr('uptime'),duration(h.uptime_seconds))+
    kv(tr('disk'),pct(h.disk_used_percent),`${n(h.disk_used_gb,1)} / ${n(h.disk_total_gb,1)} GB`)+
    kv(tr('diskAvailable'),h.disk_free_gb!=null?n(h.disk_free_gb,1)+' GB':'—',h.disk_life_time_percent!=null?`${tr('diskLife')}: ${pct(h.disk_life_time_percent)}`:'');
@@ -271,21 +318,22 @@ async function openPulse(id){
    kv(tr('expected'),n(z.expected,0),`${n(z.missing,0)} ${tr('missing')} · ${n(z.new,0)} ${tr('newDevices')}`)+
    kv(tr('routers'),n(z.routers,0))+kv(tr('endDevices'),n(z.end_devices,0));
  const appsBody=
-   kv(tr('totalApps'),n(ap.total,0))+kv(tr('runningApps'),n(ap.started,0),`${n(ap.stopped,0)} ${tr('stoppedApps').toLowerCase()}`);
+   kv(tr('runningApps'),n(ap.started,0),`${n(ap.stopped,0)} ${tr('stoppedApps').toLowerCase()}`)+
+   kv(tr('totalApps'),n(ap.total,0));
  const backupsBody=kv(tr('backups'),n(b.count,0))+kv(tr('latestBackup'),b.latest_age_hours==null?'—':n(b.latest_age_hours,1)+' h');
  const managed=rt.managed_apps||{};
  const managedBody=category(tr('managedApps'),
    kv(tr('runningApps'),n(managed.apps_with_stats,0))+
-   kv(tr('cpuRuntime'),managed.cpu_percent_sum!=null?pct(managed.cpu_percent_sum):'—')+
-   kv(tr('memoryRuntime'),bytes(managed.memory_usage_bytes_sum))+
-   kv(tr('networkRuntime'),`${bytes(managed.network_rx_bytes_sum)} ↓ / ${bytes(managed.network_tx_bytes_sum)} ↑`)
+   kv(tr('cpuAppsAggregated'),managed.cpu_percent_sum!=null?pct(managed.cpu_percent_sum):'—')+
+   kv(tr('memoryAppsAggregated'),bytes(managed.memory_usage_bytes_sum))+
+   kv(tr('trafficAccumulated'),`${bytes(managed.network_rx_bytes_sum)} ↓ / ${bytes(managed.network_tx_bytes_sum)} ↑`)
  );
  const perfBody=Object.entries(perf).slice(0,10).map(([k,v])=>kv(escapeHtml(k.replaceAll('_',' ')),typeof v==='number'?n(v,2)+' s':escapeHtml(v))).join('');
  $('detailBody').innerHTML=`
  <div class="section-head"><div><h2 style="font-size:22px;margin:0">${escapeHtml(a.asset_name||asset.name||a.hostname||a.pulse_id)}</h2>
    <div class="muted">${tr('tenant')}: ${escapeHtml(a.tenant_id)} · ${tr('hostname')}: ${escapeHtml(a.hostname||'—')} · ${tr('pulseVersion')} ${escapeHtml(a.pulse_version||'—')}</div>
    <span class="source-badge pulse">${tr('pulseSource')}</span>
-   <div class="cap-strip">${caps.map(k=>`<span class="cap">${escapeHtml(capLabel(k))}</span>`).join('')}</div>
+   <div class="cap-strip">${capabilityChips(caps)}</div>
  </div><span class="state ${state}"><span class="dot"></span>${stateLabel(state)}</span></div>
  <div class="notice">${tr('latest')}: ${fmtTime(a.last_seen_at)} · ${tr('lastSnapshot')}: ${fmtTime(a.last_snapshot_at)} · ${tr('lastHeartbeat')}: ${fmtTime(a.last_heartbeat_at)}</div>
  <div class="section"><div class="category-grid">
@@ -298,9 +346,14 @@ async function openPulse(id){
    ${runtimeBlock(tr('coreRuntime'),rt.core)}
    ${runtimeBlock(tr('supervisorRuntime'),rt.supervisor)}
    ${managedBody}
-   ${category(tr('collectionPerformance'),perfBody)}
  </div></div>
  <div class="section"><div class="section-head"><h2>${tr('appPlatform')}</h2></div><div class="card">${platformItems(ap.platform)}</div></div>
+ <div class="section">
+   <details class="diag-details">
+     <summary><span>${tr('pulseDiagnostics')}</span><span class="muted">${tr('pulseVersion')} ${escapeHtml(a.pulse_version||'—')}</span></summary>
+     <div class="diag-body"><div class="category-grid">${category(tr('collectionPerformance'),perfBody)}</div></div>
+   </details>
+ </div>
  <div class="section"><div class="section-head"><h2>${tr('activeAlerts')}</h2></div><div class="card">
    <div class="alert-list">${alerts.length?alerts.map(x=>`<div class="alert-item"><strong>${escapeHtml(x.title||x.key)}</strong><div class="system-meta">${escapeHtml(x.severity||'warning')} · ${fmtTime(x.updated_at)}</div></div>`).join(''):`<div class="muted">${tr('noAlerts')}</div>`}</div>
  </div></div>`;

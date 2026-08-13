@@ -1,4 +1,9 @@
-# Seiden FLOW 0.22.1.1
+# Seiden FLOW 0.22.1.2
+
+## ITA 0.3.1.1 — UX/UI Polish
+
+Refinamento visual e semântico do ITA Unified Assets, partindo diretamente da
+0.22.1.1. Nenhuma mudança de backend, Receiver, banco ou ingestão.
 
 ## Startup Memory Fix
 
