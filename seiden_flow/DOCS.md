@@ -552,3 +552,18 @@ Hierarquia padrão do detalhe de um ativo:
 6. Gestão do ativo recolhível no final
 
 A visão geral ordena ativos automaticamente pela necessidade de atenção.
+
+## Flow 0.22.1.5 — ITA 0.3.1.4 · Zigbee Device-Level Alert Details
+
+Compatível com Pulse 0.1.1.4.
+
+O Flow consome dos alertas do Receiver:
+- `missing_devices_detail`
+- `offline_devices_detail`
+- `new_devices_detail`
+
+Quando `zigbee_send_names: true`, o friendly name é o identificador principal
+mostrado na tela. IEEE permanece como contexto técnico.
+
+A interface limita a lista a 5 devices por grupo e mostra `+ N outros` quando
+necessário.

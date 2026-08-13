@@ -66,6 +66,16 @@ html[data-theme="light"]{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#64748b
 .collapsible-admin summary:after{content:"+";font-size:18px;color:var(--muted)}
 .collapsible-admin[open] summary:after{content:"–"}
 .collapsible-admin-body{padding:0 17px 17px}
+
+.device-impact-list{display:grid;gap:7px;margin-top:9px}
+.device-impact-item{display:flex;gap:10px;justify-content:space-between;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+.device-impact-main{min-width:0}
+.device-impact-name{font-weight:750;font-size:12px;overflow-wrap:anywhere}
+.device-impact-meta{color:var(--muted);font-size:10px;margin-top:2px;overflow-wrap:anywhere}
+.device-impact-kind{font-size:10px;font-weight:750;color:var(--muted);white-space:nowrap}
+.device-impact-more{font-size:11px;color:var(--muted);padding:2px 4px}
+.zigbee-impact{margin-top:12px;padding-top:11px;border-top:1px solid var(--line)}
+.zigbee-impact-title{font-size:11px;font-weight:800;margin-bottom:7px}
 </style></head>
 <body><div class="wrap">
 <div class="top">
@@ -104,7 +114,7 @@ html[data-theme="light"]{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#64748b
   <div id="detailBody"></div>
 </div>
 
-<div class="footer">Seiden Flow {{ version }} · ITA 0.3.1.3 · <span data-i18n="agnostic">Modelo adaptativo e agnóstico de fabricante</span></div>
+<div class="footer">Seiden Flow {{ version }} · ITA 0.3.1.4 · <span data-i18n="agnostic">Modelo adaptativo e agnóstico de fabricante</span></div>
 </div>
 
 <script>
@@ -136,7 +146,7 @@ reading:'Leitura',health:'Saúde',threshold:'Próximo limite',when:'Quando',even
 noEvents:'Nenhuma mudança operacional registrada.',manageAsset:'Gestão do ativo',assetStatus:'Status do ativo',assetActive:'Ativo',
 assetHidden:'Oculto',assetDecommissioned:'Descomissionado',statusReason:'Motivo / observação',saveStatus:'Salvar status',
 assetHistoryNotice:'O histórico é preservado independentemente do status do ativo.',confirmStatus:'Confirmar alteração de status deste ativo?',
-statusSaveError:'Não foi possível atualizar o status.',deleteAsset:'Excluir definitivamente',deleteAssetTitle:'Zona de risco',deleteAssetHelp:'Remove o ativo e todo o histórico dele no Telemetry Receiver. Se a Pulse continuar transmitindo, o ativo será recriado.',deleteConfirmPrompt:'Para excluir definitivamente, digite exatamente o Pulse ID: {id}',deleteMismatch:'Pulse ID não confere. Exclusão cancelada.',deleteError:'Não foi possível excluir o ativo.',incidentTitle:'Requer atenção',healthLabel:'Saúde',telemetryLabel:'Telemetria',telemetryFresh:'Atualizada',telemetryStale:'Desatualizada',ago:'há',activeProblems:'problema(s) ativo(s)',adminAsset:'Gestão do ativo',lifecycleHidden:'Oculto',lifecycleDecommissioned:'Descomissionado',range:'da faixa',
+statusSaveError:'Não foi possível atualizar o status.',deleteAsset:'Excluir definitivamente',deleteAssetTitle:'Zona de risco',deleteAssetHelp:'Remove o ativo e todo o histórico dele no Telemetry Receiver. Se a Pulse continuar transmitindo, o ativo será recriado.',deleteConfirmPrompt:'Para excluir definitivamente, digite exatamente o Pulse ID: {id}',deleteMismatch:'Pulse ID não confere. Exclusão cancelada.',deleteError:'Não foi possível excluir o ativo.',incidentTitle:'Requer atenção',healthLabel:'Saúde',telemetryLabel:'Telemetria',telemetryFresh:'Atualizada',telemetryStale:'Desatualizada',ago:'há',activeProblems:'problema(s) ativo(s)',adminAsset:'Gestão do ativo',deviceMissing:'Ausente',deviceOffline:'Offline',deviceNew:'Novo',deviceRouter:'Router',deviceEnd:'End device',deviceUnknown:'Device',ieeeLabel:'IEEE',moreDevices:'outros dispositivos',zigbeeAffected:'Dispositivos afetados',lifecycleHidden:'Oculto',lifecycleDecommissioned:'Descomissionado',range:'da faixa',
 pulseSource:'Seiden Pulse',bridgeSource:'Bridge / Telemetria',receiverUnavailable:'Telemetry Receiver indisponível; ativos locais continuam sendo exibidos.',
 receiverNotConfigured:'Telemetry Receiver não configurado; ativos Pulse não serão exibidos.',
 cpuTemp:'Temperatura CPU',disk:'Disco',zigbee:'Zigbee',apps:'Apps',backup:'Backup',online:'online',missing:'missing',
@@ -170,7 +180,7 @@ reading:'Reading',health:'Health',threshold:'Next threshold',when:'When',event:'
 noEvents:'No operational changes recorded.',manageAsset:'Asset management',assetStatus:'Asset status',assetActive:'Active',
 assetHidden:'Hidden',assetDecommissioned:'Decommissioned',statusReason:'Reason / note',saveStatus:'Save status',
 assetHistoryNotice:'History is preserved regardless of asset status.',confirmStatus:'Confirm this asset status change?',
-statusSaveError:'Could not update asset status.',deleteAsset:'Delete permanently',deleteAssetTitle:'Danger zone',deleteAssetHelp:'Removes the asset and all of its Receiver history. If the Pulse keeps sending, the asset will be recreated.',deleteConfirmPrompt:'To permanently delete, type the exact Pulse ID: {id}',deleteMismatch:'Pulse ID does not match. Deletion cancelled.',deleteError:'Could not delete the asset.',incidentTitle:'Requires attention',healthLabel:'Health',telemetryLabel:'Telemetry',telemetryFresh:'Fresh',telemetryStale:'Stale',ago:'ago',activeProblems:'active issue(s)',adminAsset:'Asset management',lifecycleHidden:'Hidden',lifecycleDecommissioned:'Decommissioned',range:'of range',
+statusSaveError:'Could not update asset status.',deleteAsset:'Delete permanently',deleteAssetTitle:'Danger zone',deleteAssetHelp:'Removes the asset and all of its Receiver history. If the Pulse keeps sending, the asset will be recreated.',deleteConfirmPrompt:'To permanently delete, type the exact Pulse ID: {id}',deleteMismatch:'Pulse ID does not match. Deletion cancelled.',deleteError:'Could not delete the asset.',incidentTitle:'Requires attention',healthLabel:'Health',telemetryLabel:'Telemetry',telemetryFresh:'Fresh',telemetryStale:'Stale',ago:'ago',activeProblems:'active issue(s)',adminAsset:'Asset management',deviceMissing:'Missing',deviceOffline:'Offline',deviceNew:'New',deviceRouter:'Router',deviceEnd:'End device',deviceUnknown:'Device',ieeeLabel:'IEEE',moreDevices:'other devices',zigbeeAffected:'Affected devices',lifecycleHidden:'Hidden',lifecycleDecommissioned:'Decommissioned',range:'of range',
 pulseSource:'Seiden Pulse',bridgeSource:'Bridge / Telemetry',receiverUnavailable:'Telemetry Receiver unavailable; local assets are still displayed.',
 receiverNotConfigured:'Telemetry Receiver not configured; Pulse assets will not be displayed.',
 cpuTemp:'CPU temperature',disk:'Disk',zigbee:'Zigbee',apps:'Apps',backup:'Backup',online:'online',missing:'missing',
@@ -206,6 +216,51 @@ function priorityFor(x){
  if(x.state==='attention')return 10;
  if(x.state==='stale')return 20;
  return 50;
+}
+
+function deviceTypeLabel(t){
+ const s=String(t||'').toLowerCase();
+ if(s.includes('router'))return tr('deviceRouter');
+ if(s.includes('end'))return tr('deviceEnd');
+ return tr('deviceUnknown');
+}
+function deviceLabel(d){
+ return d?.friendly_name||d?.device_key||d?.ieee||tr('deviceUnknown');
+}
+function deviceImpactRows(devices,kind,limit=5){
+ const list=Array.isArray(devices)?devices:[];
+ if(!list.length)return'';
+ const shown=list.slice(0,limit);
+ const rows=shown.map(d=>`<div class="device-impact-item">
+   <div class="device-impact-main">
+     <div class="device-impact-name">${escapeHtml(deviceLabel(d))}</div>
+     <div class="device-impact-meta">${escapeHtml(deviceTypeLabel(d.type))}${d.ieee?` · ${tr('ieeeLabel')} ${escapeHtml(d.ieee)}`:''}${d.model?` · ${escapeHtml(d.model)}`:''}</div>
+   </div>
+   <div class="device-impact-kind">${escapeHtml(kind)}</div>
+ </div>`).join('');
+ const extra=list.length-shown.length;
+ return `<div class="device-impact-list">${rows}${extra>0?`<div class="device-impact-more">+ ${extra} ${tr('moreDevices')}</div>`:''}</div>`;
+}
+function alertDeviceDetails(alert){
+ const d=alert?.details||{};
+ let html='';
+ html+=deviceImpactRows(d.missing_devices_detail,tr('deviceMissing'));
+ html+=deviceImpactRows(d.offline_devices_detail,tr('deviceOffline'));
+ html+=deviceImpactRows(d.new_devices_detail,tr('deviceNew'));
+ return html;
+}
+function zigbeeAlertImpact(alerts){
+ const missing=[],offline=[],newdev=[];
+ for(const a of alerts||[]){
+   const d=a?.details||{};
+   if(Array.isArray(d.missing_devices_detail))missing.push(...d.missing_devices_detail);
+   if(Array.isArray(d.offline_devices_detail))offline.push(...d.offline_devices_detail);
+   if(Array.isArray(d.new_devices_detail))newdev.push(...d.new_devices_detail);
+ }
+ const seen=new Set(),uniq=arr=>arr.filter(d=>{const k=d?.ieee||d?.device_key||d?.friendly_name||JSON.stringify(d);if(seen.has(k))return false;seen.add(k);return true});
+ const m=uniq(missing),o=uniq(offline),n=uniq(newdev);
+ if(!m.length&&!o.length&&!n.length)return'';
+ return `<div class="zigbee-impact"><div class="zigbee-impact-title">${tr('zigbeeAffected')}</div>${deviceImpactRows(m,tr('deviceMissing'))}${deviceImpactRows(o,tr('deviceOffline'))}${deviceImpactRows(n,tr('deviceNew'))}</div>`;
 }
 function stateLabel(s){return s==='critical'?tr('criticalState'):s==='attention'?tr('attentionState'):s==='stale'?tr('staleState'):tr('normalState')}
 function escapeHtml(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
@@ -380,10 +435,10 @@ async function openPulse(id){
    <div class="summary-line"><span><strong>${tr('healthLabel')}:</strong> ${stateLabel(state)}</span><span><strong>${tr('telemetryLabel')}:</strong> ${a.connection_state==='healthy'?tr('telemetryFresh'):tr('telemetryStale')} · ${relativeTime(a.last_seen_at)}</span></div>
  </div><span class="state ${state}"><span class="dot"></span>${stateLabel(state)}</span></div>
  <div class="notice">${tr('latest')}: ${fmtTime(a.last_seen_at)} · ${tr('lastSnapshot')}: ${fmtTime(a.last_snapshot_at)} · ${tr('lastHeartbeat')}: ${fmtTime(a.last_heartbeat_at)}</div>
- ${alerts.length?`<div class="incident-banner ${a.highest_alert_severity==='critical'?'critical':'warning'}"><div class="incident-title">${tr('incidentTitle')} · ${alerts.length} ${tr('activeProblems')}</div><div class="incident-list">${alerts.map(x=>`<div class="incident-item"><strong>${escapeHtml(x.title||x.key)}</strong><span>${escapeHtml(x.severity||'warning')} · ${relativeTime(x.activated_at||x.updated_at)}</span></div>`).join('')}</div></div>`:''}
+ ${alerts.length?`<div class="incident-banner ${a.highest_alert_severity==='critical'?'critical':'warning'}"><div class="incident-title">${tr('incidentTitle')} · ${alerts.length} ${tr('activeProblems')}</div><div class="incident-list">${alerts.map(x=>`<div class="incident-item"><strong>${escapeHtml(x.title||x.key)}</strong><span>${escapeHtml(x.severity||'warning')} · ${relativeTime(x.activated_at||x.updated_at)}</span>${alertDeviceDetails(x)}</div>`).join('')}</div></div>`:''}
  <div class="section"><div class="category-grid">
    ${hostBody?category(tr('hostHealth'),hostBody):''}
-   ${zigbeeBody?category(tr('zigbee'),zigbeeBody):''}
+   ${zigbeeBody?category(tr('zigbee'),zigbeeBody+zigbeeAlertImpact(alerts)):''}
    ${appsBody?category(tr('apps'),appsBody):''}
    ${backupsBody?category(tr('backup'),backupsBody):''}
  </div></div>

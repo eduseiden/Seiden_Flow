@@ -1,3 +1,14 @@
+## 0.22.1.5 — ITA 0.3.1.4 · Zigbee Device-Level Alert Details
+
+- Alertas Zigbee passam a exibir devices afetados individualmente.
+- Mostra friendly name quando enviado pela Pulse, com fallback para device_key/IEEE.
+- Exibe tipo do device, IEEE e modelo quando disponíveis.
+- Missing, Offline e New recebem identificação visual distinta.
+- Se houver muitos devices, exibe até 5 por grupo e resume o restante com `+ N`.
+- A seção Zigbee também mostra a lista de devices afetados enquanto houver alerta ativo.
+- Dados vêm dos `details` dos alertas já armazenados no Receiver; não exige alteração no Receiver.
+- Backend ITA, APIs, lifecycle e banco permanecem inalterados.
+
 ## 0.22.1.4 — ITA 0.3.1.3 · Observability UX
 
 - Hierarquia operacional coerente para Redfish, Linux e CAST/Pulse.
