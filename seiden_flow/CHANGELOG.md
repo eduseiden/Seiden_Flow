@@ -1,3 +1,13 @@
+## 0.22.0 — ITA 0.3.0 · Fleet
+
+- Nova visão central `/ita/fleet`.
+- Proxy seguro Flow → Telemetry Receiver: token de leitura permanece server-side.
+- KPIs de frota: CASTs, Healthy, Degraded, Offline e alertas ativos.
+- Resumo por CAST: último contato, versão Pulse, disco, Zigbee, Apps e backup.
+- Detalhe por CAST com plataforma, Zigbee Inventory Integrity, alertas e performance de coleta.
+- Configuração explícita de Receiver URL, read token, timeout e refresh.
+- Baseline Flow 0.21.0 / ITA 0.2.0 preservada; nenhuma lógica dos demais módulos foi removida.
+
 ## 0.21.0 — ITA 0.2.0
 - Renomeia ITA para Infrastructure Telemetry Analytics.
 - Portal passa a adaptar cards e seções às capabilities reais de cada ativo.

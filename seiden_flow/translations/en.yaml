@@ -30,3 +30,23 @@ configuration:
     name: Connection offline event
   vision_event:
     name: Seiden Vision event
+
+  ita_fleet_enabled:
+    name: "ITA Fleet"
+    description: "Enables the central Seiden CAST fleet view."
+
+  ita_fleet_receiver_url:
+    name: "Fleet Receiver"
+    description: "Local URL of the Seiden Telemetry Receiver."
+
+  ita_fleet_read_token:
+    name: "Fleet read token"
+    description: "Read token configured in the Telemetry Receiver."
+
+  ita_fleet_timeout_seconds:
+    name: "Fleet timeout"
+    description: "Receiver query timeout in seconds."
+
+  ita_fleet_refresh_seconds:
+    name: "Fleet refresh"
+    description: "Fleet screen refresh interval in seconds."

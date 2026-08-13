@@ -1,5 +1,18 @@
-# Seiden FLOW 0.21.0
+# Seiden FLOW 0.22.0
 
+## 0.22.0 — Infrastructure Telemetry Analytics (ITA) 0.3.0 · Fleet
+
+Esta versão parte diretamente da baseline **Flow 0.21.0 / ITA 0.2.0** e preserva os módulos, banco e APIs existentes.
+
+Principais adições:
+- ITA Fleet em `/ita/fleet`;
+- consumo server-side do Seiden Telemetry Receiver;
+- `read_token` nunca é enviado ao navegador;
+- visão consolidada Healthy / Degraded / Offline;
+- cards por CAST com Pulse, disco, Zigbee, Apps, backup e alertas;
+- detalhe canônico por CAST;
+- PT/EN e light/dark no padrão global do Flow;
+- ITA local 0.2.x preservado como parte do ITA 0.3.0.
 
 ## 0.21.0 — Infrastructure Telemetry Analytics (ITA) 0.2.0
 

@@ -448,3 +448,25 @@ O ITA passa a separar a existência histórica do ativo de sua visibilidade oper
 ## Flow 0.21.0 — ITA 0.2.0 · Adaptive Infrastructure Telemetry
 
 O ITA passa a representar telemetria de infraestrutura de forma adaptativa. O portal detecta as capacidades presentes no snapshot e apresenta somente os domínios aplicáveis: compute, memória, storage, rede, térmica, energia/refrigeração e disponibilidade. Fontes Redfish e Linux podem coexistir no mesmo portfólio. Thresholds nativos continuam prioritários; guardrails do Flow são aplicados apenas quando a fonte não fornece limites e somente para métricas percentuais amplamente interpretáveis.
+
+## Flow 0.22.0 — ITA 0.3.0 · Fleet
+
+Configuração no App:
+
+```yaml
+ita_fleet_enabled: true
+ita_fleet_receiver_url: "http://192.168.4.134:8787"
+ita_fleet_read_token: "TOKEN_DE_LEITURA_DO_RECEIVER"
+ita_fleet_timeout_seconds: 8
+ita_fleet_refresh_seconds: 30
+```
+
+O `ita_fleet_read_token` é usado apenas pelo backend do Flow e não é exposto
+ao JavaScript do portal.
+
+Rotas:
+
+- `/ita` — ITA adaptativo/local.
+- `/ita/fleet` — visão consolidada dos CASTs.
+- `/api/v1/ita/fleet` — proxy protegido internamente pelo Flow.
+- `/api/v1/ita/fleet/<pulse_id>` — detalhe canônico.

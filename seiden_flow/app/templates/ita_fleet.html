@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<script>
+window.SeidenUXLocale=()=>localStorage.getItem('seiden-flow-language')==='en-US'?'en-US':'pt-BR';
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Seiden Flow · ITA Fleet</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#64748b;--line:#e2e8f0;--soft:#eef2f7;--good:#15803d;--warn:#b45309;--bad:#b91c1c;--info:#2563eb}
+@media(prefers-color-scheme:dark){:root{--bg:#0f172a;--card:#111827;--text:#e5e7eb;--muted:#94a3b8;--line:#273449;--soft:#172033;--good:#4ade80;--warn:#fbbf24;--bad:#f87171;--info:#60a5fa}}
+html[data-theme="light"]{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#64748b;--line:#e2e8f0;--soft:#eef2f7;--good:#15803d;--warn:#b45309;--bad:#b91c1c;--info:#2563eb}
+html[data-theme="dark"]{--bg:#0f172a;--card:#111827;--text:#e5e7eb;--muted:#94a3b8;--line:#273449;--soft:#172033;--good:#4ade80;--warn:#fbbf24;--bad:#f87171;--info:#60a5fa}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.wrap{max-width:1460px;margin:auto;padding:26px}.top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:20px}.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:750}.title{font-size:30px;line-height:1.08;margin:5px 0;font-weight:800}.subtitle,.muted{color:var(--muted)}.toolbar{display:flex;gap:9px;flex-wrap:wrap}
+button,a.btn{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:9px 12px;font:inherit;text-decoration:none;cursor:pointer;font-weight:650}
+.grid{display:grid;gap:14px}.kpis{grid-template-columns:repeat(5,minmax(0,1fr));margin-bottom:18px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:17px}.kpi-label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:750}.kpi-value{font-size:28px;font-weight:800;margin-top:4px}.section-head{display:flex;justify-content:space-between;gap:14px;align-items:center;margin:10px 0}.section-head h2{font-size:17px;margin:0}
+.fleet{grid-template-columns:repeat(3,minmax(0,1fr))}.asset{cursor:pointer;transition:.15s}.asset:hover{transform:translateY(-1px);border-color:#94a3b8}.asset-head{display:flex;justify-content:space-between;gap:12px}.asset-name{font-size:17px;font-weight:780}.meta{font-size:12px;color:var(--muted);margin-top:3px}.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;background:var(--soft);padding:6px 10px;font-size:11px;font-weight:750;white-space:nowrap}.dot{width:8px;height:8px;border-radius:50%;background:var(--good)}.pill.degraded .dot{background:var(--warn)}.pill.offline .dot{background:var(--bad)}.pill.warning{color:var(--warn)}.pill.critical{color:var(--bad)}
+.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:14px}.metric{background:var(--soft);border-radius:12px;padding:10px;min-height:72px}.metric span{display:block;color:var(--muted);font-size:11px}.metric b{display:block;font-size:17px;margin-top:3px}.detail{display:none}.detail.active{display:block}.overview.hidden{display:none}.back{margin-bottom:12px}
+.detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.block h3{font-size:15px;margin:0 0 12px}.kv-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.kv{background:var(--soft);border-radius:11px;padding:11px}.kv span{display:block;color:var(--muted);font-size:11px}.kv strong{display:block;font-size:17px;margin-top:3px}.wide{grid-column:1/-1}
+.notice{padding:13px 14px;border-radius:12px;background:var(--soft);color:var(--muted);margin:12px 0}.notice.error{color:var(--bad);font-weight:650}.alerts{display:grid;gap:8px}.alert{border:1px solid var(--line);border-radius:12px;padding:12px}.alert strong{display:block}.footer{margin-top:24px;color:var(--muted);font-size:12px}
+.empty{text-align:center;color:var(--muted);padding:40px 15px}.status-line{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.fresh{font-size:12px;color:var(--muted)}
+@media(max-width:1080px){.fleet{grid-template-columns:repeat(2,1fr)}.kpis{grid-template-columns:repeat(3,1fr)}}@media(max-width:760px){.wrap{padding:15px}.top{flex-direction:column}.fleet,.detail-grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}}@media(max-width:480px){.kpis,.metrics,.kv-grid{grid-template-columns:1fr}.title{font-size:25px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="eyebrow">Seiden One · ITA</div>
+      <div class="title" data-i18n="title">Fleet</div>
+      <div class="subtitle" data-i18n="subtitle">Saúde centralizada dos ambientes Seiden CAST monitorados pelo Seiden Pulse.</div>
+    </div>
+    <div class="toolbar">
+      <a class="btn" href="{{ ingress_path }}/ita" data-i18n="local">ITA local</a>
+      <button id="refresh" data-i18n="refresh">Atualizar</button>
+    </div>
+  </div>
+
+  <div id="configNotice" class="notice" style="display:none"></div>
+
+  <div id="overview" class="overview">
+    <div id="kpis" class="grid kpis"></div>
+    <div class="section-head">
+      <h2 data-i18n="castFleet">Ambientes CAST</h2>
+      <div id="updated" class="fresh">—</div>
+    </div>
+    <div id="fleet" class="grid fleet"></div>
+  </div>
+
+  <div id="detail" class="detail">
+    <button class="back" id="back" data-i18n="back">← Fleet</button>
+    <div id="detailBody"></div>
+  </div>
+
+  <div class="footer">Seiden Flow {{ version }} · ITA 0.3.0 · <span data-i18n="footer">Fleet powered by Seiden Pulse</span></div>
+</div>
+
+<script>
+(()=>{
+const BASE={{ ingress_path|tojson }}, REFRESH={{ refresh_seconds|int }}*1000;
+const $=id=>document.getElementById(id), api=p=>BASE+p;
+const T={
+'pt-BR':{title:'Fleet',subtitle:'Saúde centralizada dos ambientes Seiden CAST monitorados pelo Seiden Pulse.',local:'ITA local',refresh:'Atualizar',castFleet:'Ambientes CAST',back:'← Fleet',footer:'Fleet powered by Seiden Pulse',assets:'CASTs',healthy:'Saudáveis',degraded:'Degradados',offline:'Offline',alerts:'Alertas ativos',lastSeen:'Último contato',pulse:'Pulse',disk:'Disco',zigbee:'Zigbee',apps:'Apps',backup:'Backup',online:'online',missing:'missing',started:'ativos',stopped:'parados',noFleet:'Nenhum CAST recebido pelo Fleet ainda.',notConfigured:'ITA Fleet ainda não está configurado. Informe Receiver URL e read token nas opções do Seiden Flow.',loadError:'Não foi possível consultar o Telemetry Receiver.',connection:'Conexão',host:'Host',platform:'Plataforma CAST',collection:'Coleta',details:'Detalhes',version:'Versão',heartbeat:'Heartbeat',snapshot:'Snapshot',routers:'Routers',endDevices:'End devices',expected:'Esperados',newDevices:'Novos',unknown:'Unknown',used:'usado',total:'total',latestBackup:'Último backup',backupCount:'Backups',noAlerts:'Nenhum alerta ativo.',tenant:'Tenant',hostname:'Hostname',performance:'Performance de coleta',seconds:'s'},
+'en-US':{title:'Fleet',subtitle:'Centralized health of Seiden CAST environments monitored by Seiden Pulse.',local:'Local ITA',refresh:'Refresh',castFleet:'CAST environments',back:'← Fleet',footer:'Fleet powered by Seiden Pulse',assets:'CASTs',healthy:'Healthy',degraded:'Degraded',offline:'Offline',alerts:'Active alerts',lastSeen:'Last contact',pulse:'Pulse',disk:'Disk',zigbee:'Zigbee',apps:'Apps',backup:'Backup',online:'online',missing:'missing',started:'running',stopped:'stopped',noFleet:'No CAST has been received by Fleet yet.',notConfigured:'ITA Fleet is not configured yet. Set the Receiver URL and read token in Seiden Flow options.',loadError:'Could not query the Telemetry Receiver.',connection:'Connection',host:'Host',platform:'CAST platform',collection:'Collection',details:'Details',version:'Version',heartbeat:'Heartbeat',snapshot:'Snapshot',routers:'Routers',endDevices:'End devices',expected:'Expected',newDevices:'New',unknown:'Unknown',used:'used',total:'total',latestBackup:'Latest backup',backupCount:'Backups',noAlerts:'No active alerts.',tenant:'Tenant',hostname:'Hostname',performance:'Collection performance',seconds:'s'}
+};
+let lang=window.SeidenUXLocale(), current=null;
+const tr=k=>(T[lang]&&T[lang][k])||T['pt-BR'][k]||k;
+document.querySelectorAll('[data-i18n]').forEach(el=>{const k=el.dataset.i18n;if(tr(k))el.textContent=tr(k)});
+
+function esc(v){return String(v??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function num(v,d=0){const n=Number(v);return Number.isFinite(n)?n.toLocaleString(lang,{maximumFractionDigits:d}):'—'}
+function dt(v){if(!v)return '—';const d=new Date(v);return isNaN(d)?esc(v):d.toLocaleString(lang)}
+function age(sec){const s=Number(sec);if(!Number.isFinite(s))return '—';if(s<60)return Math.round(s)+'s';if(s<3600)return Math.round(s/60)+'m';if(s<86400)return (s/3600).toFixed(s<7200?1:0)+'h';return (s/86400).toFixed(1)+'d'}
+function stateText(s){return s==='healthy'?tr('healthy'):s==='degraded'?tr('degraded'):tr('offline')}
+function pill(s){return `<span class="pill ${esc(s)}"><i class="dot"></i>${stateText(s)}</span>`}
+
+function renderKpis(d){
+ const x=d.totals||{};
+ const vals=[[tr('assets'),x.assets],[tr('healthy'),x.healthy],[tr('degraded'),x.degraded],[tr('offline'),x.offline],[tr('alerts'),(d.assets||[]).reduce((a,b)=>a+(Number(b.active_alerts)||0),0)]];
+ $('kpis').innerHTML=vals.map(([l,v])=>`<div class="card"><div class="kpi-label">${esc(l)}</div><div class="kpi-value">${num(v)}</div></div>`).join('');
+}
+function renderFleet(d){
+ const items=d.assets||[];
+ if(!items.length){$('fleet').innerHTML=`<div class="card empty">${tr('noFleet')}</div>`;return}
+ $('fleet').innerHTML=items.map(a=>{
+   const s=a.summary||{}, z=s.zigbee||{}, ap=s.apps||{}, h=s.host||{}, b=s.backups||{};
+   const disk=h.disk_used_percent==null?'—':num(h.disk_used_percent,1)+'%';
+   const backup=b.latest_age_hours==null?'—':num(b.latest_age_hours,1)+'h';
+   return `<div class="card asset" data-pulse="${esc(a.pulse_id)}">
+     <div class="asset-head"><div><div class="asset-name">${esc(a.asset_name||a.hostname||a.pulse_id)}</div><div class="meta">${esc(a.tenant_id)} · ${esc(a.hostname||'—')}</div></div>${pill(a.connection_state)}</div>
+     <div class="metrics">
+       <div class="metric"><span>${tr('lastSeen')}</span><b>${age(a.last_seen_age_seconds)}</b></div>
+       <div class="metric"><span>${tr('pulse')}</span><b>${esc(a.pulse_version||'—')}</b></div>
+       <div class="metric"><span>${tr('disk')}</span><b>${disk}</b></div>
+       <div class="metric"><span>${tr('zigbee')}</span><b>${num(z.online)}/${num(z.total)}</b><span>${num(z.missing)} ${tr('missing')}</span></div>
+       <div class="metric"><span>${tr('apps')}</span><b>${num(ap.started)}/${num(ap.total)}</b><span>${num(ap.stopped)} ${tr('stopped')}</span></div>
+       <div class="metric"><span>${tr('backup')}</span><b>${backup}</b></div>
+     </div>
+     <div class="status-line" style="margin-top:12px">${a.active_alerts?`<span class="pill ${esc(a.highest_alert_severity||'warning')}">${num(a.active_alerts)} ${tr('alerts')}</span>`:''}<span class="fresh">${tr('lastSeen')}: ${dt(a.last_seen_at)}</span></div>
+   </div>`
+ }).join('');
+ document.querySelectorAll('.asset').forEach(el=>el.addEventListener('click',()=>openAsset(el.dataset.pulse)));
+}
+function platformRows(p){
+ const values=Object.values((p||{})).filter(Boolean);
+ if(!values.length)return `<div class="muted">—</div>`;
+ return `<div class="kv-grid">${values.map(x=>`<div class="kv"><span>${esc(x.name||x.slug)}</span><strong>${esc(x.state||'—')}</strong><span class="muted">${esc(x.version||'—')}${x.update_available?' · update':''}</span></div>`).join('')}</div>`;
+}
+async function openAsset(id){
+ current=id;
+ $('overview').classList.add('hidden');$('detail').classList.add('active');
+ $('detailBody').innerHTML=`<div class="card empty">…</div>`;
+ try{
+   const r=await fetch(api('/api/v1/ita/fleet/'+encodeURIComponent(id)),{cache:'no-store'});
+   const a=await r.json(); if(!r.ok)throw new Error(a.error||r.status);
+   const s=a.summary||{},h=s.host||{},z=s.zigbee||{},ap=s.apps||{},b=s.backups||{},perf=s.collection_performance||{};
+   const alerts=a.alerts||[];
+   $('detailBody').innerHTML=`
+   <div class="card" style="margin-bottom:14px">
+     <div class="asset-head"><div><div class="asset-name">${esc(a.asset_name||a.hostname||a.pulse_id)}</div><div class="meta">${tr('tenant')}: ${esc(a.tenant_id)} · ${tr('hostname')}: ${esc(a.hostname||'—')} · ${tr('pulse')} ${esc(a.pulse_version||'—')}</div></div>${pill(a.connection_state)}</div>
+     <div class="status-line" style="margin-top:12px"><span class="fresh">${tr('lastSeen')}: ${dt(a.last_seen_at)} (${age(a.last_seen_age_seconds)})</span><span class="fresh">${tr('snapshot')}: ${dt(a.last_snapshot_at)}</span><span class="fresh">${tr('heartbeat')}: ${dt(a.last_heartbeat_at)}</span></div>
+   </div>
+   <div class="grid detail-grid">
+    <div class="card block"><h3>${tr('host')}</h3><div class="kv-grid">
+      <div class="kv"><span>${tr('disk')}</span><strong>${h.disk_used_percent==null?'—':num(h.disk_used_percent,1)+'%'}</strong><span>${num(h.disk_used_gb,1)} / ${num(h.disk_total_gb,1)} GB</span></div>
+      <div class="kv"><span>${tr('connection')}</span><strong>${stateText(a.connection_state)}</strong><span>${age(a.last_seen_age_seconds)}</span></div>
+    </div></div>
+    <div class="card block"><h3>${tr('zigbee')}</h3><div class="kv-grid">
+      <div class="kv"><span>${tr('online')}</span><strong>${num(z.online)} / ${num(z.total)}</strong><span>${num(z.offline)} offline · ${num(z.unknown)} ${tr('unknown')}</span></div>
+      <div class="kv"><span>${tr('expected')}</span><strong>${num(z.expected)}</strong><span>${num(z.missing)} ${tr('missing')} · ${num(z.new)} ${tr('newDevices')}</span></div>
+      <div class="kv"><span>${tr('routers')}</span><strong>${num(z.routers)}</strong></div>
+      <div class="kv"><span>${tr('endDevices')}</span><strong>${num(z.end_devices)}</strong></div>
+    </div></div>
+    <div class="card block"><h3>${tr('apps')}</h3><div class="kv-grid">
+      <div class="kv"><span>${tr('total')}</span><strong>${num(ap.total)}</strong></div>
+      <div class="kv"><span>${tr('started')}</span><strong>${num(ap.started)}</strong><span>${num(ap.stopped)} ${tr('stopped')}</span></div>
+    </div><div style="margin-top:10px">${platformRows(ap.platform)}</div></div>
+    <div class="card block"><h3>${tr('backup')}</h3><div class="kv-grid">
+      <div class="kv"><span>${tr('backupCount')}</span><strong>${num(b.count)}</strong></div>
+      <div class="kv"><span>${tr('latestBackup')}</span><strong>${b.latest_age_hours==null?'—':num(b.latest_age_hours,1)+'h'}</strong></div>
+    </div></div>
+    <div class="card block"><h3>${tr('performance')}</h3><div class="kv-grid">
+      ${Object.entries(perf).slice(0,8).map(([k,v])=>`<div class="kv"><span>${esc(k.replaceAll('_',' '))}</span><strong>${typeof v==='number'?num(v,2):esc(v)}</strong></div>`).join('')||'<div class="muted">—</div>'}
+    </div></div>
+    <div class="card block"><h3>${tr('alerts')}</h3><div class="alerts">
+      ${alerts.length?alerts.map(x=>`<div class="alert"><strong>${esc(x.title||x.key)}</strong><span class="pill ${esc(x.severity||'warning')}">${esc(x.severity||'warning')}</span><div class="meta">${dt(x.updated_at)}</div></div>`).join(''):`<div class="muted">${tr('noAlerts')}</div>`}
+    </div></div>
+   </div>`;
+ }catch(e){$('detailBody').innerHTML=`<div class="notice error">${tr('loadError')} (${esc(e.message)})</div>`}
+}
+async function load(){
+ try{
+   const r=await fetch(api('/api/v1/ita/fleet'),{cache:'no-store'});
+   const d=await r.json();
+   if(!r.ok){
+     const msg=d.error==='fleet_not_configured'?tr('notConfigured'):tr('loadError')+' ('+esc(d.error||r.status)+')';
+     $('configNotice').style.display='block';$('configNotice').textContent=msg;
+     return;
+   }
+   $('configNotice').style.display='none';
+   renderKpis(d);renderFleet(d);$('updated').textContent=dt(d.generated_at);
+ }catch(e){$('configNotice').style.display='block';$('configNotice').textContent=tr('loadError')+' ('+e.message+')'}
+}
+$('refresh').onclick=load;$('back').onclick=()=>{current=null;$('detail').classList.remove('active');$('overview').classList.remove('hidden')};
+load();setInterval(()=>{if(!current)load()},REFRESH);
+})();
+</script>
+{% include '_global_ux.html' %}
+</body></html>

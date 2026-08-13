@@ -47,6 +47,11 @@ class Settings:
     hea_public_restrict_routes: bool = False
     lca_enabled: bool = True
     ita_enabled: bool = True
+    ita_fleet_enabled: bool = True
+    ita_fleet_receiver_url: str = "http://192.168.4.134:8787"
+    ita_fleet_read_token: str = ""
+    ita_fleet_timeout_seconds: int = 8
+    ita_fleet_refresh_seconds: int = 30
     lca_topic_prefixes: tuple[str, ...] = ("zigbee2mqtt/Interruptor",)
     config_dir: str = "/config"
 
@@ -105,5 +110,10 @@ def load_settings() -> Settings:
         hea_public_restrict_routes=_bool(raw.get("hea_public_restrict_routes"),False),
         lca_enabled=_bool(raw.get("lca_enabled"),True),
         ita_enabled=_bool(raw.get("ita_enabled"),True),
+        ita_fleet_enabled=_bool(raw.get("ita_fleet_enabled"),True),
+        ita_fleet_receiver_url=str(raw.get("ita_fleet_receiver_url","http://192.168.4.134:8787") or "").strip().rstrip("/"),
+        ita_fleet_read_token=str(raw.get("ita_fleet_read_token","") or "").strip(),
+        ita_fleet_timeout_seconds=max(2,min(30,int(raw.get("ita_fleet_timeout_seconds",8)))),
+        ita_fleet_refresh_seconds=max(10,min(3600,int(raw.get("ita_fleet_refresh_seconds",30)))),
         lca_topic_prefixes=_strings(raw.get("lca_topic_prefixes",["zigbee2mqtt/Interruptor"])),
         config_dir=os.getenv("FLOW_CONFIG_DIR","/config"))

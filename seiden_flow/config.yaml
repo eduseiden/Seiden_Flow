@@ -1,5 +1,5 @@
 name: Seiden FLOW
-version: 0.21.0
+version: 0.22.0
 slug: seiden_flow
 description: Motor de entendimento operacional do Seiden One, conforme Platform Standard v1.0
 url: https://github.com/eduseiden/Seiden_Flow
@@ -68,6 +68,11 @@ options:
   hea_public_restrict_routes: false
   lca_enabled: true
   ita_enabled: true
+  ita_fleet_enabled: true
+  ita_fleet_receiver_url: http://192.168.4.134:8787
+  ita_fleet_read_token: ''
+  ita_fleet_timeout_seconds: 8
+  ita_fleet_refresh_seconds: 30
   lca_topic_prefixes:
   - zigbee2mqtt/Interruptor
   datetime_format: YYYY-MM-DD HH:mm:ss
@@ -115,6 +120,11 @@ schema:
   hea_public_restrict_routes: bool
   lca_enabled: bool
   ita_enabled: bool
+  ita_fleet_enabled: bool
+  ita_fleet_receiver_url: url?
+  ita_fleet_read_token: password?
+  ita_fleet_timeout_seconds: int(2,30)
+  ita_fleet_refresh_seconds: int(10,3600)
   lca_topic_prefixes:
   - str
   datetime_format: str
