@@ -1,3 +1,14 @@
+## 0.22.1 — ITA 0.3.1 · Unified Assets
+
+- Servidores Bridge/Redfish/Linux e CAST/Pulse na mesma visão `/ita`.
+- Removido o link visual Fleet.
+- CAST com Host Health: CPU temperature, uptime e storage.
+- Zigbee Inventory Integrity, Apps, backups, runtime e alertas no detalhe CAST.
+- Receiver indisponível não derruba a visão de ativos locais.
+- Filtros de lifecycle continuam aplicados aos ativos locais.
+- Rotas e APIs Fleet preservadas por compatibilidade.
+- Nenhuma lógica dos demais módulos foi removida.
+
 ## 0.22.0 — ITA 0.3.0 · Fleet
 
 - Nova visão central `/ita/fleet`.

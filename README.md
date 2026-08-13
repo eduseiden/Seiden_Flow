@@ -1,4 +1,19 @@
-# Seiden FLOW 0.22.0
+# Seiden FLOW 0.22.1
+
+## 0.22.1 — Infrastructure Telemetry Analytics (ITA) 0.3.1 · Unified Assets
+
+Partindo diretamente da baseline fornecida **Flow 0.22.0 / ITA 0.3.0**, esta
+versão unifica servidores locais (Bridge/Redfish/Linux) e ambientes Seiden CAST
+(Pulse/Receiver) na mesma superfície `/ita`.
+
+- O botão/conceito visual separado **Fleet** foi removido.
+- CAST/Pulse aparece como mais um ativo monitorado no ITA.
+- O detalhe CAST é capability-aware: Host Health, Zigbee, Apps, backup,
+  runtime da plataforma e alertas.
+- O detalhe local existente (Redfish/Linux), histórico, eventos e lifecycle
+  foi preservado.
+- `/ita/fleet` continua como alias de compatibilidade, mas abre o ITA unificado.
+- O `read_token` continua exclusivamente server-side no Flow.
 
 ## 0.22.0 — Infrastructure Telemetry Analytics (ITA) 0.3.0 · Fleet
 

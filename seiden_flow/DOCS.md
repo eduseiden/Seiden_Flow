@@ -470,3 +470,24 @@ Rotas:
 - `/ita/fleet` — visão consolidada dos CASTs.
 - `/api/v1/ita/fleet` — proxy protegido internamente pelo Flow.
 - `/api/v1/ita/fleet/<pulse_id>` — detalhe canônico.
+
+## Flow 0.22.1 — ITA 0.3.1 · Unified Assets
+
+O ITA passa a usar uma única superfície:
+
+- `/ita` — servidores locais e CAST/Pulse unificados.
+- `/ita/fleet` — alias legado que abre a mesma tela.
+- `/api/v1/ita/fleet` e `/api/v1/ita/fleet/<pulse_id>` — mantidos como proxy
+  server-side para o Receiver.
+
+A configuração do Receiver permanece igual:
+
+```yaml
+ita_fleet_enabled: true
+ita_fleet_receiver_url: "http://192.168.4.134:8787"
+ita_fleet_read_token: "TOKEN_DE_LEITURA_DO_RECEIVER"
+ita_fleet_timeout_seconds: 8
+ita_fleet_refresh_seconds: 30
+```
+
+O token de leitura nunca é exposto ao navegador.

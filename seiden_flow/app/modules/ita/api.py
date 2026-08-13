@@ -8,13 +8,8 @@ def create_ita_blueprint(repo, version, ingress_path_fn, timezone_name, fleet_cl
     @bp.get('/ita')
     @bp.get('/intelligence/ita')
     def portal():
-        return render_template('ita_portal.html', version=version, ingress_path=ingress_path_fn(), display_timezone=timezone_name)
-
-    @bp.get('/ita/fleet')
-    @bp.get('/intelligence/ita/fleet')
-    def fleet_portal():
         return render_template(
-            'ita_fleet.html',
+            'ita_portal.html',
             version=version,
             ingress_path=ingress_path_fn(),
             display_timezone=timezone_name,
@@ -22,6 +17,13 @@ def create_ita_blueprint(repo, version, ingress_path_fn, timezone_name, fleet_cl
             fleet_enabled=bool(fleet_enabled),
             fleet_configured=bool(fleet_client and fleet_client.configured),
         )
+
+    # Compatibility aliases: Fleet is no longer a separate product surface.
+    # Old bookmarks land on the same unified ITA view.
+    @bp.get('/ita/fleet')
+    @bp.get('/intelligence/ita/fleet')
+    def fleet_portal():
+        return portal()
 
     @bp.get('/api/v1/ita/fleet')
     def fleet():
