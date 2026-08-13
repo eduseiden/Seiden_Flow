@@ -26,7 +26,7 @@ class ITAFleetClient:
             headers={
                 "Authorization": f"Bearer {self.read_token}",
                 "Accept": "application/json",
-                "User-Agent": "Seiden-Flow-ITA-Fleet/0.3.0",
+                "User-Agent": "Seiden-Flow-ITA/0.3.1.2",
             },
             method="GET",
         )
@@ -52,8 +52,62 @@ class ITAFleetClient:
             LOGGER.warning("Resposta inválida do Fleet Receiver em %s", path)
             raise RuntimeError("receiver_invalid_json") from exc
 
-    def fleet(self):
-        return self._get("/fleet")
+    def _write(self, method: str, path: str, payload=None, extra_headers=None):
+        if not self.configured:
+            raise RuntimeError("fleet_not_configured")
+        headers = {
+            "Authorization": f"Bearer {self.read_token}",
+            "Accept": "application/json",
+            "User-Agent": "Seiden-Flow-ITA/0.3.1.2",
+        }
+        data = None
+        if payload is not None:
+            data = json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+            headers["Content-Type"] = "application/json"
+        if extra_headers:
+            headers.update(extra_headers)
+        req = request.Request(self.base_url + path, headers=headers, data=data, method=method)
+        try:
+            with request.urlopen(req, timeout=self.timeout_seconds) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except error.HTTPError as exc:
+            detail = ""
+            try:
+                detail = exc.read().decode("utf-8", "replace")[:500]
+            except Exception:
+                pass
+            LOGGER.warning("Fleet Receiver HTTP %s em %s %s: %s", exc.code, method, path, detail)
+            raise RuntimeError(f"receiver_http_{exc.code}") from exc
+        except error.URLError as exc:
+            LOGGER.warning("Fleet Receiver indisponível em %s %s: %s", method, path, exc.reason)
+            raise RuntimeError("receiver_unavailable") from exc
+        except TimeoutError as exc:
+            LOGGER.warning("Timeout no Fleet Receiver em %s %s", method, path)
+            raise RuntimeError("receiver_timeout") from exc
+        except (ValueError, json.JSONDecodeError) as exc:
+            LOGGER.warning("Resposta inválida do Fleet Receiver em %s %s", method, path)
+            raise RuntimeError("receiver_invalid_json") from exc
+
+    def fleet(self, view: str = "active"):
+        view = str(view or "active").strip().lower()
+        return self._get("/fleet?" + parse.urlencode({"view": view}))
 
     def asset(self, pulse_id: str):
         return self._get("/fleet/" + parse.quote(str(pulse_id), safe=""))
+
+    def set_asset_status(self, pulse_id: str, status: str, reason: str = ""):
+        qid = parse.quote(str(pulse_id), safe="")
+        return self._write(
+            "POST",
+            f"/fleet/{qid}/asset-status",
+            {"status": status, "reason": reason},
+        )
+
+    def delete_asset(self, pulse_id: str):
+        qid = parse.quote(str(pulse_id), safe="")
+        return self._write(
+            "DELETE",
+            f"/fleet/{qid}",
+            None,
+            {"X-Seiden-Confirm-Pulse": str(pulse_id)},
+        )

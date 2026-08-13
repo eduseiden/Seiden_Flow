@@ -520,3 +520,22 @@ Ajustes exclusivamente de apresentação/semântica no detalhe CAST:
 - diagnóstico da Pulse recolhível.
 
 Nenhuma API ou lógica de ingestão foi alterada.
+
+## Flow 0.22.1.3 — ITA 0.3.1.2 · Pulse Asset Lifecycle
+
+O detalhe de ativos Seiden Pulse passa a oferecer a mesma gestão de lifecycle
+dos demais ativos ITA:
+
+- Ativo
+- Oculto
+- Descomissionado
+- Exclusão definitiva (zona de risco)
+
+O Flow apenas faz proxy server-side para a API privada do Receiver 0.2.3.
+O `read_token` nunca é enviado ao navegador.
+
+Para instalações novas:
+
+```yaml
+ita_fleet_receiver_url: "http://192.168.4.134:8788"
+```

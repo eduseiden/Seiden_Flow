@@ -1,5 +1,9 @@
-# Seiden FLOW 0.22.1.2
+# Seiden FLOW 0.22.1.3
 
+## ITA 0.3.1.2 — Pulse Asset Lifecycle
+
+Lifecycle unificado para ativos locais e Seiden Pulse, incluindo ocultar,
+descomissionar e exclusão definitiva protegida.
 ## ITA 0.3.1.1 — UX/UI Polish
 
 Refinamento visual e semântico do ITA Unified Assets, partindo diretamente da

@@ -41,6 +41,14 @@ html[data-theme="light"]{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#64748b
 .platform-item{border:1px solid transparent}
 .platform-item:hover{border-color:var(--line)}
 
+
+.lifecycle-badge{display:inline-flex;align-items:center;border:1px solid var(--line);background:var(--soft);border-radius:999px;padding:4px 8px;font-size:10px;font-weight:750;margin-left:6px}
+.lifecycle-badge.hidden{color:var(--muted)}
+.lifecycle-badge.decommissioned{color:var(--muted);border-style:dashed}
+.danger-zone{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.danger-btn{border:1px solid #dc6666;background:transparent;color:#b42318;border-radius:10px;padding:9px 12px;font-weight:700;cursor:pointer}
+.danger-btn:hover{background:#fff1f0}
+.danger-help{display:block;color:var(--muted);font-size:11px;margin-top:7px;max-width:760px}
 </style></head>
 <body><div class="wrap">
 <div class="top">
@@ -79,7 +87,7 @@ html[data-theme="light"]{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#64748b
   <div id="detailBody"></div>
 </div>
 
-<div class="footer">Seiden Flow {{ version }} · ITA 0.3.1.1 · <span data-i18n="agnostic">Modelo adaptativo e agnóstico de fabricante</span></div>
+<div class="footer">Seiden Flow {{ version }} · ITA 0.3.1.2 · <span data-i18n="agnostic">Modelo adaptativo e agnóstico de fabricante</span></div>
 </div>
 
 <script>
@@ -111,7 +119,7 @@ reading:'Leitura',health:'Saúde',threshold:'Próximo limite',when:'Quando',even
 noEvents:'Nenhuma mudança operacional registrada.',manageAsset:'Gestão do ativo',assetStatus:'Status do ativo',assetActive:'Ativo',
 assetHidden:'Oculto',assetDecommissioned:'Descomissionado',statusReason:'Motivo / observação',saveStatus:'Salvar status',
 assetHistoryNotice:'O histórico é preservado independentemente do status do ativo.',confirmStatus:'Confirmar alteração de status deste ativo?',
-statusSaveError:'Não foi possível atualizar o status.',range:'da faixa',
+statusSaveError:'Não foi possível atualizar o status.',deleteAsset:'Excluir definitivamente',deleteAssetTitle:'Zona de risco',deleteAssetHelp:'Remove o ativo e todo o histórico dele no Telemetry Receiver. Se a Pulse continuar transmitindo, o ativo será recriado.',deleteConfirmPrompt:'Para excluir definitivamente, digite exatamente o Pulse ID: {id}',deleteMismatch:'Pulse ID não confere. Exclusão cancelada.',deleteError:'Não foi possível excluir o ativo.',lifecycleHidden:'Oculto',lifecycleDecommissioned:'Descomissionado',range:'da faixa',
 pulseSource:'Seiden Pulse',bridgeSource:'Bridge / Telemetria',receiverUnavailable:'Telemetry Receiver indisponível; ativos locais continuam sendo exibidos.',
 receiverNotConfigured:'Telemetry Receiver não configurado; ativos Pulse não serão exibidos.',
 cpuTemp:'Temperatura CPU',disk:'Disco',zigbee:'Zigbee',apps:'Apps',backup:'Backup',online:'online',missing:'missing',
@@ -145,7 +153,7 @@ reading:'Reading',health:'Health',threshold:'Next threshold',when:'When',event:'
 noEvents:'No operational changes recorded.',manageAsset:'Asset management',assetStatus:'Asset status',assetActive:'Active',
 assetHidden:'Hidden',assetDecommissioned:'Decommissioned',statusReason:'Reason / note',saveStatus:'Save status',
 assetHistoryNotice:'History is preserved regardless of asset status.',confirmStatus:'Confirm this asset status change?',
-statusSaveError:'Could not update asset status.',range:'of range',
+statusSaveError:'Could not update asset status.',deleteAsset:'Delete permanently',deleteAssetTitle:'Danger zone',deleteAssetHelp:'Removes the asset and all of its Receiver history. If the Pulse keeps sending, the asset will be recreated.',deleteConfirmPrompt:'To permanently delete, type the exact Pulse ID: {id}',deleteMismatch:'Pulse ID does not match. Deletion cancelled.',deleteError:'Could not delete the asset.',lifecycleHidden:'Hidden',lifecycleDecommissioned:'Decommissioned',range:'of range',
 pulseSource:'Seiden Pulse',bridgeSource:'Bridge / Telemetry',receiverUnavailable:'Telemetry Receiver unavailable; local assets are still displayed.',
 receiverNotConfigured:'Telemetry Receiver not configured; Pulse assets will not be displayed.',
 cpuTemp:'CPU temperature',disk:'Disk',zigbee:'Zigbee',apps:'Apps',backup:'Backup',online:'online',missing:'missing',
@@ -214,7 +222,7 @@ function pulseCards(a){
 function normalizePulse(a){
  const s=a.summary||{},asset=s.asset||{};
  return{
-   source:'pulse',id:a.pulse_id,state:mapPulseState(a),
+   source:'pulse',id:a.pulse_id,state:mapPulseState(a),assetStatus:a.asset_status||'active',
    system:{system_id:a.pulse_id,system_name:a.asset_name||asset.name||a.hostname||a.pulse_id,
      connection_name:`${tr('pulseSource')} · ${asset.operating_system||'CAST'}${asset.architecture?' · '+asset.architecture:''}`,
      connector:'pulse',last_seen:a.last_seen_at},
@@ -232,7 +240,7 @@ function renderOverview(items,updatedAt){
  $('systems').innerHTML=items.length?items.map(x=>{
    const s=x.system,cards=x.primary_cards||[],badge=x.source==='pulse'?tr('pulseSource'):tr('bridgeSource');
    return`<div class="card system-card" data-source="${x.source}" data-id="${escapeHtml(x.id)}">
-     <div class="system-head"><div><div class="system-name">${escapeHtml(s.system_name)}</div><div class="system-meta">${escapeHtml(s.connection_name||s.connector||'')}</div><span class="source-badge ${x.source}">${escapeHtml(badge)}</span></div>
+     <div class="system-head"><div><div class="system-name">${escapeHtml(s.system_name)}</div><div class="system-meta">${escapeHtml(s.connection_name||s.connector||'')}</div><span class="source-badge ${x.source}">${escapeHtml(badge)}</span>${x.source==='pulse'&&x.assetStatus&&x.assetStatus!=='active'?`<span class="lifecycle-badge ${x.assetStatus}">${x.assetStatus==='hidden'?tr('lifecycleHidden'):tr('lifecycleDecommissioned')}</span>`:''}</div>
      <span class="state ${x.state}"><span class="dot"></span>${stateLabel(x.state)}</span></div>
      <div class="metrics">${cards.map(c=>`<div class="metric"><span>${tr(c.key)}</span><b>${fmtCard(c)}</b></div>`).join('')}</div>
      <div class="system-meta" style="margin-top:12px">${tr('latest')}: ${fmtTime(s.last_seen)} · ${tr('details')} →</div>
@@ -336,6 +344,25 @@ async function openPulse(id){
    <div class="cap-strip">${capabilityChips(caps)}</div>
  </div><span class="state ${state}"><span class="dot"></span>${stateLabel(state)}</span></div>
  <div class="notice">${tr('latest')}: ${fmtTime(a.last_seen_at)} · ${tr('lastSnapshot')}: ${fmtTime(a.last_snapshot_at)} · ${tr('lastHeartbeat')}: ${fmtTime(a.last_heartbeat_at)}</div>
+ <div class="section card"><div class="section-head"><h2>${tr('manageAsset')}</h2></div>
+   <div class="asset-manage">
+     <div><label>${tr('assetStatus')}</label>
+       <select id="pulseAssetStatus">
+         <option value="active" ${(a.asset_status||'active')==='active'?'selected':''}>${tr('assetActive')}</option>
+         <option value="hidden" ${a.asset_status==='hidden'?'selected':''}>${tr('assetHidden')}</option>
+         <option value="decommissioned" ${a.asset_status==='decommissioned'?'selected':''}>${tr('assetDecommissioned')}</option>
+       </select>
+     </div>
+     <div><label>${tr('statusReason')}</label><input id="pulseAssetReason" maxlength="500" value="${escapeHtml(a.asset_status_reason||'')}"></div>
+     <button id="savePulseAssetStatus">${tr('saveStatus')}</button>
+   </div>
+   <div class="system-meta" style="margin-top:8px">${tr('assetHistoryNotice')}</div>
+   <div class="danger-zone">
+     <strong>${tr('deleteAssetTitle')}</strong><br>
+     <button id="deletePulseAsset" class="danger-btn" style="margin-top:9px">${tr('deleteAsset')}</button>
+     <span class="danger-help">${tr('deleteAssetHelp')}</span>
+   </div>
+ </div>
  <div class="section"><div class="category-grid">
    ${category(tr('hostHealth'),hostBody)}
    ${category(tr('zigbee'),zigbeeBody)}
@@ -357,6 +384,27 @@ async function openPulse(id){
  <div class="section"><div class="section-head"><h2>${tr('activeAlerts')}</h2></div><div class="card">
    <div class="alert-list">${alerts.length?alerts.map(x=>`<div class="alert-item"><strong>${escapeHtml(x.title||x.key)}</strong><div class="system-meta">${escapeHtml(x.severity||'warning')} · ${fmtTime(x.updated_at)}</div></div>`).join(''):`<div class="muted">${tr('noAlerts')}</div>`}</div>
  </div></div>`;
+ $('savePulseAssetStatus').onclick=()=>savePulseAssetStatus(id);
+ $('deletePulseAsset').onclick=()=>deletePulseAsset(id);
+}
+
+async function savePulseAssetStatus(id){
+ const status=$('pulseAssetStatus').value,reason=$('pulseAssetReason').value;
+ const r=await fetch(api('/api/v1/ita/fleet/'+encodeURIComponent(id)+'/asset-status'),{
+   method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status,reason})
+ });
+ if(!r.ok){alert(tr('statusSaveError'));return}
+ await openPulse(id);
+}
+
+async function deletePulseAsset(id){
+ const msg=tr('deleteConfirmPrompt').replace('{id}',id);
+ const typed=prompt(msg,'');
+ if(typed===null)return;
+ if(typed!==id){alert(tr('deleteMismatch'));return}
+ const r=await fetch(api('/api/v1/ita/fleet/'+encodeURIComponent(id)),{method:'DELETE'});
+ if(!r.ok){alert(tr('deleteError'));return}
+ currentId=null;currentSource=null;$('detail').classList.remove('active');$('overview').style.display='block';refresh();
 }
 
 async function saveAssetStatus(id){
@@ -386,8 +434,8 @@ async function refresh(){
  if(currentId&&$('detail').classList.contains('active'))return currentSource==='pulse'?openPulse(currentId):openSystem(currentId);
  const view=$('assetView').value;
  const localPromise=fetch(api('/api/v1/ita/portfolio?view='+encodeURIComponent(view)),{cache:'no-store'});
- const includePulse=(view==='active'||view==='all');
- const pulsePromise=includePulse?fetch(api('/api/v1/ita/fleet'),{cache:'no-store'}):Promise.resolve(null);
+ const includePulse=true;
+ const pulsePromise=fetch(api('/api/v1/ita/fleet?view='+encodeURIComponent(view)),{cache:'no-store'});
  const [lr,pr]=await Promise.all([localPromise,pulsePromise]);
 
  let items=[],updatedAt=new Date().toISOString();

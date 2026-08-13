@@ -32,7 +32,7 @@ def create_ita_blueprint(repo, version, ingress_path_fn, timezone_name, fleet_cl
         if not fleet_client or not fleet_client.configured:
             return jsonify({'error': 'fleet_not_configured'}), 503
         try:
-            return jsonify(fleet_client.fleet())
+            return jsonify(fleet_client.fleet(request.args.get('view', 'active')))
         except RuntimeError as exc:
             return jsonify({'error': str(exc)}), 502
 
@@ -46,6 +46,35 @@ def create_ita_blueprint(repo, version, ingress_path_fn, timezone_name, fleet_cl
             return jsonify(fleet_client.asset(pulse_id))
         except RuntimeError as exc:
             code = 404 if str(exc) == 'receiver_http_404' else 502
+            return jsonify({'error': str(exc)}), code
+
+    @bp.post('/api/v1/ita/fleet/<pulse_id>/asset-status')
+    def set_fleet_asset_status(pulse_id):
+        if not fleet_enabled:
+            return jsonify({'error': 'fleet_disabled'}), 404
+        if not fleet_client or not fleet_client.configured:
+            return jsonify({'error': 'fleet_not_configured'}), 503
+        body = request.get_json(silent=True) or {}
+        try:
+            return jsonify(fleet_client.set_asset_status(
+                pulse_id,
+                body.get('status'),
+                body.get('reason', ''),
+            ))
+        except RuntimeError as exc:
+            code = 404 if str(exc) == 'receiver_http_404' else 400 if str(exc) == 'receiver_http_400' else 502
+            return jsonify({'error': str(exc)}), code
+
+    @bp.delete('/api/v1/ita/fleet/<pulse_id>')
+    def delete_fleet_asset(pulse_id):
+        if not fleet_enabled:
+            return jsonify({'error': 'fleet_disabled'}), 404
+        if not fleet_client or not fleet_client.configured:
+            return jsonify({'error': 'fleet_not_configured'}), 503
+        try:
+            return jsonify(fleet_client.delete_asset(pulse_id))
+        except RuntimeError as exc:
+            code = 404 if str(exc) == 'receiver_http_404' else 409 if str(exc) == 'receiver_http_409' else 502
             return jsonify({'error': str(exc)}), code
 
     @bp.get('/api/v1/ita/systems')

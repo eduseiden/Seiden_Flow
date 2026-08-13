@@ -1,3 +1,13 @@
+## 0.22.1.3 — ITA 0.3.1.2 · Pulse Asset Lifecycle
+
+- Gestão do ativo disponível também para CAST/Pulse.
+- Status: Ativo / Oculto / Descomissionado.
+- Filtro geral passa a aplicar lifecycle também aos ativos Pulse.
+- Exclusão definitiva disponível em Zona de risco, com confirmação pelo Pulse ID.
+- Exclusão é executada no Receiver; se o Pulse continuar enviando, o ativo reaparece.
+- Lifecycle Redfish/Linux existente permanece inalterado.
+- Default de instalação nova do Receiver corrigido para porta privada 8788.
+
 ## 0.22.1.2 — ITA 0.3.1.1 · UX/UI Polish
 
 - Capabilities do CAST consolidadas e deduplicadas em linguagem de produto.
