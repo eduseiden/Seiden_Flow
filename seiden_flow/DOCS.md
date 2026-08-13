@@ -553,7 +553,7 @@ Hierarquia padrão do detalhe de um ativo:
 
 A visão geral ordena ativos automaticamente pela necessidade de atenção.
 
-## Flow 0.22.1.6 — ITA 0.3.1.5 · Zigbee Device-Level Alert Details
+## Flow 0.22.1.5 — ITA 0.3.1.4 · Zigbee Device-Level Alert Details
 
 Compatível com Pulse 0.1.1.4.
 
@@ -568,7 +568,27 @@ mostrado na tela. IEEE permanece como contexto técnico.
 A interface limita a lista a 5 devices por grupo e mostra `+ N outros` quando
 necessário.
 
+## Flow 0.22.1.6 — ITA 0.3.1.5 · Linux Host UX
 
-## 0.22.1.7 / ITA 0.3.1.6
-- Home do ITA com cards-resumo clicáveis como filtros operacionais.
-- Home Linux capability-aware; uptime mantido como KPI prioritário.
+- Reconhecimento explícito de `linux_host` proveniente da Seiden Pulse Linux.
+- Detalhe capability-aware para CPU/load, memória/swap, disco, uptime, processos,
+  rede, sistema operacional/kernel/arquitetura e serviços configurados.
+- Blocos exclusivos de HAOS/CAST não são renderizados em hosts Linux.
+- Temperatura só é exibida quando a capability térmica realmente existe.
+- Backend ITA, APIs, banco e lifecycle permanecem inalterados.
+
+## Flow 0.22.1.7 — ITA 0.3.1.6 · Smart Overview Filters
+
+- Cards de resumo da home funcionam como filtros operacionais clicáveis.
+- A seleção é preservada em `sessionStorage` e possui feedback visual/acessível.
+- As contagens continuam representando todo o conjunto da visão de lifecycle atual.
+- A grade abaixo mostra apenas o estado operacional selecionado.
+- `linux_host` deixa de receber cards sem sentido como `Apps 0/0` na home.
+
+## Flow 0.22.1.8 — ITA 0.3.1.7 · Release Integrity
+
+- Auditoria completa dos metadados de release após a 0.22.1.7.
+- `config.yaml`, `app/version.py`, manifest ITA e footers sincronizados.
+- README e documentação corrigidos para refletir as funcionalidades das releases corretas.
+- Histórico completo do CHANGELOG restaurado a partir da baseline 0.22.1.5.
+- Nenhuma alteração de backend, API, banco ou lifecycle.
