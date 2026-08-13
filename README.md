@@ -1,4 +1,9 @@
-# Seiden FLOW 0.22.1.3
+# Seiden FLOW 0.22.1.4
+
+## ITA 0.3.1.3 — Observability UX
+
+Refinamento transversal de UX/UI para todos os ativos monitorados, mantendo
+intactos o backend ITA, lifecycle, Receiver integration e demais módulos.
 
 ## ITA 0.3.1.2 — Pulse Asset Lifecycle
 

@@ -49,6 +49,23 @@ html[data-theme="light"]{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#64748b
 .danger-btn{border:1px solid #dc6666;background:transparent;color:#b42318;border-radius:10px;padding:9px 12px;font-weight:700;cursor:pointer}
 .danger-btn:hover{background:#fff1f0}
 .danger-help{display:block;color:var(--muted);font-size:11px;margin-top:7px;max-width:760px}
+
+.incident-banner{border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:14px 0;background:var(--card)}
+.incident-banner.critical{border-color:#e49b9b}
+.incident-banner.warning{border-color:#e8c777}
+.incident-title{font-weight:800;font-size:15px}
+.incident-list{display:grid;gap:8px;margin-top:10px}
+.incident-item{background:var(--soft);border-radius:10px;padding:10px 12px}
+.incident-item strong{display:block;font-size:13px}
+.incident-item span{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.summary-line{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:9px;color:var(--muted);font-size:12px}
+.summary-line strong{color:var(--text)}
+.collapsible-admin{border:1px solid var(--line);background:var(--card);border-radius:16px;overflow:hidden}
+.collapsible-admin summary{cursor:pointer;list-style:none;padding:15px 17px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+.collapsible-admin summary::-webkit-details-marker{display:none}
+.collapsible-admin summary:after{content:"+";font-size:18px;color:var(--muted)}
+.collapsible-admin[open] summary:after{content:"–"}
+.collapsible-admin-body{padding:0 17px 17px}
 </style></head>
 <body><div class="wrap">
 <div class="top">
@@ -87,7 +104,7 @@ html[data-theme="light"]{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#64748b
   <div id="detailBody"></div>
 </div>
 
-<div class="footer">Seiden Flow {{ version }} · ITA 0.3.1.2 · <span data-i18n="agnostic">Modelo adaptativo e agnóstico de fabricante</span></div>
+<div class="footer">Seiden Flow {{ version }} · ITA 0.3.1.3 · <span data-i18n="agnostic">Modelo adaptativo e agnóstico de fabricante</span></div>
 </div>
 
 <script>
@@ -119,7 +136,7 @@ reading:'Leitura',health:'Saúde',threshold:'Próximo limite',when:'Quando',even
 noEvents:'Nenhuma mudança operacional registrada.',manageAsset:'Gestão do ativo',assetStatus:'Status do ativo',assetActive:'Ativo',
 assetHidden:'Oculto',assetDecommissioned:'Descomissionado',statusReason:'Motivo / observação',saveStatus:'Salvar status',
 assetHistoryNotice:'O histórico é preservado independentemente do status do ativo.',confirmStatus:'Confirmar alteração de status deste ativo?',
-statusSaveError:'Não foi possível atualizar o status.',deleteAsset:'Excluir definitivamente',deleteAssetTitle:'Zona de risco',deleteAssetHelp:'Remove o ativo e todo o histórico dele no Telemetry Receiver. Se a Pulse continuar transmitindo, o ativo será recriado.',deleteConfirmPrompt:'Para excluir definitivamente, digite exatamente o Pulse ID: {id}',deleteMismatch:'Pulse ID não confere. Exclusão cancelada.',deleteError:'Não foi possível excluir o ativo.',lifecycleHidden:'Oculto',lifecycleDecommissioned:'Descomissionado',range:'da faixa',
+statusSaveError:'Não foi possível atualizar o status.',deleteAsset:'Excluir definitivamente',deleteAssetTitle:'Zona de risco',deleteAssetHelp:'Remove o ativo e todo o histórico dele no Telemetry Receiver. Se a Pulse continuar transmitindo, o ativo será recriado.',deleteConfirmPrompt:'Para excluir definitivamente, digite exatamente o Pulse ID: {id}',deleteMismatch:'Pulse ID não confere. Exclusão cancelada.',deleteError:'Não foi possível excluir o ativo.',incidentTitle:'Requer atenção',healthLabel:'Saúde',telemetryLabel:'Telemetria',telemetryFresh:'Atualizada',telemetryStale:'Desatualizada',ago:'há',activeProblems:'problema(s) ativo(s)',adminAsset:'Gestão do ativo',lifecycleHidden:'Oculto',lifecycleDecommissioned:'Descomissionado',range:'da faixa',
 pulseSource:'Seiden Pulse',bridgeSource:'Bridge / Telemetria',receiverUnavailable:'Telemetry Receiver indisponível; ativos locais continuam sendo exibidos.',
 receiverNotConfigured:'Telemetry Receiver não configurado; ativos Pulse não serão exibidos.',
 cpuTemp:'Temperatura CPU',disk:'Disco',zigbee:'Zigbee',apps:'Apps',backup:'Backup',online:'online',missing:'missing',
@@ -153,7 +170,7 @@ reading:'Reading',health:'Health',threshold:'Next threshold',when:'When',event:'
 noEvents:'No operational changes recorded.',manageAsset:'Asset management',assetStatus:'Asset status',assetActive:'Active',
 assetHidden:'Hidden',assetDecommissioned:'Decommissioned',statusReason:'Reason / note',saveStatus:'Save status',
 assetHistoryNotice:'History is preserved regardless of asset status.',confirmStatus:'Confirm this asset status change?',
-statusSaveError:'Could not update asset status.',deleteAsset:'Delete permanently',deleteAssetTitle:'Danger zone',deleteAssetHelp:'Removes the asset and all of its Receiver history. If the Pulse keeps sending, the asset will be recreated.',deleteConfirmPrompt:'To permanently delete, type the exact Pulse ID: {id}',deleteMismatch:'Pulse ID does not match. Deletion cancelled.',deleteError:'Could not delete the asset.',lifecycleHidden:'Hidden',lifecycleDecommissioned:'Decommissioned',range:'of range',
+statusSaveError:'Could not update asset status.',deleteAsset:'Delete permanently',deleteAssetTitle:'Danger zone',deleteAssetHelp:'Removes the asset and all of its Receiver history. If the Pulse keeps sending, the asset will be recreated.',deleteConfirmPrompt:'To permanently delete, type the exact Pulse ID: {id}',deleteMismatch:'Pulse ID does not match. Deletion cancelled.',deleteError:'Could not delete the asset.',incidentTitle:'Requires attention',healthLabel:'Health',telemetryLabel:'Telemetry',telemetryFresh:'Fresh',telemetryStale:'Stale',ago:'ago',activeProblems:'active issue(s)',adminAsset:'Asset management',lifecycleHidden:'Hidden',lifecycleDecommissioned:'Decommissioned',range:'of range',
 pulseSource:'Seiden Pulse',bridgeSource:'Bridge / Telemetry',receiverUnavailable:'Telemetry Receiver unavailable; local assets are still displayed.',
 receiverNotConfigured:'Telemetry Receiver not configured; Pulse assets will not be displayed.',
 cpuTemp:'CPU temperature',disk:'Disk',zigbee:'Zigbee',apps:'Apps',backup:'Backup',online:'online',missing:'missing',
@@ -176,6 +193,20 @@ const power=v=>v==null?'—':n(v,0)+' W';
 function bytes(v){if(v==null)return'—';let x=Number(v),u=['B','KB','MB','GB','TB'],i=0;while(Math.abs(x)>=1024&&i<u.length-1){x/=1024;i++}return n(x,i?1:0)+' '+u[i]}
 function duration(v){if(v==null)return'—';let s=Number(v),d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60);return d?`${n(d,0)} d ${n(h,0)} h`:h?`${n(h,0)} h ${n(m,0)} min`:`${n(m,0)} min`}
 function fmtTime(v){if(!v)return'—';try{return new Intl.DateTimeFormat(lang(),{dateStyle:'short',timeStyle:'medium'}).format(new Date(v))}catch{return v}}
+function relativeTime(v){
+ if(!v)return'—';
+ const diff=Math.max(0,Date.now()-new Date(v).getTime()),s=Math.floor(diff/1000);
+ if(s<60)return `${tr('ago')} ${s} s`;
+ const m=Math.floor(s/60);if(m<60)return `${tr('ago')} ${m} min`;
+ const h=Math.floor(m/60);if(h<24)return `${tr('ago')} ${h} h`;
+ return `${tr('ago')} ${Math.floor(h/24)} d`;
+}
+function priorityFor(x){
+ if(x.state==='critical')return 0;
+ if(x.state==='attention')return 10;
+ if(x.state==='stale')return 20;
+ return 50;
+}
 function stateLabel(s){return s==='critical'?tr('criticalState'):s==='attention'?tr('attentionState'):s==='stale'?tr('staleState'):tr('normalState')}
 function escapeHtml(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
 function applyI18n(){document.documentElement.lang=lang();document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=tr(e.dataset.i18n))}
@@ -232,6 +263,7 @@ function normalizePulse(a){
 function normalizeLocal(x){return{source:'local',id:x.system.system_id,state:x.state,system:x.system,primary_cards:x.primary_cards||[],raw:x}}
 
 function renderOverview(items,updatedAt){
+ items=[...items].sort((a,b)=>priorityFor(a)-priorityFor(b)||String(a.system?.system_name||'').localeCompare(String(b.system?.system_name||''),lang()));
  const counts={normal:0,attention:0,critical:0,stale:0};
  items.forEach(x=>counts[x.state]=(counts[x.state]||0)+1);
  $('kpis').innerHTML=[['systems',items.length],['normal',counts.normal],['attention',counts.attention],['critical',counts.critical],['stale',counts.stale]]
@@ -243,7 +275,7 @@ function renderOverview(items,updatedAt){
      <div class="system-head"><div><div class="system-name">${escapeHtml(s.system_name)}</div><div class="system-meta">${escapeHtml(s.connection_name||s.connector||'')}</div><span class="source-badge ${x.source}">${escapeHtml(badge)}</span>${x.source==='pulse'&&x.assetStatus&&x.assetStatus!=='active'?`<span class="lifecycle-badge ${x.assetStatus}">${x.assetStatus==='hidden'?tr('lifecycleHidden'):tr('lifecycleDecommissioned')}</span>`:''}</div>
      <span class="state ${x.state}"><span class="dot"></span>${stateLabel(x.state)}</span></div>
      <div class="metrics">${cards.map(c=>`<div class="metric"><span>${tr(c.key)}</span><b>${fmtCard(c)}</b></div>`).join('')}</div>
-     <div class="system-meta" style="margin-top:12px">${tr('latest')}: ${fmtTime(s.last_seen)} · ${tr('details')} →</div>
+     <div class="system-meta" style="margin-top:12px">${tr('latest')}: ${relativeTime(s.last_seen)} · ${tr('details')} →</div>
    </div>`}).join(''):`<div class="card empty">${tr('noData')}</div>`;
  document.querySelectorAll('.system-card').forEach(e=>e.onclick=()=>e.dataset.source==='pulse'?openPulse(e.dataset.id):openSystem(e.dataset.id));
 }
@@ -261,26 +293,29 @@ async function openSystem(id){
  ]);
  if(!cr.ok)return;
  const d=await cr.json(),ev=er.ok?await er.json():{items:[]},s=d.system,c=d.capabilities||{};
+ const issues=(d.measurements||[]).filter(m=>['critical','warning','attention'].includes(String(m.severity||'').toLowerCase()));
  $('overview').style.display='none';$('detail').classList.add('active');
  let cats='';
  if(c.compute)cats+=category(tr('compute'),kv(tr('load_1m'),n(d.load_1m,2))+kv(tr('load5'),n(d.load_5m,2))+kv(tr('load15'),n(d.load_15m,2))+kv(tr('processes'),n(d.process_count,0))+(d.cpu_used_pct!=null?kv(tr('cpu_usage'),pct(d.cpu_used_pct)):''));
  if(c.memory)cats+=category(tr('memory'),kv(tr('memory_used'),pct(d.memory_used_pct))+kv(tr('memoryAvailable'),bytes(d.memory_available_bytes))+kv(tr('swap_used'),pct(d.swap_used_pct)));
  if(c.storage)cats+=category(tr('storage'),kv(tr('storage_used'),pct(d.storage_used_pct))+kv(tr('diskAvailable'),bytes(d.storage_available_bytes)));
  if(c.network)cats+=category(tr('network'),kv(tr('networkRx'),bytes(d.network_rx_bytes))+kv(tr('networkTx'),bytes(d.network_tx_bytes)));
- if(c.availability)cats+=category(tr('availability'),kv(tr('uptime'),duration(d.uptime_seconds))+kv(tr('freshness'),d.freshness?.stale?tr('staleState'):tr('fresh')));
+ if(c.availability)cats+=category(tr('availability'),kv(tr('uptime'),duration(d.uptime_seconds)));
  if(c.power||c.cooling)cats+=category(tr('powerCooling'),(c.power?kv(tr('power'),power(d.power_w))+kv(tr('powerUse'),pct(d.power_utilization_pct)):'')+(c.cooling?kv(tr('fan_avg'),pct(d.fan_avg_pct))+kv(tr('fanSpread'),pct(d.fan_spread_pct)):''));
  const thermal=c.thermal?`<div class="section"><div class="section-head"><h2>${tr('thermalPath')}</h2></div><div class="thermal-path"><div class="thermal-node"><span>${tr('ambient')}</span><strong>${temp(d.ambient_c)}</strong></div><div class="thermal-node"><span>${tr('intake')}</span><strong>${temp(d.intake_c)}</strong></div><div class="thermal-node"><span>${tr('hottest_cpu')}</span><strong>${temp(d.cpu_c)}</strong></div><div class="thermal-node"><span>${tr('exhaust')}</span><strong>${temp(d.exhaust_c)}</strong></div></div><div class="delta-row"><div class="delta"><span class="muted">${tr('ambientIntake')}</span><br><b>${temp(d.deltas?.ambient_to_intake_c)}</b></div><div class="delta"><span class="muted">${tr('intakeCpu')}</span><br><b>${temp(d.deltas?.intake_to_cpu_c)}</b></div><div class="delta"><span class="muted">${tr('intakeExhaust')}</span><br><b>${temp(d.deltas?.intake_to_exhaust_c)}</b></div></div></div>`:'';
- $('detailBody').innerHTML=`<div class="section-head"><div><h2 style="font-size:22px;margin:0">${escapeHtml(s.system_name)}</h2><div class="muted">${escapeHtml(s.system_id)} · ${escapeHtml(s.connection_name||'')} · ${fmtTime(s.last_seen)}</div><span class="source-badge bridge">${tr('bridgeSource')}</span><div class="cap-strip">${capabilityChips(Object.entries(c).filter(([,v])=>v).map(([k])=>k))}</div></div><span class="state ${d.state}"><span class="dot"></span>${stateLabel(d.state)}</span></div>
+ $('detailBody').innerHTML=`<div class="section-head"><div><h2 style="font-size:22px;margin:0">${escapeHtml(s.system_name)}</h2><div class="muted">${escapeHtml(s.system_id)} · ${escapeHtml(s.connection_name||'')}</div><span class="source-badge bridge">${tr('bridgeSource')}</span><div class="cap-strip">${capabilityChips(Object.entries(c).filter(([,v])=>v).map(([k])=>k))}</div><div class="summary-line"><span><strong>${tr('healthLabel')}:</strong> ${stateLabel(d.state)}</span><span><strong>${tr('telemetryLabel')}:</strong> ${d.freshness?.stale?tr('telemetryStale'):tr('telemetryFresh')} · ${relativeTime(s.last_seen)}</span></div></div><span class="state ${d.state}"><span class="dot"></span>${stateLabel(d.state)}</span></div>
+ ${issues.length?`<div class="incident-banner ${issues.some(x=>String(x.severity).toLowerCase()==='critical')?'critical':'warning'}"><div class="incident-title">${tr('incidentTitle')} · ${issues.length} ${tr('activeProblems')}</div><div class="incident-list">${issues.slice(0,8).map(m=>`<div class="incident-item"><strong>${escapeHtml(m.sensor_name||m.sensor_id||tr('sensor'))}</strong><span>${escapeHtml(m.health||m.severity||'')} · ${formatMeasurement(m)}</span></div>`).join('')}</div></div>`:''}
  ${d.freshness?.stale?`<div class="notice warn">${tr('staleState')} · ${tr('age')} ${n(d.freshness.age_seconds,0)} ${tr('seconds')}</div>`:''}
  <div class="notice">${tr('native')}</div>
- <div class="section card"><div class="section-head"><h2>${tr('manageAsset')}</h2></div><div class="asset-manage"><div><label>${tr('assetStatus')}</label><select id="assetStatusControl"><option value="active" ${(s.status||'active')==='active'?'selected':''}>${tr('assetActive')}</option><option value="hidden" ${s.status==='hidden'?'selected':''}>${tr('assetHidden')}</option><option value="decommissioned" ${s.status==='decommissioned'?'selected':''}>${tr('assetDecommissioned')}</option></select></div><div><label>${tr('statusReason')}</label><input id="assetStatusReason" maxlength="500" value="${escapeHtml(s.status_reason||'')}"></div><button id="saveAssetStatus">${tr('saveStatus')}</button></div><div class="system-meta" style="margin-top:8px">${tr('assetHistoryNotice')}</div></div>
  ${thermal}
- <div class="section"><div class="section-head"><h2>${tr('capabilities')}</h2></div><div class="category-grid">${cats}</div></div>
+ ${cats?`<div class="section"><div class="section-head"><h2>${tr('capabilities')}</h2></div><div class="category-grid">${cats}</div></div>`:''}
  <div class="section"><div class="section-head"><h2>${tr('history')}</h2></div><div class="card"><div id="chart" class="chart"></div><div id="legend" class="legend"></div></div></div>
  <div class="section"><div class="section-head"><h2>${tr('events')}</h2></div><div class="card table-wrap">${(ev.items||[]).length?`<table class="event-table"><thead><tr><th>${tr('when')}</th><th>${tr('event')}</th><th>${tr('sensor')}</th><th>${tr('transition')}</th></tr></thead><tbody>${ev.items.map(e=>`<tr><td>${fmtTime(e.occurred_at)}</td><td><span class="pill ${e.severity}">${escapeHtml(eventName(e.event_type))}</span></td><td>${escapeHtml(e.sensor_name||e.sensor_id||'—')}</td><td>${escapeHtml(e.previous_state||'—')} → ${escapeHtml(e.current_state||'—')}</td></tr>`).join('')}</tbody></table>`:`<div class="empty">${tr('noEvents')}</div>`}</div></div>
- <div class="section"><div class="section-head"><h2>${tr('sensors')}</h2></div><div class="card table-wrap"><table class="sensor-table"><thead><tr><th>${tr('sensor')}</th><th>${tr('context')}</th><th>${tr('reading')}</th><th>${tr('health')}</th><th>${tr('threshold')}</th></tr></thead><tbody>${(d.measurements||[]).map(m=>`<tr><td><b>${escapeHtml(m.sensor_name)}</b><div class="muted">${escapeHtml(m.sensor_id)}</div></td><td>${escapeHtml(m.physical_context)}</td><td>${formatMeasurement(m)}</td><td><span class="pill ${m.severity}">${escapeHtml(m.health||'—')}</span></td><td>${escapeHtml(thresholdInfo(m))}</td></tr>`).join('')}</tbody></table></div></div>`;
+ ${(d.measurements||[]).length?`<div class="section"><div class="section-head"><h2>${tr('sensors')}</h2></div><div class="card table-wrap"><table class="sensor-table"><thead><tr><th>${tr('sensor')}</th><th>${tr('context')}</th><th>${tr('reading')}</th><th>${tr('health')}</th><th>${tr('threshold')}</th></tr></thead><tbody>${(d.measurements||[]).map(m=>`<tr><td><b>${escapeHtml(m.sensor_name)}</b><div class="muted">${escapeHtml(m.sensor_id)}</div></td><td>${escapeHtml(m.physical_context)}</td><td>${formatMeasurement(m)}</td><td><span class="pill ${m.severity}">${escapeHtml(m.health||'—')}</span></td><td>${escapeHtml(thresholdInfo(m))}</td></tr>`).join('')}</tbody></table></div></div>`:''}
+ <div class="section"><details class="collapsible-admin"><summary>${tr('adminAsset')}</summary><div class="collapsible-admin-body"><div class="asset-manage"><div><label>${tr('assetStatus')}</label><select id="assetStatusControl"><option value="active" ${(s.status||'active')==='active'?'selected':''}>${tr('assetActive')}</option><option value="hidden" ${s.status==='hidden'?'selected':''}>${tr('assetHidden')}</option><option value="decommissioned" ${s.status==='decommissioned'?'selected':''}>${tr('assetDecommissioned')}</option></select></div><div><label>${tr('statusReason')}</label><input id="assetStatusReason" maxlength="500" value="${escapeHtml(s.status_reason||'')}"></div><button id="saveAssetStatus">${tr('saveStatus')}</button></div><div class="system-meta" style="margin-top:8px">${tr('assetHistoryNotice')}</div></div></details></div>`;
  $('saveAssetStatus').onclick=()=>saveAssetStatus(id);loadHistory(id);
 }
+
 
 function runtimeBlock(title,r){
  r=r||{};
@@ -317,76 +352,57 @@ async function openPulse(id){
  const state=mapPulseState(a),caps=s.capabilities||[],alerts=a.alerts||[],asset=s.asset||{};
  $('overview').style.display='none';$('detail').classList.add('active');
  const hostBody=
-   kv(tr('cpuTemp'),h.cpu_temperature_available?temp(h.cpu_temperature_c):'—',h.cpu_temperature_available?tr('tempSource'):'')+
-   kv(tr('uptime'),duration(h.uptime_seconds))+
-   kv(tr('disk'),pct(h.disk_used_percent),`${n(h.disk_used_gb,1)} / ${n(h.disk_total_gb,1)} GB`)+
-   kv(tr('diskAvailable'),h.disk_free_gb!=null?n(h.disk_free_gb,1)+' GB':'—',h.disk_life_time_percent!=null?`${tr('diskLife')}: ${pct(h.disk_life_time_percent)}`:'');
- const zigbeeBody=
-   kv(tr('online'),`${n(z.online,0)} / ${n(z.total,0)}`,`${n(z.offline,0)} ${tr('offline')} · ${n(z.unknown,0)} ${tr('unknown')}`)+
-   kv(tr('expected'),n(z.expected,0),`${n(z.missing,0)} ${tr('missing')} · ${n(z.new,0)} ${tr('newDevices')}`)+
-   kv(tr('routers'),n(z.routers,0))+kv(tr('endDevices'),n(z.end_devices,0));
- const appsBody=
-   kv(tr('runningApps'),n(ap.started,0),`${n(ap.stopped,0)} ${tr('stoppedApps').toLowerCase()}`)+
-   kv(tr('totalApps'),n(ap.total,0));
- const backupsBody=kv(tr('backups'),n(b.count,0))+kv(tr('latestBackup'),b.latest_age_hours==null?'—':n(b.latest_age_hours,1)+' h');
- const managed=rt.managed_apps||{};
- const managedBody=category(tr('managedApps'),
-   kv(tr('runningApps'),n(managed.apps_with_stats,0))+
-   kv(tr('cpuAppsAggregated'),managed.cpu_percent_sum!=null?pct(managed.cpu_percent_sum):'—')+
-   kv(tr('memoryAppsAggregated'),bytes(managed.memory_usage_bytes_sum))+
-   kv(tr('trafficAccumulated'),`${bytes(managed.network_rx_bytes_sum)} ↓ / ${bytes(managed.network_tx_bytes_sum)} ↑`)
+   (h.cpu_temperature_available?kv(tr('cpuTemp'),temp(h.cpu_temperature_c),tr('tempSource')):'')+
+   (h.uptime_seconds!=null?kv(tr('uptime'),duration(h.uptime_seconds)):'')+
+   (h.disk_used_percent!=null?kv(tr('disk'),pct(h.disk_used_percent),`${n(h.disk_used_gb,1)} / ${n(h.disk_total_gb,1)} GB`):'')+
+   (h.disk_free_gb!=null?kv(tr('diskAvailable'),n(h.disk_free_gb,1)+' GB',h.disk_life_time_percent!=null?`${tr('diskLife')}: ${pct(h.disk_life_time_percent)}`:''):'');
+ const zigbeeBody=z.available===false?'':(
+   (z.total!=null?kv(tr('online'),`${n(z.online,0)} / ${n(z.total,0)}`,`${n(z.offline,0)} ${tr('offline')} · ${n(z.unknown,0)} ${tr('unknown')}`):'')+
+   (z.expected!=null?kv(tr('expected'),n(z.expected,0),`${n(z.missing,0)} ${tr('missing')} · ${n(z.new,0)} ${tr('newDevices')}`):'')+
+   (z.routers!=null?kv(tr('routers'),n(z.routers,0)):'')+
+   (z.end_devices!=null?kv(tr('endDevices'),n(z.end_devices,0)):'')
  );
+ const appsBody=ap.total!=null?(kv(tr('runningApps'),n(ap.started,0),`${n(ap.stopped,0)} ${tr('stoppedApps').toLowerCase()}`)+kv(tr('totalApps'),n(ap.total,0))):'';
+ const backupsBody=b.count!=null?(kv(tr('backups'),n(b.count,0))+(b.latest_age_hours!=null?kv(tr('latestBackup'),n(b.latest_age_hours,1)+' h'):'')):'';
+ const managed=rt.managed_apps||{};
+ const managedBody=Object.keys(managed).length?category(tr('managedApps'),
+   (managed.apps_with_stats!=null?kv(tr('runningApps'),n(managed.apps_with_stats,0)):'')+
+   (managed.cpu_percent_sum!=null?kv(tr('cpuAppsAggregated'),pct(managed.cpu_percent_sum)):'')+
+   (managed.memory_usage_bytes_sum!=null?kv(tr('memoryAppsAggregated'),bytes(managed.memory_usage_bytes_sum)):'')+
+   ((managed.network_rx_bytes_sum!=null||managed.network_tx_bytes_sum!=null)?kv(tr('trafficAccumulated'),`${bytes(managed.network_rx_bytes_sum)} ↓ / ${bytes(managed.network_tx_bytes_sum)} ↑`):'')
+ ):'';
  const perfBody=Object.entries(perf).slice(0,10).map(([k,v])=>kv(escapeHtml(k.replaceAll('_',' ')),typeof v==='number'?n(v,2)+' s':escapeHtml(v))).join('');
  $('detailBody').innerHTML=`
  <div class="section-head"><div><h2 style="font-size:22px;margin:0">${escapeHtml(a.asset_name||asset.name||a.hostname||a.pulse_id)}</h2>
    <div class="muted">${tr('tenant')}: ${escapeHtml(a.tenant_id)} · ${tr('hostname')}: ${escapeHtml(a.hostname||'—')} · ${tr('pulseVersion')} ${escapeHtml(a.pulse_version||'—')}</div>
    <span class="source-badge pulse">${tr('pulseSource')}</span>
    <div class="cap-strip">${capabilityChips(caps)}</div>
+   <div class="summary-line"><span><strong>${tr('healthLabel')}:</strong> ${stateLabel(state)}</span><span><strong>${tr('telemetryLabel')}:</strong> ${a.connection_state==='healthy'?tr('telemetryFresh'):tr('telemetryStale')} · ${relativeTime(a.last_seen_at)}</span></div>
  </div><span class="state ${state}"><span class="dot"></span>${stateLabel(state)}</span></div>
  <div class="notice">${tr('latest')}: ${fmtTime(a.last_seen_at)} · ${tr('lastSnapshot')}: ${fmtTime(a.last_snapshot_at)} · ${tr('lastHeartbeat')}: ${fmtTime(a.last_heartbeat_at)}</div>
- <div class="section card"><div class="section-head"><h2>${tr('manageAsset')}</h2></div>
-   <div class="asset-manage">
-     <div><label>${tr('assetStatus')}</label>
-       <select id="pulseAssetStatus">
-         <option value="active" ${(a.asset_status||'active')==='active'?'selected':''}>${tr('assetActive')}</option>
-         <option value="hidden" ${a.asset_status==='hidden'?'selected':''}>${tr('assetHidden')}</option>
-         <option value="decommissioned" ${a.asset_status==='decommissioned'?'selected':''}>${tr('assetDecommissioned')}</option>
-       </select>
-     </div>
-     <div><label>${tr('statusReason')}</label><input id="pulseAssetReason" maxlength="500" value="${escapeHtml(a.asset_status_reason||'')}"></div>
-     <button id="savePulseAssetStatus">${tr('saveStatus')}</button>
-   </div>
-   <div class="system-meta" style="margin-top:8px">${tr('assetHistoryNotice')}</div>
-   <div class="danger-zone">
-     <strong>${tr('deleteAssetTitle')}</strong><br>
-     <button id="deletePulseAsset" class="danger-btn" style="margin-top:9px">${tr('deleteAsset')}</button>
-     <span class="danger-help">${tr('deleteAssetHelp')}</span>
-   </div>
- </div>
+ ${alerts.length?`<div class="incident-banner ${a.highest_alert_severity==='critical'?'critical':'warning'}"><div class="incident-title">${tr('incidentTitle')} · ${alerts.length} ${tr('activeProblems')}</div><div class="incident-list">${alerts.map(x=>`<div class="incident-item"><strong>${escapeHtml(x.title||x.key)}</strong><span>${escapeHtml(x.severity||'warning')} · ${relativeTime(x.activated_at||x.updated_at)}</span></div>`).join('')}</div></div>`:''}
  <div class="section"><div class="category-grid">
-   ${category(tr('hostHealth'),hostBody)}
-   ${category(tr('zigbee'),zigbeeBody)}
-   ${category(tr('apps'),appsBody)}
-   ${category(tr('backup'),backupsBody)}
+   ${hostBody?category(tr('hostHealth'),hostBody):''}
+   ${zigbeeBody?category(tr('zigbee'),zigbeeBody):''}
+   ${appsBody?category(tr('apps'),appsBody):''}
+   ${backupsBody?category(tr('backup'),backupsBody):''}
  </div></div>
- <div class="section"><div class="section-head"><h2>${tr('platformRuntime')}</h2></div><div class="category-grid">
-   ${runtimeBlock(tr('coreRuntime'),rt.core)}
-   ${runtimeBlock(tr('supervisorRuntime'),rt.supervisor)}
+ ${(rt.core||rt.supervisor||managedBody)?`<div class="section"><div class="section-head"><h2>${tr('platformRuntime')}</h2></div><div class="category-grid">
+   ${rt.core?runtimeBlock(tr('coreRuntime'),rt.core):''}
+   ${rt.supervisor?runtimeBlock(tr('supervisorRuntime'),rt.supervisor):''}
    ${managedBody}
- </div></div>
- <div class="section"><div class="section-head"><h2>${tr('appPlatform')}</h2></div><div class="card">${platformItems(ap.platform)}</div></div>
- <div class="section">
-   <details class="diag-details">
-     <summary><span>${tr('pulseDiagnostics')}</span><span class="muted">${tr('pulseVersion')} ${escapeHtml(a.pulse_version||'—')}</span></summary>
-     <div class="diag-body"><div class="category-grid">${category(tr('collectionPerformance'),perfBody)}</div></div>
-   </details>
- </div>
- <div class="section"><div class="section-head"><h2>${tr('activeAlerts')}</h2></div><div class="card">
-   <div class="alert-list">${alerts.length?alerts.map(x=>`<div class="alert-item"><strong>${escapeHtml(x.title||x.key)}</strong><div class="system-meta">${escapeHtml(x.severity||'warning')} · ${fmtTime(x.updated_at)}</div></div>`).join(''):`<div class="muted">${tr('noAlerts')}</div>`}</div>
- </div></div>`;
+ </div></div>`:''}
+ ${ap.platform&&Object.keys(ap.platform).length?`<div class="section"><div class="section-head"><h2>${tr('appPlatform')}</h2></div><div class="card">${platformItems(ap.platform)}</div></div>`:''}
+ ${perfBody?`<div class="section"><details class="diag-details"><summary><span>${tr('pulseDiagnostics')}</span><span class="muted">${tr('pulseVersion')} ${escapeHtml(a.pulse_version||'—')}</span></summary><div class="diag-body"><div class="category-grid">${category(tr('collectionPerformance'),perfBody)}</div></div></details></div>`:''}
+ <div class="section"><details class="collapsible-admin"><summary>${tr('adminAsset')}</summary><div class="collapsible-admin-body">
+   <div class="asset-manage"><div><label>${tr('assetStatus')}</label><select id="pulseAssetStatus"><option value="active" ${(a.asset_status||'active')==='active'?'selected':''}>${tr('assetActive')}</option><option value="hidden" ${a.asset_status==='hidden'?'selected':''}>${tr('assetHidden')}</option><option value="decommissioned" ${a.asset_status==='decommissioned'?'selected':''}>${tr('assetDecommissioned')}</option></select></div><div><label>${tr('statusReason')}</label><input id="pulseAssetReason" maxlength="500" value="${escapeHtml(a.asset_status_reason||'')}"></div><button id="savePulseAssetStatus">${tr('saveStatus')}</button></div>
+   <div class="system-meta" style="margin-top:8px">${tr('assetHistoryNotice')}</div>
+   <div class="danger-zone"><strong>${tr('deleteAssetTitle')}</strong><br><button id="deletePulseAsset" class="danger-btn" style="margin-top:9px">${tr('deleteAsset')}</button><span class="danger-help">${tr('deleteAssetHelp')}</span></div>
+ </div></details></div>`;
  $('savePulseAssetStatus').onclick=()=>savePulseAssetStatus(id);
  $('deletePulseAsset').onclick=()=>deletePulseAsset(id);
 }
+
 
 async function savePulseAssetStatus(id){
  const status=$('pulseAssetStatus').value,reason=$('pulseAssetReason').value;

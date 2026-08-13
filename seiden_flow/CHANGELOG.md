@@ -1,3 +1,16 @@
+## 0.22.1.4 — ITA 0.3.1.3 · Observability UX
+
+- Hierarquia operacional coerente para Redfish, Linux e CAST/Pulse.
+- Alertas/problemas ativos aparecem no topo somente quando existem.
+- Saúde operacional e freshness da telemetria são exibidas separadamente.
+- Freshness ganha leitura relativa (`há 20 s`, `há 4 min`).
+- Gestão do ativo vai para o final e fica recolhida por padrão.
+- Diagnóstico técnico permanece recolhível.
+- Visão geral é ordenada automaticamente por necessidade de atenção:
+  crítico → atenção → stale/offline → normal.
+- Cards/capacidades sem dados deixam de ocupar espaço no detalhe Pulse.
+- Backend, lifecycle, API Fleet e banco permanecem inalterados.
+
 ## 0.22.1.3 — ITA 0.3.1.2 · Pulse Asset Lifecycle
 
 - Gestão do ativo disponível também para CAST/Pulse.

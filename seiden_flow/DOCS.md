@@ -539,3 +539,16 @@ Para instalações novas:
 ```yaml
 ita_fleet_receiver_url: "http://192.168.4.134:8788"
 ```
+
+## Flow 0.22.1.4 — ITA 0.3.1.3 · Observability UX
+
+Hierarquia padrão do detalhe de um ativo:
+
+1. Cabeçalho, saúde e freshness
+2. Problemas/alertas ativos — somente quando houver
+3. KPIs e capacidades disponíveis
+4. Histórico/evolução quando suportado
+5. Diagnóstico técnico recolhível
+6. Gestão do ativo recolhível no final
+
+A visão geral ordena ativos automaticamente pela necessidade de atenção.
