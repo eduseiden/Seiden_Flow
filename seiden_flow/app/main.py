@@ -64,7 +64,7 @@ lca_repository=LCARepository(db,settings.timezone)
 ita_repository=ITARepository(db,settings.timezone)
 ita_fleet_client=ITAFleetClient(settings.ita_fleet_receiver_url,settings.ita_fleet_read_token,settings.ita_fleet_timeout_seconds)
 era_repository=ERARepository(os.path.join(settings.config_dir,'seiden_era.db'))
-era_service=ERAService(era_repository,settings,ita_fleet_client)
+era_service=ERAService(era_repository,settings,ita_fleet_client,db)
 ha=HomeAssistantClient();service=FlowService(db,ha,settings.publish_summary_to_home_assistant,settings);service.lca_repository=lca_repository;service.ita_repository=ita_repository;service.publish_summary();service.start_cleanup(settings.retention_days,settings.cleanup_interval_hours)
 if settings.subscribe_home_assistant_events:
  event_types=[settings.bridge_event,settings.connection_online_event,settings.connection_offline_event]

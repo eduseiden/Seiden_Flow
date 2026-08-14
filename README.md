@@ -1,26 +1,31 @@
-# Seiden FLOW 0.23.0
+# Seiden FLOW 0.23.1
 
-## ERA 0.1.0 — Event Response Automation
+## ERA 0.1.1 + TCA 0.6.1 — TCA Response Integration
 
-Primeira versão da camada transversal de resposta operacional da Seiden One.
+A ERA passa a consumir automaticamente o estado analítico do TCA, validando
+a arquitetura transversal da Seiden One.
 
-### ERA 0.1.0
+### Eventos TCA publicados para a ERA
 
-- Incident Engine com correlação e deduplicação.
-- Estados `open` e `recovered`.
-- Políticas independentes para crítico, atenção e ausência de telemetria.
-- Detecção server-side de ausência de telemetria ITA.
-- Sincronização dos alertas ativos do ITA.
-- Conector Telegram via bot.
-- Conector e-mail via SMTP.
-- Notificações de abertura e recuperação.
-- Auditoria de tentativas de entrega.
-- API transversal `/api/v1/era/events` para qualquer módulo Seiden One.
-- Portal `/era`.
+- `temperature.attention` — temperatura fora da faixa ideal; warning.
+- `temperature.critical` — temperatura fora dos limites operacionais; critical.
+- `door.open_too_long` — porta aberta acima do limite configurável; warning.
+- `thermal_recovery.abnormal` — recuperação térmica não concluída; warning.
 
-### Segurança e arquitetura
+### Comportamento
 
-A ERA não altera o princípio zero-control da Seiden Pulse. Ela reage a eventos
-e aciona canais externos; não controla o host monitorado.
+- O TCA continua responsável por interpretar o contexto térmico.
+- A ERA continua responsável por correlação, deduplicação, política, notificação
+  e recuperação.
+- Telegram recebe contexto TCA útil, incluindo temperatura atual e faixa ideal.
+- O adapter TCA é executado server-side pela ERA; não depende da tela TCA estar aberta.
+- Nenhuma lógica Telegram foi duplicada dentro do TCA.
+- Banco principal, Pulse Protocol e Receiver permanecem inalterados.
 
-Telegram e e-mail nascem desabilitados e precisam ser explicitamente configurados.
+### Defaults de laboratório
+
+- TCA → ERA: habilitado.
+- Janela analítica: 24 h.
+- Porta aberta excessiva: 5 min.
+- Warning ERA: após 10 min.
+- Critical ERA: imediato.

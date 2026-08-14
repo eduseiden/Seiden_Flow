@@ -1,3 +1,13 @@
+## 0.23.1 — ERA 0.1.1 + TCA 0.6.1 · TCA Response Integration
+
+- Integra TCA à ERA sem duplicar notification logic.
+- ERA passa a sincronizar TCA em background.
+- Eventos: temperature.attention, temperature.critical, door.open_too_long e thermal_recovery.abnormal.
+- Mensagens Telegram ganham temperatura atual, faixa ideal e contexto de porta quando aplicável.
+- Adiciona configurações `era_tca_enabled`, `era_tca_window_hours` e `era_tca_door_open_minutes`.
+- TCA manifest passa a declarar capability `era_events`.
+- Preserva banco principal, APIs TCA existentes, ITA/ERA existentes, Receiver e Pulse Protocol.
+
 ## 0.23.0 — ERA 0.1.0 · Event Response Automation
 
 - Introduz o sexto módulo da Seiden One: ERA — Event Response Automation.

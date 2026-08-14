@@ -3,7 +3,7 @@ from core.module_registry import ModuleManifest
 MANIFEST = ModuleManifest(
     module_id="era",
     name="Event Response Automation",
-    version="0.1.0",
+    version="0.1.1",
     description="Resposta transversal a eventos da Seiden One: correlação de incidentes, políticas, notificações e recuperação.",
     consumes=(
         "infrastructure.alert",

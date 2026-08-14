@@ -58,6 +58,9 @@ class Settings:
     era_warning_delay_minutes: int = 10
     era_telemetry_stale_minutes: int = 5
     era_notify_recovery: bool = True
+    era_tca_enabled: bool = True
+    era_tca_window_hours: int = 24
+    era_tca_door_open_minutes: int = 5
     era_telegram_enabled: bool = False
     era_telegram_bot_token: str = ""
     era_telegram_default_chat_id: str = ""
@@ -139,6 +142,9 @@ def load_settings() -> Settings:
         era_warning_delay_minutes=max(0,min(1440,int(raw.get("era_warning_delay_minutes",10)))),
         era_telemetry_stale_minutes=max(1,min(1440,int(raw.get("era_telemetry_stale_minutes",5)))),
         era_notify_recovery=_bool(raw.get("era_notify_recovery"),True),
+        era_tca_enabled=_bool(raw.get("era_tca_enabled"),True),
+        era_tca_window_hours=max(1,min(168,int(raw.get("era_tca_window_hours",24)))),
+        era_tca_door_open_minutes=max(1,min(1440,int(raw.get("era_tca_door_open_minutes",5)))),
         era_telegram_enabled=_bool(raw.get("era_telegram_enabled"),False),
         era_telegram_bot_token=str(raw.get("era_telegram_bot_token","") or "").strip(),
         era_telegram_default_chat_id=str(raw.get("era_telegram_default_chat_id","") or "").strip(),

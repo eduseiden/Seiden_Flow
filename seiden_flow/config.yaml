@@ -1,5 +1,5 @@
 name: Seiden FLOW
-version: 0.23.0
+version: 0.23.1
 slug: seiden_flow
 description: Motor de entendimento operacional do Seiden One, conforme Platform Standard
   v1.0
@@ -96,6 +96,9 @@ options:
   era_email_from: ''
   era_email_to: []
   era_email_starttls: true
+  era_tca_enabled: true
+  era_tca_window_hours: 24
+  era_tca_door_open_minutes: 5
 schema:
   log_level: list(debug|info|warning|error|critical)
   api_key: password?
@@ -168,3 +171,6 @@ schema:
   era_email_to:
   - str
   era_email_starttls: bool
+  era_tca_enabled: bool
+  era_tca_window_hours: int(1,168)
+  era_tca_door_open_minutes: int(1,1440)

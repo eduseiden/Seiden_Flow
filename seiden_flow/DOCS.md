@@ -1,3 +1,32 @@
+# Seiden FLOW 0.23.1 — Documentação técnica
+
+## ERA 0.1.1 / TCA 0.6.1
+
+### Integração transversal
+
+A ERA consulta periodicamente os ativos TCA ativos e aplica `calculate_tca()` sobre
+a janela configurada. O resultado analítico gera eventos ERA estáveis por ativo.
+
+| event_key | condição | severidade |
+|---|---|---|
+| temperature.attention | classificação attention/elevated_alert | warning |
+| temperature.critical | classificação critical | critical |
+| door.open_too_long | sessão de porta aberta acima do threshold | warning |
+| thermal_recovery.abnormal | episódio not_recovered ainda fora do ideal | warning |
+
+A normalização usa os mesmos `event_key` com `state=recovered`, preservando o mesmo
+incidente ERA e evitando spam.
+
+### Configuração
+
+- `era_tca_enabled`: habilita o adapter TCA.
+- `era_tca_window_hours`: janela para cálculo TCA; default 24.
+- `era_tca_door_open_minutes`: limiar de porta aberta; default 5.
+
+A política global da ERA continua determinando atraso de warning/critical e recovery.
+
+---
+
 # Seiden FLOW 0.23.0 — Documentação técnica
 
 ## ERA 0.1.0 — Event Response Automation

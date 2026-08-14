@@ -5,11 +5,12 @@ import json
 import logging
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
 from .connectors import TelegramConnector, EmailConnector
 from .repository import utc_now
+from tca_analytics import calculate_tca
 
 LOG = logging.getLogger("seiden_flow.era")
 
@@ -30,10 +31,11 @@ def _duration_text(opened_at: str | None, recovered_at: str | None = None) -> st
 
 
 class ERAService:
-    def __init__(self, repo, settings, fleet_client=None):
+    def __init__(self, repo, settings, fleet_client=None, flow_db=None):
         self.repo = repo
         self.settings = settings
         self.fleet_client = fleet_client
+        self.flow_db = flow_db
         self.stop_event = threading.Event()
         self.thread = None
         self.telegram = TelegramConnector(
@@ -65,7 +67,7 @@ class ERAService:
             return
         self.thread = threading.Thread(target=self._run, name="seiden-era", daemon=True)
         self.thread.start()
-        LOG.info("ERA 0.1.0 iniciada | poll=%ss | telegram=%s | email=%s",
+        LOG.info("ERA 0.1.1 iniciada | poll=%ss | telegram=%s | email=%s",
                  self.settings.era_poll_seconds, self.telegram.configured, self.email.configured)
 
     def _run(self):
@@ -75,6 +77,10 @@ class ERAService:
                 self.sync_ita()
             except Exception:
                 LOG.exception("ERA: falha ao sincronizar ITA")
+            try:
+                self.sync_tca()
+            except Exception:
+                LOG.exception("ERA: falha ao sincronizar TCA")
             try:
                 self.dispatch()
             except Exception:
@@ -161,15 +167,163 @@ class ERAService:
                         incident.get("severity") or "warning", "recovered", incident.get("details") or {}
                     ))
 
+    def _tca_event(self, asset, key, title, severity, state, details=None):
+        metadata = asset.get("metadata") or {}
+        tenant_id = (
+            metadata.get("tenant_id")
+            or asset.get("organization_id")
+            or self.settings.organization_id
+            or "default"
+        )
+        return {
+            "source_module": "TCA",
+            "tenant_id": tenant_id,
+            "asset_id": asset.get("asset_id") or "unknown",
+            "asset_name": asset.get("name") or asset.get("asset_id") or "Ativo TCA",
+            "event_key": key,
+            "event_type": "thermal_control.alert",
+            "severity": severity,
+            "state": state,
+            "title": title,
+            "timestamp": utc_now(),
+            "details": details or {},
+        }
+
+    def sync_tca(self):
+        if not self.settings.era_tca_enabled or not self.flow_db:
+            return
+
+        end = datetime.now(timezone.utc)
+        start = end - timedelta(hours=max(1, int(self.settings.era_tca_window_hours)))
+        for asset in self.flow_db.tca_assets():
+            if str(asset.get("status") or "active").lower() != "active":
+                continue
+
+            rows = self.flow_db.tca_measurements(
+                asset["asset_id"],
+                start.isoformat().replace("+00:00", "Z"),
+                end.isoformat().replace("+00:00", "Z"),
+            )
+            result = calculate_tca(rows, asset, asset.get("bindings") or [], start, end)
+            current = result.get("current") or {}
+            classification = current.get("thermal_classification") or {}
+            level = str(classification.get("level") or "no_data")
+            details = {
+                "temperature_c": current.get("temperature_c"),
+                "direction": classification.get("direction"),
+                "recommended": classification.get("recommended"),
+                "temporary_tolerance": classification.get("temporary_tolerance"),
+                "operational_limits": classification.get("operational_limits"),
+                "trend": current.get("trend"),
+                "last_update": current.get("last_update"),
+            }
+
+            warning_active = level in ("attention", "elevated_alert")
+            critical_active = level == "critical"
+
+            self.ingest(self._tca_event(
+                asset,
+                "temperature.attention",
+                "Temperatura fora da faixa ideal",
+                "warning",
+                "active" if warning_active else "recovered",
+                details,
+            ))
+            self.ingest(self._tca_event(
+                asset,
+                "temperature.critical",
+                "Temperatura crítica fora da faixa",
+                "critical",
+                "active" if critical_active else "recovered",
+                details,
+            ))
+
+            open_episode = next(
+                (e for e in reversed(result.get("episodes") or []) if e.get("status") == "open"),
+                None,
+            )
+            open_seconds = float((open_episode or {}).get("open_seconds") or 0)
+            door_threshold_s = max(1, int(self.settings.era_tca_door_open_minutes)) * 60
+            door_active = bool(open_episode and open_seconds >= door_threshold_s)
+            self.ingest(self._tca_event(
+                asset,
+                "door.open_too_long",
+                "Porta aberta por tempo excessivo",
+                "warning",
+                "active" if door_active else "recovered",
+                {
+                    "open_seconds": round(open_seconds, 1),
+                    "threshold_seconds": door_threshold_s,
+                    "opened_at": (open_episode or {}).get("opened_at"),
+                    "door": current.get("door"),
+                    "temperature_c": current.get("temperature_c"),
+                },
+            ))
+
+            latest_bad_recovery = next(
+                (e for e in reversed(result.get("episodes") or []) if e.get("status") == "not_recovered"),
+                None,
+            )
+            recovery_active = bool(latest_bad_recovery and level not in ("ideal", "no_data", "invalid_profile"))
+            self.ingest(self._tca_event(
+                asset,
+                "thermal_recovery.abnormal",
+                "Recuperação térmica não concluída",
+                "warning",
+                "active" if recovery_active else "recovered",
+                {
+                    "opened_at": (latest_bad_recovery or {}).get("opened_at"),
+                    "closed_at": (latest_bad_recovery or {}).get("closed_at"),
+                    "baseline_temperature_c": (latest_bad_recovery or {}).get("baseline_temperature_c"),
+                    "maximum_temperature_c": (latest_bad_recovery or {}).get("maximum_temperature_c"),
+                    "minimum_temperature_c": (latest_bad_recovery or {}).get("minimum_temperature_c"),
+                    "thermal_impact_c": (latest_bad_recovery or {}).get("thermal_impact_c"),
+                    "temperature_c": current.get("temperature_c"),
+                    "recommended": classification.get("recommended"),
+                },
+            ))
+
+    @staticmethod
+    def _fmt_temp(value):
+        try:
+            return f"{float(value):.1f} °C".replace(".", ",")
+        except Exception:
+            return None
+
+    def _context_lines(self, incident):
+        if incident.get("source_module") != "TCA":
+            return []
+        details = incident.get("details") or {}
+        lines = []
+        temp = self._fmt_temp(details.get("temperature_c"))
+        if temp:
+            lines.append(f"Temperatura atual: {temp}")
+        recommended = details.get("recommended") or {}
+        if recommended.get("min") is not None and recommended.get("max") is not None:
+            lo = self._fmt_temp(recommended.get("min"))
+            hi = self._fmt_temp(recommended.get("max"))
+            if lo and hi:
+                lines.append(f"Faixa ideal: {lo} a {hi}")
+        open_seconds = details.get("open_seconds")
+        if open_seconds is not None and str(incident.get("source_event_key")) == "door.open_too_long":
+            try:
+                lines.append(f"Porta aberta: {max(0, int(float(open_seconds))) // 60} min")
+            except Exception:
+                pass
+        return lines
+
     def _message(self, incident, phase: str):
         critical = incident.get("severity") == "critical"
+        context = self._context_lines(incident)
+        context_text = ("\n" + "\n".join(context)) if context else ""
         if phase == "open":
             icon = "🔴" if critical else "🟠"
             sev = "CRÍTICO" if critical else "ATENÇÃO"
             return (
                 f"{icon} Seiden One — {sev}\n"
                 f"{incident.get('asset_name')}\n"
-                f"{incident.get('title')}\n"
+                f"{incident.get('title')}"
+                f"{context_text}\n"
                 f"Módulo: {incident.get('source_module')}\n"
                 f"Incidente: {incident.get('incident_id')}\n"
                 f"Aberto há: {_duration_text(incident.get('opened_at'))}"
@@ -177,7 +331,8 @@ class ERAService:
         return (
             f"🟢 Seiden One — Recuperado\n"
             f"{incident.get('asset_name')}\n"
-            f"{incident.get('title')}\n"
+            f"{incident.get('title')}"
+            f"{context_text}\n"
             f"Módulo: {incident.get('source_module')}\n"
             f"Incidente: {incident.get('incident_id')}\n"
             f"Duração: {_duration_text(incident.get('opened_at'), incident.get('recovered_at'))}"
@@ -216,13 +371,13 @@ class ERAService:
                     self.repo.mark_phase_notified(incident["incident_id"], "recovery")
 
     def test_telegram(self):
-        text = "✅ Seiden One — ERA 0.1.0\nTeste de notificação concluído com sucesso."
+        text = "✅ Seiden One — ERA 0.1.1\nTeste de notificação concluído com sucesso."
         ok, status = self.telegram.send("default", text)
         return {"ok": ok, "status": status}
 
     def test_email(self):
         ok, status = self.email.send(
-            "[Seiden One] ERA 0.1.0 — Teste",
-            "Seiden One — ERA 0.1.0\nTeste de notificação concluído com sucesso.",
+            "[Seiden One] ERA 0.1.1 — Teste",
+            "Seiden One — ERA 0.1.1\nTeste de notificação concluído com sucesso.",
         )
         return {"ok": ok, "status": status}
