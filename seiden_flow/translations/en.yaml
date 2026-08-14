@@ -50,3 +50,7 @@ configuration:
   ita_fleet_refresh_seconds:
     name: "Fleet refresh"
     description: "Fleet screen refresh interval in seconds."
+
+era:
+  title: Event Response Automation
+  description: Incidents, policies, notifications and recovery

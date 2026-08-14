@@ -51,3 +51,7 @@ configuration:
   ita_fleet_refresh_seconds:
     name: "Atualização Fleet"
     description: "Intervalo de atualização da tela Fleet, em segundos."
+
+era:
+  title: Event Response Automation
+  description: Incidentes, políticas, notificações e recuperação

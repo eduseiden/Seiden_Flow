@@ -1,0 +1,107 @@
+\
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ERA · Seiden One</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--text:#16181d;--muted:#68707d;--line:#dfe3e8;--critical:#b42318;--warn:#b54708;--ok:#067647}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+.wrap{max-width:1320px;margin:auto;padding:28px}.top{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:22px}
+.eyebrow{font-size:12px;font-weight:800;letter-spacing:.12em;color:var(--muted)}h1{font-size:30px;margin:7px 0 5px}.sub{color:var(--muted);font-size:14px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 12px;font-weight:700;cursor:pointer}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+.kpi .label{font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--muted)}.kpi .value{font-size:30px;font-weight:800;margin-top:5px}
+.grid{display:grid;grid-template-columns:2fr 1fr;gap:16px}.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.panel h2{font-size:16px;margin:0;padding:17px 18px;border-bottom:1px solid var(--line)}.body{padding:10px 18px 18px}
+.incident{padding:14px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:start}.incident:last-child{border-bottom:0}
+.dot{width:10px;height:10px;border-radius:50%;margin-top:7px;background:var(--warn)}.critical .dot{background:var(--critical)}.recovered .dot{background:var(--ok)}
+.ititle{font-weight:800}.meta{font-size:12px;color:var(--muted);margin-top:5px}.badge{font-size:11px;font-weight:800;padding:5px 8px;border-radius:999px;background:#f2f4f7}
+.config-row{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:13px}.config-row:last-child{border-bottom:0}
+.good{color:var(--ok);font-weight:800}.off{color:var(--muted);font-weight:800}.empty{padding:24px 0;color:var(--muted);text-align:center}
+footer{margin-top:20px;text-align:center;color:var(--muted);font-size:11px}
+@media(max-width:850px){.kpis{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.top{flex-direction:column}.wrap{padding:18px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="eyebrow">SEIDEN ONE</div>
+      <h1>ERA — Event Response Automation</h1>
+      <div class="sub">Da inteligência operacional à resposta. Incidentes, políticas, notificações e recuperação.</div>
+    </div>
+    <div class="actions">
+      <button onclick="testChannel('telegram')">Testar Telegram</button>
+      <button onclick="testChannel('email')">Testar e-mail</button>
+      <button onclick="refresh()">Atualizar</button>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="label">ABERTOS</div><div class="value" id="kOpen">—</div></div>
+    <div class="kpi"><div class="label">CRÍTICOS</div><div class="value" id="kCritical">—</div></div>
+    <div class="kpi"><div class="label">ATENÇÃO</div><div class="value" id="kWarning">—</div></div>
+    <div class="kpi"><div class="label">RECUPERADOS HOJE</div><div class="value" id="kRecovered">—</div></div>
+  </div>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>Incidentes</h2>
+      <div class="body" id="incidents"><div class="empty">Carregando…</div></div>
+    </section>
+    <aside class="panel">
+      <h2>Configuração</h2>
+      <div class="body">
+        <div class="config-row"><span>Telegram</span><span id="telegramState">—</span></div>
+        <div class="config-row"><span>E-mail</span><span id="emailState">—</span></div>
+        <div class="config-row"><span>Críticos</span><strong id="criticalDelay">—</strong></div>
+        <div class="config-row"><span>Atenção</span><strong id="warningDelay">—</strong></div>
+        <div class="config-row"><span>Sem telemetria</span><strong id="staleDelay">—</strong></div>
+        <div class="config-row"><span>Recuperação</span><strong id="recoveryPolicy">—</strong></div>
+      </div>
+    </aside>
+  </div>
+
+  <footer>Seiden Flow {{ version }} · ERA 0.1.0 · {{ display_timezone }}</footer>
+</div>
+<script>
+const ingress={{ ingress_path|tojson }};
+const api=p=>`${ingress}${p}`;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function relTime(iso){
+ if(!iso)return '—'; const t=new Date(iso).getTime(); if(!Number.isFinite(t))return '—';
+ const s=Math.max(0,Math.floor((Date.now()-t)/1000));
+ if(s<60)return `há ${s} s`; if(s<3600)return `há ${Math.floor(s/60)} min`; if(s<86400)return `há ${Math.floor(s/3600)} h`; return `há ${Math.floor(s/86400)} d`;
+}
+async function getJson(url,opt){const r=await fetch(api(url),opt);const j=await r.json();if(!r.ok)throw new Error(j.error||`HTTP ${r.status}`);return j}
+function renderIncident(i){
+ const cls=i.state==='recovered'?'recovered':i.severity==='critical'?'critical':'warning';
+ const badge=i.state==='recovered'?'RECUPERADO':i.severity==='critical'?'CRÍTICO':'ATENÇÃO';
+ const when=i.state==='recovered'?`recuperado ${relTime(i.recovered_at)}`:`aberto ${relTime(i.opened_at)}`;
+ return `<div class="incident ${cls}"><div class="dot"></div><div><div class="ititle">${esc(i.asset_name)} — ${esc(i.title)}</div><div class="meta">${esc(i.source_module)} · ${esc(i.incident_id)} · ${when}</div></div><div class="badge">${badge}</div></div>`;
+}
+async function refresh(){
+ try{
+  const [s,list]=await Promise.all([getJson('/api/v1/era/summary'),getJson('/api/v1/era/incidents?state=all&limit=100')]);
+  kOpen.textContent=s.open;kCritical.textContent=s.critical;kWarning.textContent=s.warning;kRecovered.textContent=s.recovered_today;
+  telegramState.textContent=s.channels.telegram.configured?'Configurado':s.channels.telegram.enabled?'Incompleto':'Desativado';
+  telegramState.className=s.channels.telegram.configured?'good':'off';
+  emailState.textContent=s.channels.email.configured?'Configurado':s.channels.email.enabled?'Incompleto':'Desativado';
+  emailState.className=s.channels.email.configured?'good':'off';
+  criticalDelay.textContent=s.policy.critical_delay_minutes?`Após ${s.policy.critical_delay_minutes} min`:'Imediato';
+  warningDelay.textContent=s.policy.warning_delay_minutes?`Após ${s.policy.warning_delay_minutes} min`:'Imediato';
+  staleDelay.textContent=`Após ${s.policy.telemetry_stale_minutes} min`;
+  recoveryPolicy.textContent=s.policy.notify_recovery?'Notificar':'Não notificar';
+  incidents.innerHTML=list.items.length?list.items.map(renderIncident).join(''):'<div class="empty">Nenhum incidente registrado.</div>';
+ }catch(e){incidents.innerHTML=`<div class="empty">Erro: ${esc(e.message)}</div>`}
+}
+async function testChannel(channel){
+ try{const r=await getJson(`/api/v1/era/test/${channel}`,{method:'POST'});alert(`${channel}: ${r.status}`)}
+ catch(e){alert(`Falha no teste de ${channel}: ${e.message}`)}
+}
+refresh();setInterval(refresh,30000);
+</script>
+</body>
+</html>

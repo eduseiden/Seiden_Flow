@@ -1,3 +1,57 @@
+# Seiden FLOW 0.23.0 — Documentação técnica
+
+## ERA 0.1.0 — Event Response Automation
+
+### Contrato transversal de evento
+
+`POST /api/v1/era/events`
+
+Campos mínimos:
+
+```json
+{
+  "source_module": "ITA",
+  "tenant_id": "cliente",
+  "asset_id": "ativo-01",
+  "asset_name": "Ativo 01",
+  "event_key": "telemetry.stale",
+  "severity": "critical",
+  "state": "active",
+  "title": "Sem telemetria",
+  "details": {}
+}
+```
+
+`state` aceita `active` e `recovered`.
+
+### Correlação
+
+A chave de incidente é composta por `tenant_id + source_module + asset_id + event_key`.
+Eventos repetidos atualizam o mesmo incidente sem criar spam.
+
+### Políticas padrão
+
+- crítico: imediato;
+- atenção: 10 minutos;
+- sem telemetria: 5 minutos;
+- recuperação: notificar.
+
+### Telegram
+
+Um bot único pode servir múltiplos grupos privados. O destino padrão usa
+`era_telegram_default_chat_id`; `era_telegram_routes` aceita linhas
+`tenant_id|chat_id` para roteamento por cliente.
+
+### E-mail
+
+SMTP genérico com STARTTLS por padrão.
+
+### Persistência
+
+A ERA usa `/config/seiden_era.db`, isolado do banco principal do Flow.
+
+---
+
 # Seiden FLOW 0.22.1.9 — Documentação técnica
 
 ## ITA 0.3.1.8 — Operational Overview Refinement

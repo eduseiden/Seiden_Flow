@@ -19,6 +19,9 @@ from modules.lca.api import create_lca_blueprint
 from modules.ita.repository import ITARepository
 from modules.ita.api import create_ita_blueprint
 from modules.ita.fleet_client import ITAFleetClient
+from modules.era.repository import ERARepository
+from modules.era.service import ERAService
+from modules.era.api import create_era_blueprint
 settings=load_settings();logging.basicConfig(level=getattr(logging,settings.log_level.upper(),logging.INFO),format='%(asctime)s [%(levelname)s] %(name)s: %(message)s');LOGGER=logging.getLogger('seiden_flow')
 
 _ENV_CACHE_TTL_SECONDS=30
@@ -60,6 +63,8 @@ db=FlowDatabase(os.path.join(settings.config_dir,'seiden_flow.db'),settings.orga
 lca_repository=LCARepository(db,settings.timezone)
 ita_repository=ITARepository(db,settings.timezone)
 ita_fleet_client=ITAFleetClient(settings.ita_fleet_receiver_url,settings.ita_fleet_read_token,settings.ita_fleet_timeout_seconds)
+era_repository=ERARepository(os.path.join(settings.config_dir,'seiden_era.db'))
+era_service=ERAService(era_repository,settings,ita_fleet_client)
 ha=HomeAssistantClient();service=FlowService(db,ha,settings.publish_summary_to_home_assistant,settings);service.lca_repository=lca_repository;service.ita_repository=ita_repository;service.publish_summary();service.start_cleanup(settings.retention_days,settings.cleanup_interval_hours)
 if settings.subscribe_home_assistant_events:
  event_types=[settings.bridge_event,settings.connection_online_event,settings.connection_offline_event]
@@ -86,6 +91,8 @@ def _is_public_hea_host() -> bool:
 
 app.register_blueprint(create_lca_blueprint(lca_repository,VERSION,_ingress_path,settings.timezone))
 app.register_blueprint(create_ita_blueprint(ita_repository,VERSION,_ingress_path,settings.timezone,ita_fleet_client,settings.ita_fleet_enabled,settings.ita_fleet_refresh_seconds))
+app.register_blueprint(create_era_blueprint(era_repository,era_service,VERSION,_ingress_path,settings.timezone))
+era_service.start()
 
 @app.before_request
 def restrict_public_hea_host():

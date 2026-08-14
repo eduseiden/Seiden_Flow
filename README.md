@@ -1,13 +1,26 @@
-# Seiden FLOW 0.22.1.9
+# Seiden FLOW 0.23.0
 
-## ITA 0.3.1.8 — Operational Overview Refinement
+## ERA 0.1.0 — Event Response Automation
 
-- `Ativos` no resumo passa a `Monitorados`.
-- Monitorados/Todos e Normais: ordem alfabética.
-- Atenção e Críticos: severidade e ocorrência mais recente.
-- Sem telemetria: maior tempo sem atualização primeiro.
-- O seletor de período deixa a home e permanece apenas no detalhe local/Bridge.
-- `linux_host`: CPU, Memória, Disco e Uptime quando disponíveis no resumo Fleet.
-- Mantidos filtros inteligentes, lifecycle e UX incident-first.
+Primeira versão da camada transversal de resposta operacional da Seiden One.
 
-Para CPU e Memória Linux na home, use o Telemetry Receiver 0.2.3.2 ou superior.
+### ERA 0.1.0
+
+- Incident Engine com correlação e deduplicação.
+- Estados `open` e `recovered`.
+- Políticas independentes para crítico, atenção e ausência de telemetria.
+- Detecção server-side de ausência de telemetria ITA.
+- Sincronização dos alertas ativos do ITA.
+- Conector Telegram via bot.
+- Conector e-mail via SMTP.
+- Notificações de abertura e recuperação.
+- Auditoria de tentativas de entrega.
+- API transversal `/api/v1/era/events` para qualquer módulo Seiden One.
+- Portal `/era`.
+
+### Segurança e arquitetura
+
+A ERA não altera o princípio zero-control da Seiden Pulse. Ela reage a eventos
+e aciona canais externos; não controla o host monitorado.
+
+Telegram e e-mail nascem desabilitados e precisam ser explicitamente configurados.

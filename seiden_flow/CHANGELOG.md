@@ -1,3 +1,16 @@
+## 0.23.0 — ERA 0.1.0 · Event Response Automation
+
+- Introduz o sexto módulo da Seiden One: ERA — Event Response Automation.
+- Incident Engine persistente em `seiden_era.db`.
+- Correlação/deduplicação por tenant + módulo + ativo + evento.
+- Políticas: crítico imediato, atenção configurável, stale configurável e recovery.
+- ITA adapter: alertas ativos + detecção server-side de ausência de telemetria.
+- Telegram Bot API e e-mail SMTP como primeiros conectores.
+- Roteamento Telegram opcional por tenant (`tenant_id|chat_id`).
+- API transversal `/api/v1/era/events`.
+- Portal `/era` com incidentes, KPIs, políticas e teste de canais.
+- Nenhuma mudança no banco principal do Flow ou no protocolo Pulse.
+
 ## 0.22.1.9 — ITA 0.3.1.8 · Operational Overview Refinement
 
 - Renomeia o KPI `Ativos` para `Monitorados`.
