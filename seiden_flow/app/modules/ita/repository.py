@@ -169,6 +169,37 @@ class ITARepository:
                    json.dumps({'reason': reason}), None))
         return self.asset_status(system_id)
 
+    def delete_asset(self, system_id):
+        """Permanently remove one local/Bridge ITA asset and its ITA history.
+
+        This intentionally deletes only ITA domain tables. Raw platform events are
+        preserved; if the source starts publishing again, normal ingestion can
+        recreate the asset from new telemetry.
+        """
+        system_id = str(system_id or '').strip()
+        if not system_id:
+            raise ValueError('invalid_system_id')
+        tables = ('ita_measurements', 'ita_events', 'ita_snapshots', 'ita_assets')
+        with self.db.connect() as c:
+            exists = c.execute(
+                '''SELECT 1 FROM ita_snapshots WHERE system_id=? LIMIT 1''',
+                (system_id,),
+            ).fetchone() or c.execute(
+                '''SELECT 1 FROM ita_assets WHERE system_id=? LIMIT 1''',
+                (system_id,),
+            ).fetchone()
+            if not exists:
+                return None
+            deleted = {}
+            for table in tables:
+                row = c.execute(
+                    f'''SELECT COUNT(*) AS n FROM {table} WHERE system_id=?''',
+                    (system_id,),
+                ).fetchone()
+                deleted[table] = int(row['n'] if row else 0)
+                c.execute(f'''DELETE FROM {table} WHERE system_id=?''', (system_id,))
+        return {'system_id': system_id, 'deleted': deleted, 'status': 'deleted'}
+
     def ingest(self, snapshot: dict) -> int:
         now = datetime.now(timezone.utc).isoformat()
         eid = snapshot.get('event_id')

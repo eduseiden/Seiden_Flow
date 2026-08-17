@@ -5,9 +5,9 @@ MANIFEST = ModuleManifest(
     name="Environmental Experience Analytics",
     version="1.0",
     description="Conforto, estabilidade e evolução das condições ambientais.",
-    consumes=("environment.observation",),
+    consumes=("environment.observation", "mqtt.message_received", "environment.measurement"),
     capabilities=("environment_state", "experience_index", "timeline", "portfolio"),
-    portal_paths=("/environment", "/intelligence/environment"),
+    portal_paths=("/eea", "/environment", "/intelligence/eea", "/intelligence/environment"),
     api_prefixes=("/api/v1/environment",),
     dependencies=("bridge", "flow_core"),
 )

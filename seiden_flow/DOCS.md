@@ -1,4 +1,4 @@
-# Seiden FLOW 0.23.1 — Documentação técnica
+# Seiden FLOW 0.24.0 — Documentação técnica
 
 ## ERA 0.1.1 / TCA 0.6.1
 

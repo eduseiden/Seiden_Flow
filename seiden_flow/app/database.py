@@ -14,7 +14,7 @@ LOGGER=logging.getLogger("seiden_flow.database")
 class FlowDatabase:
     def __init__(self,path:str,organization_id="default_organization",organization_name="Organização padrão",site_id="default_site",site_name="Site padrão"):
         self.path=path;self.organization_id=organization_id;self.site_id=site_id;self._lock=threading.RLock();Path(path).parent.mkdir(parents=True,exist_ok=True)
-        self._init_schema(organization_name,site_name);self._migrate_legacy();self._reconcile_vision_sources();self._deduplicate_locations();self._deduplicate_sources();self._deduplicate_hea_sources();self._sanitize_tca_catalog()
+        self._init_schema(organization_name,site_name);self._migrate_legacy();self._reconcile_vision_sources();self._deduplicate_locations();self._deduplicate_sources();self._deduplicate_hea_sources();self._sanitize_tca_catalog();self._reconcile_tca_binding_history(once=True)
     @contextmanager
     def connect(self)->Iterator[sqlite3.Connection]:
         c=sqlite3.connect(self.path,timeout=30);c.row_factory=sqlite3.Row;c.execute("PRAGMA foreign_keys=ON")
@@ -831,6 +831,7 @@ class FlowDatabase:
                 if not existing_primary:is_primary=True
                 if is_primary:c.execute("UPDATE tca_bindings SET is_primary=0,updated_at=? WHERE asset_id=? AND kind='temperature'",(now,asset_id))
             c.execute("""INSERT INTO tca_bindings(binding_id,asset_id,source_id,source_name,kind,role,is_primary,enabled,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(asset_id,source_id,kind,role) DO UPDATE SET source_name=excluded.source_name,is_primary=excluded.is_primary,enabled=excluded.enabled,updated_at=excluded.updated_at""",(binding_id,asset_id,source_id,data.get('source_name'),kind,role,int(is_primary),int(data.get('enabled',True)),now,now))
+        self._reconcile_tca_binding_history(asset_id=asset_id)
         return self.tca_bindings(asset_id)
 
     def tca_bindings(self,asset_id=None):
@@ -866,6 +867,7 @@ class FlowDatabase:
             c.execute('DELETE FROM tca_bindings WHERE asset_id=?',(asset_id,))
             for binding_id,source_id,source_name,kind,role,is_primary,enabled in normalized:
                 c.execute("""INSERT INTO tca_bindings(binding_id,asset_id,source_id,source_name,kind,role,is_primary,enabled,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)""",(binding_id,asset_id,source_id,source_name,kind,role,int(is_primary),int(enabled),now,now))
+        self._reconcile_tca_binding_history(asset_id=asset_id)
         return self.tca_bindings(asset_id)
 
     def insert_tca_measurements(self,measurements):
@@ -876,16 +878,57 @@ class FlowDatabase:
                 kinds=set(json.loads(existing['kinds_json'] or '[]')) if existing else set();kinds.add(m['kind'])
                 c.execute("""INSERT INTO tca_sources(source_id,source_name,kinds_json,last_seen,sample_payload_json,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(source_id) DO UPDATE SET source_name=excluded.source_name,kinds_json=excluded.kinds_json,last_seen=excluded.last_seen,sample_payload_json=excluded.sample_payload_json,updated_at=excluded.updated_at""",(m['source_id'],m.get('source_name') or m['source_id'],json.dumps(sorted(kinds)),m['occurred_at'],json.dumps(m.get('payload') or {},ensure_ascii=False),now))
                 explicit_asset=m.get('asset_id');default_role=m.get('role') or 'main'
-                targets=[]
-                if explicit_asset:
+                # TCA bindings are authoritative for logical thermal ownership.
+                # Bridge environmental asset_id identifies physical context and must not
+                # override the logical TCA asset selected by source/kind bindings.
+                bound=[(b['asset_id'],b['role']) for b in c.execute("SELECT asset_id,role FROM tca_bindings WHERE source_id=? AND kind=? AND enabled=1 ORDER BY is_primary DESC,asset_id",(m['source_id'],m['kind'])).fetchall()]
+                payload=m.get('payload') if isinstance(m.get('payload'),dict) else {}
+                is_environment=bool(isinstance(payload.get('environment'),dict))
+                if bound:
+                    targets=bound
+                elif explicit_asset and not is_environment:
                     targets=[(explicit_asset,default_role)]
                 else:
-                    targets=[(b['asset_id'],b['role']) for b in c.execute("SELECT asset_id,role FROM tca_bindings WHERE source_id=? AND kind=? AND enabled=1 ORDER BY is_primary DESC,asset_id",(m['source_id'],m['kind'])).fetchall()]
+                    targets=[]
                 for asset_id,role in targets:
                     measurement_id=f"{m['measurement_id']}:{asset_id}"
                     cur=c.execute("""INSERT OR IGNORE INTO tca_measurements(measurement_id,event_id,asset_id,source_id,source_name,kind,role,occurred_at,numeric_value,text_value,unit,payload_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",(measurement_id,m.get('event_id'),asset_id,m['source_id'],m.get('source_name'),m['kind'],role,m['occurred_at'],m.get('numeric_value'),m.get('text_value'),m.get('unit'),json.dumps(m.get('payload') or {},ensure_ascii=False),now))
                     count+=cur.rowcount
         return count
+
+    def _reconcile_tca_binding_history(self,asset_id=None,once=False):
+        """Backfill logical TCA assets from existing source/kind bindings.
+
+        Bridge environmental events may carry a physical/context asset_id. TCA
+        bindings are authoritative for logical thermal assets. This SQLite-safe
+        reconciliation is idempotent and can run once at upgrade or per binding edit.
+        """
+        marker='tca_cloud_binding_reconcile_v1_complete'
+        now=datetime.now(timezone.utc).isoformat();created=0
+        with self._lock,self.connect() as c:
+            if once:
+                state=c.execute("SELECT value FROM meta WHERE key=?",(marker,)).fetchone()
+                if state and str(state['value'])=='1':
+                    return 0
+            sql="SELECT asset_id,source_id,kind,role FROM tca_bindings WHERE enabled=1";params=()
+            if asset_id:
+                sql+=" AND asset_id=?";params=(asset_id,)
+            sql+=" ORDER BY asset_id,source_id,kind"
+            bindings=c.execute(sql,params).fetchall()
+            for b in bindings:
+                rows=c.execute("SELECT measurement_id,event_id,asset_id,source_id,source_name,kind,role,occurred_at,numeric_value,text_value,unit,payload_json FROM tca_measurements WHERE source_id=? AND kind=? AND (asset_id IS NULL OR asset_id<>?)",(b['source_id'],b['kind'],b['asset_id'])).fetchall()
+                for r in rows:
+                    base=str(r['measurement_id'] or '')
+                    if r['asset_id'] and base.endswith(':'+str(r['asset_id'])):
+                        base=base[:-(len(str(r['asset_id']))+1)]
+                    new_id=f"{base}:{b['asset_id']}"
+                    cur=c.execute("""INSERT OR IGNORE INTO tca_measurements(measurement_id,event_id,asset_id,source_id,source_name,kind,role,occurred_at,numeric_value,text_value,unit,payload_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",(new_id,r['event_id'],b['asset_id'],r['source_id'],r['source_name'],r['kind'],b['role'],r['occurred_at'],r['numeric_value'],r['text_value'],r['unit'],r['payload_json'] or '{}',now))
+                    created+=cur.rowcount
+            if once:
+                c.execute("INSERT INTO meta(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",(marker,'1'))
+        if created:
+            LOGGER.info('[TCA] Binding reconciliation: %d historical measurement(s) materialized%s',created,f' for {asset_id}' if asset_id else '')
+        return created
 
     def tca_measurements(self,asset_id,start_at,end_at,limit=100000):
         return self._rows("SELECT measurement_id,event_id,asset_id,source_id,source_name,kind,role,occurred_at,numeric_value,text_value,unit FROM tca_measurements WHERE asset_id=? AND occurred_at>=? AND occurred_at<? ORDER BY occurred_at ASC LIMIT ?",(asset_id,start_at,end_at,limit))

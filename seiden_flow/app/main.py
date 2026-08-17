@@ -148,16 +148,40 @@ def require_api_key(fn):
   if settings.api_key and request.headers.get('Authorization','').removeprefix('Bearer ').strip()!=settings.api_key:return jsonify({'error':'unauthorized'}),401
   return fn(*a,**kw)
  return wrapped
-@app.get('/')
-def dashboard():return render_template('dashboard.html',version=VERSION,ingress_path=_ingress_path(),display_timezone=settings.timezone,datetime_format=settings.datetime_format,summary=db.summary(),operational=db.operational_summary(),occurrences=db.list_occurrences(limit=50),captured_events=db.list_events(limit=100),people=db.people_inside(),sources=db.sources_state(),ha_status=ha.connection_status,hea=db.hea_summary(24,settings.human_experience_minimum_samples),hea_sources=db.hea_sources(24),hea_history=db.hea_history(24,limit=96),hea_config={'minimum_samples':settings.human_experience_minimum_samples,'window_minutes':settings.human_experience_aggregation_window_minutes,'minimum_confidence':settings.human_experience_minimum_confidence})
+def _commercial_modules():
+ modules=[]
+ if settings.hea_portal_enabled and settings.human_experience_enabled:
+  modules.append({'id':'hea','name':'Human Experience Analytics','description':'Experiência humana transformada em indicadores agregados e acionáveis.','path':'/hea'})
+ if settings.environmental_storage_enabled:
+  modules.append({'id':'eea','name':'Environmental Experience Analytics','description':'Conforto ambiental, qualidade da experiência e evolução das condições do ambiente.','path':'/eea'})
+ if settings.tca_enabled:
+  modules.append({'id':'tca','name':'Thermal Control Analytics','description':'Estabilidade térmica, excursões, recuperação e risco operacional.','path':'/tca'})
+ if settings.lca_enabled:
+  modules.append({'id':'lca','name':'Lighting Context Analytics','description':'Contexto de uso, iluminação, interações e padrões operacionais.','path':'/lca'})
+ if settings.ita_enabled:
+  modules.append({'id':'ita','name':'Infrastructure Telemetry Analytics','description':'Saúde, disponibilidade e desempenho da infraestrutura conectada.','path':'/ita'})
+ return modules
 
-@app.get('/environment')
+@app.get('/')
+def dashboard():
+ return render_template('home.html',version=VERSION,ingress_path=_ingress_path(),modules=_commercial_modules())
+
+@app.get('/operation')
+def operation_dashboard():
+ return render_template('dashboard.html',version=VERSION,ingress_path=_ingress_path(),display_timezone=settings.timezone,datetime_format=settings.datetime_format,summary=db.summary(),operational=db.operational_summary(),occurrences=db.list_occurrences(limit=50),captured_events=db.list_events(limit=100),people=db.people_inside(),sources=db.sources_state(),ha_status=ha.connection_status,hea=db.hea_summary(24,settings.human_experience_minimum_samples),hea_sources=db.hea_sources(24),hea_history=db.hea_history(24,limit=96),hea_config={'minimum_samples':settings.human_experience_minimum_samples,'window_minutes':settings.human_experience_aggregation_window_minutes,'minimum_confidence':settings.human_experience_minimum_confidence})
+
+@app.get('/eea')
 def environment_portal():
  return render_template('environment_portal.html',version=VERSION,ingress_path=_ingress_path(),display_timezone=settings.timezone,datetime_format=settings.datetime_format)
 
+@app.get('/environment')
+def environment_legacy_alias():
+ return redirect(f"{_ingress_path()}/eea" or '/eea',code=302)
+
+@app.get('/intelligence/eea')
 @app.get('/intelligence/environment')
 def environment_intelligence_alias():
- return environment_portal()
+ return redirect(f"{_ingress_path()}/eea" or '/eea',code=302)
 
 @app.get('/tca')
 def tca_portal():return render_template('tca_portal.html',version=VERSION,ingress_path=_ingress_path(),display_timezone=settings.timezone)

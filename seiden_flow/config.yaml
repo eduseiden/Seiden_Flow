@@ -1,5 +1,5 @@
 name: Seiden FLOW
-version: 0.23.1
+version: 0.24.0
 slug: seiden_flow
 description: Motor de entendimento operacional do Seiden One, conforme Platform Standard
   v1.0
@@ -39,6 +39,7 @@ options:
   vision_event: vision.analysis_completed
   environment_event: environment.observation
   environmental_storage_enabled: true
+  tca_enabled: true
   publish_summary_to_home_assistant: true
   cleanup_interval_hours: 12
   webhook_max_body_mb: 5
@@ -111,6 +112,7 @@ schema:
   vision_event: str
   environment_event: str
   environmental_storage_enabled: bool
+  tca_enabled: bool
   publish_summary_to_home_assistant: bool
   cleanup_interval_hours: int(1,168)
   webhook_max_body_mb: int(1,20)

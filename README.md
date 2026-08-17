@@ -1,4 +1,21 @@
-# Seiden FLOW 0.23.1
+# Seiden FLOW 0.24.0
+
+## 0.24.0 — HAOS Functional Alignment with Flow Linux
+
+Esta release traz ao add-on HAOS as melhorias funcionais e de UX amadurecidas no Flow Linux, preservando a arquitetura nativa do Home Assistant e o banco SQLite.
+
+### Principais evoluções
+
+- Home comercial Seiden One em `/`; dashboard operacional preservado em `/operation`.
+- EEA oficial em `/eea`, com aliases legados para compatibilidade.
+- EEA passa a interpretar envelopes ambientais Bridge 2.0 do perfil `human_indoor`.
+- TCA passa a tratar `tca_bindings` como autoridade para o ativo térmico lógico e evita materializar eventos ambientais não vinculados.
+- Reconciliação histórica idempotente do TCA após criação/edição de bindings.
+- Nova opção `tca_enabled` no add-on.
+- ITA recebe exclusão permanente de ativo local e UX alinhada às melhorias recentes do Linux.
+- Branding, navegação, tema e idioma alinhados entre os portais.
+- Banco permanece SQLite; nenhuma camada PostgreSQL/Linux foi incorporada.
+
 
 ## ERA 0.1.1 + TCA 0.6.1 — TCA Response Integration
 

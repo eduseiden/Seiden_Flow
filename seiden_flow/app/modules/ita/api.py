@@ -111,4 +111,14 @@ def create_ita_blueprint(repo, version, ingress_path_fn, timezone_name, fleet_cl
             return jsonify({'error': 'invalid_asset_status', 'allowed': ['active', 'hidden', 'decommissioned']}), 400
         return jsonify(result)
 
+    @bp.delete('/api/v1/ita/systems/<system_id>')
+    def delete_local_asset(system_id):
+        try:
+            result = repo.delete_asset(system_id)
+        except ValueError:
+            return jsonify({'error': 'invalid_system_id'}), 400
+        if not result:
+            return jsonify({'error': 'system_not_found'}), 404
+        return jsonify(result)
+
     return bp

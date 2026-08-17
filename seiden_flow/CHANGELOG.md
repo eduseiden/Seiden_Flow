@@ -1,3 +1,16 @@
+## 0.24.0 — HAOS Functional Alignment with Flow Linux
+
+- Porta para HAOS a home comercial Seiden One; operação técnica passa a `/operation`.
+- Oficializa EEA em `/eea` e preserva redirects legados.
+- EEA aceita Bridge 2.0 (`mqtt.message_received` / `environment.measurement`) para perfil `human_indoor`.
+- Adiciona `tca_enabled` à configuração do add-on.
+- TCA usa bindings como autoridade de ownership lógico e ignora materialização TCA de eventos ambientais não vinculados.
+- Adiciona reconciliação histórica idempotente de medições TCA após binding.
+- ITA ganha exclusão permanente de ativo local e UX sincronizada com a linha Linux.
+- Padroniza branding/navegação/tema/idioma com a experiência Seiden One amadurecida no Linux.
+- Eleva o schema lógico HAOS para 23, mantendo SQLite e sem portar `pgcompat`, PostgreSQL, serviços ou instaladores Linux.
+- ERA permanece 0.1.1; TCA permanece 0.6.1; ITA 0.3.1.8.
+
 ## 0.23.1 — ERA 0.1.1 + TCA 0.6.1 · TCA Response Integration
 
 - Integra TCA à ERA sem duplicar notification logic.

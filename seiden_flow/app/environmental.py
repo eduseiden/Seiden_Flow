@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from profile_classification import classify_profile_value
+
 VALID_CONDITIONS = {"comfortable", "attention", "uncomfortable", "critical", "optimal"}
 
 
@@ -29,11 +31,116 @@ def _number(value: Any, name: str, minimum: float, maximum: float) -> float:
     return result
 
 
+
+BRIDGE_EEA_PROFILES = {
+    "human_indoor": {
+        "label": "Ambiente interno humano",
+        "analysis_type": "human_comfort",
+        "ruleset": "seiden_bridge_human_indoor_v1",
+        "temperature": {
+            "optimal": {"min": 20.0, "max": 26.0},
+            "attention": {"min": 17.0, "max": 29.0},
+            "critical": {"min": 12.0, "max": 34.0},
+        },
+        "humidity": {
+            "optimal": {"min": 40.0, "max": 65.0},
+            "attention": {"min": 30.0, "max": 70.0},
+            "critical": {"min": 20.0, "max": 80.0},
+        },
+    }
+}
+
+_LEVEL_SCORE = {"ideal": 100.0, "attention": 80.0, "elevated_alert": 60.0, "critical": 30.0}
+_LEVEL_CONDITION = {"ideal": "comfortable", "attention": "attention", "elevated_alert": "uncomfortable", "critical": "critical"}
+_LEVEL_SEVERITY = {"ideal": 0, "attention": 1, "elevated_alert": 2, "critical": 3}
+
+
+def _bridge_environmental_measurement(payload: dict[str, Any], event_type: str) -> dict[str, Any] | None:
+    """Normalize Bridge 2.0 MQTT environmental envelopes into native EEA storage.
+
+    Only profiles explicitly owned by EEA are accepted here. Thermal profiles such
+    as freezer/refrigerator remain TCA-only even when they use the same sensors.
+    """
+    if event_type not in {"mqtt.message_received", "mqtt.message", "environment.measurement"}:
+        return None
+    environment = payload.get("environment")
+    if not isinstance(environment, dict):
+        return None
+    profile_id = str(environment.get("profile_id") or payload.get("profile_id") or "").strip()
+    profile = BRIDGE_EEA_PROFILES.get(profile_id)
+    if not profile:
+        return None
+
+    measurements = environment.get("measurements") if isinstance(environment.get("measurements"), dict) else {}
+    temperature_c = _number(measurements.get("temperature_c", payload.get("temperature_c")), "temperature", -100.0, 150.0)
+    humidity_pct = _number(measurements.get("humidity_pct", payload.get("humidity_pct")), "humidity", 0.0, 100.0)
+    temp_class = classify_profile_value(temperature_c, profile["temperature"])
+    humidity_class = classify_profile_value(humidity_pct, profile["humidity"])
+    classes = {"temperature": temp_class, "humidity": humidity_class}
+    valid_levels = [c.get("level") for c in classes.values() if c.get("level") in _LEVEL_SEVERITY]
+    worst_level = max(valid_levels, key=lambda level: _LEVEL_SEVERITY[level]) if valid_levels else "critical"
+    score = min(_LEVEL_SCORE.get(level, 30.0) for level in valid_levels) if valid_levels else 30.0
+    condition = _LEVEL_CONDITION[worst_level]
+
+    event_id = str(payload.get("event_id") or "").strip()
+    source_id = str(environment.get("source_id") or payload.get("source_id") or "").strip()
+    if not event_id:
+        raise ValueError("event_id ambiental ausente")
+    if not source_id:
+        raise ValueError("source_id ambiental ausente")
+    data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+    connection = payload.get("connection") if isinstance(payload.get("connection"), dict) else {}
+    reason_codes = []
+    for metric, classification in classes.items():
+        level = classification.get("level")
+        direction = classification.get("direction")
+        if level and level != "ideal":
+            reason_codes.append(f"{metric}:{level}:{direction or 'unknown'}")
+
+    return {
+        "event_id": event_id,
+        "source_event_id": event_id,
+        "schema_version": str(payload.get("schema_version") or "2.0"),
+        "occurred_at": _utc_iso(payload.get("timestamp") or payload.get("occurred_at")),
+        "source_id": source_id,
+        "source_name": str(environment.get("source_name") or payload.get("source_name") or source_id),
+        "location_id": str(environment.get("location_id") or payload.get("location_id") or "").strip() or None,
+        "location_name": str(environment.get("location_name") or payload.get("location_name") or "").strip() or None,
+        "connection_id": str(payload.get("connection_id") or connection.get("id") or "").strip() or None,
+        "connector": str(payload.get("connector") or connection.get("connector") or "").strip() or None,
+        "topic": str(payload.get("topic") or (payload.get("raw") or {}).get("topic") or "").strip() or None,
+        "temperature_c": temperature_c,
+        "humidity_pct": humidity_pct,
+        "condition": condition,
+        "comfort_score": score,
+        "environmental_score": score,
+        "analysis_type": profile["analysis_type"],
+        "operational_state": condition,
+        "profile_id": profile_id,
+        "resolved_profile_id": profile_id,
+        "profile_label": profile["label"],
+        "profile_fallback": False,
+        "profile_customized": False,
+        "ruleset_source": "flow_embedded_bridge_profile",
+        "metric_scores": {metric: _LEVEL_SCORE.get(c.get("level"), 30.0) for metric, c in classes.items()},
+        "applied_ranges": {"temperature": profile["temperature"], "humidity": profile["humidity"]},
+        "reason_codes": reason_codes,
+        "confidence": 1.0,
+        "ruleset": profile["ruleset"],
+        "battery_pct": float(measurements.get("battery_pct")) if measurements.get("battery_pct") is not None else None,
+        "linkquality": float(data.get("linkquality")) if data.get("linkquality") is not None else None,
+        "source_last_seen": _utc_iso(data.get("last_seen")) if data.get("last_seen") else None,
+        "payload": payload,
+    }
+
 def extract_environmental_measurement(payload: dict[str, Any], ha_event_type: str | None = None) -> dict[str, Any] | None:
-    """Valida e normaliza um environment.observation produzido pelo Vision."""
+    """Normaliza observações EEA do Vision e envelopes ambientais do Bridge 2.0."""
     if not isinstance(payload, dict):
         return None
     event_type = str(payload.get("event_type") or ha_event_type or "").strip()
+    bridge_measurement = _bridge_environmental_measurement(payload, event_type)
+    if bridge_measurement is not None:
+        return bridge_measurement
     if event_type != "environment.observation":
         return None
 
