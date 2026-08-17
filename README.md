@@ -1,4 +1,15 @@
-# Seiden FLOW 0.24.1
+# Seiden FLOW 0.24.2
+
+## 0.24.2 — EEA/TCA Profile Ownership Architecture
+
+Esta release corrige a responsabilidade arquitetural dos perfis ambientais. O Seiden Vision deixa de ser autoridade das faixas analíticas; o Flow passa a possuir os catálogos EEA e TCA em arquivos persistentes independentes.
+
+- `/config/config_eea.json`: `human_indoor`, `human_outdoor` e futuros perfis de experiência ambiental humana/contextual.
+- `/config/config_tca.json`: `refrigerator`, `freezer`, `wine_cellar`, `beer_cooler` e futuros perfis de conformidade térmica.
+- Se o catálogo legado do Vision existir na primeira execução, suas faixas são preservadas e separadas automaticamente, sem apagar o original.
+- O EEA filtra também o histórico pela ownership atual: equipamentos térmicos não aparecem mais no portal EEA.
+- `human_outdoor` permanece visível como contexto externo, mas não gera falso estado operacional nos KPIs de conforto interno.
+
 
 
 ## 0.24.1 — HAOS Stability Hotfix

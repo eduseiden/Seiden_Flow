@@ -1,3 +1,22 @@
+# Seiden FLOW 0.24.2 — Documentação técnica
+
+## Arquitetura de perfis EEA/TCA
+
+A autoridade de regra de negócio ambiental passa a ser o Seiden Flow. O Vision/Bridge envia identificação da fonte, `profile_id`, timestamp e medições; o Flow resolve faixas, classificação, score e `ruleset`.
+
+Arquivos persistentes:
+
+- `/config/config_eea.json` — aceita `analysis_type` `human_comfort` e `informational`.
+- `/config/config_tca.json` — aceita `analysis_type` `environmental_compliance`.
+
+Na primeira execução, se `/homeassistant/seiden_vision/environmental_profiles.json` existir e os novos arquivos ainda não existirem, o Flow divide o catálogo legado por `analysis_type` e preserva exatamente as faixas implantadas. O legado fica somente como referência e não é alterado. Arquivos Flow já existentes nunca são sobrescritos automaticamente.
+
+O mesmo layout de arquivos foi desenhado para ser reaproveitado na linha Linux usando `FLOW_CONFIG_DIR`, evitando nova divergência entre HAOS e Linux.
+
+O portal EEA exibe apenas perfis pertencentes a `config_eea.json`. `human_outdoor` é contexto informacional: aparece como fonte ambiental, mas não soma nos KPIs Normal/Atenção/Crítico.
+
+---
+
 # Seiden FLOW 0.24.1 — Documentação técnica
 
 ## Hotfix 0.24.1

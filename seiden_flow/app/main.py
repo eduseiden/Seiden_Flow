@@ -12,6 +12,7 @@ from environmental_analytics import calculate_environmental_analytics, period_bo
 from tca import extract_tca_measurements
 from tca_analytics import calculate_tca
 from tca_profiles import load_tca_profiles,resolve_tca_asset
+from profile_configs import ensure_profile_configs,load_eea_profiles,eea_profile_ids
 from modules.catalog import build_module_registry
 from core.platform_api import create_platform_blueprint
 from modules.lca.repository import LCARepository
@@ -23,6 +24,7 @@ from modules.era.repository import ERARepository
 from modules.era.service import ERAService
 from modules.era.api import create_era_blueprint
 settings=load_settings();logging.basicConfig(level=getattr(logging,settings.log_level.upper(),logging.INFO),format='%(asctime)s [%(levelname)s] %(name)s: %(message)s');LOGGER=logging.getLogger('seiden_flow')
+ensure_profile_configs(settings.config_dir)
 
 _ENV_CACHE_TTL_SECONDS=30
 _ENV_CACHE_MAX_ITEMS=32
@@ -270,23 +272,40 @@ def experience_v2():
  result=db.hea_query(start.isoformat(),end.isoformat(),settings.human_experience_minimum_samples,service.weights,(request.args.get('source_id') or '').strip() or None,(request.args.get('location_id') or '').strip() or None,96)
  return jsonify({'experience_index':result['summary'],'history':result['history'],'version':VERSION})
 
+def _eea_allowed_profile_ids():
+ return eea_profile_ids(settings.config_dir)
+
+def _eea_rows(rows):
+ allowed=_eea_allowed_profile_ids()
+ return [row for row in rows if str(row.get('resolved_profile_id') or row.get('profile_id') or '').strip() in allowed]
+
+@app.get('/api/v1/environment/profiles')
+def environment_profiles():
+ return jsonify(load_eea_profiles(settings.config_dir))
+
 @app.get('/api/v1/environment/measurements')
 def environment_measurements():
- return jsonify({'items':db.environmental_measurements(limit=int(request.args.get('limit',500)),source_id=(request.args.get('source_id') or '').strip() or None,location_id=(request.args.get('location_id') or '').strip() or None,start_at=(request.args.get('start') or '').strip() or None,end_at=(request.args.get('end') or '').strip() or None)})
+ rows=db.environmental_measurements(limit=int(request.args.get('limit',500)),source_id=(request.args.get('source_id') or '').strip() or None,location_id=(request.args.get('location_id') or '').strip() or None,start_at=(request.args.get('start') or '').strip() or None,end_at=(request.args.get('end') or '').strip() or None)
+ return jsonify({'items':_eea_rows(rows)})
 
 @app.get('/api/v1/environment/latest')
 def environment_latest():
- return jsonify({'item':db.environmental_latest((request.args.get('source_id') or '').strip() or None)})
+ rows=_eea_rows(db.environmental_measurements(limit=5000,source_id=(request.args.get('source_id') or '').strip() or None));return jsonify({'item':rows[0] if rows else None})
 
 @app.get('/api/v1/environment/summary')
 def environment_summary():
- return jsonify({'measurement_count':db.environmental_count(),'latest':db.environmental_latest(),'storage_enabled':settings.environmental_storage_enabled})
+ rows=_eea_rows(db.environmental_measurements(limit=5000));return jsonify({'measurement_count':len(rows),'latest':rows[0] if rows else None,'storage_enabled':settings.environmental_storage_enabled})
 
 def _environment_sources_payload():
  key=('sources',)
  payload=_env_cache_get(key)
  if payload is None:
-  payload=_timed_environment_call('environment.sources',db.environmental_sources_catalog)
+  raw=_timed_environment_call('environment.sources',db.environmental_sources_catalog)
+  allowed=_eea_allowed_profile_ids()
+  items=[item for item in raw.get('items',[]) if str(item.get('profile_id') or '').strip() in allowed]
+  location_keys={db._environment_identity_key(item.get('location_id')) for item in items if item.get('location_id')}
+  locations=[item for item in raw.get('locations',[]) if db._environment_identity_key(item.get('location_id')) in location_keys]
+  payload={'items':items,'locations':locations,'source_count':len(items)}
   _env_cache_put(key,payload)
  return payload
 
@@ -333,8 +352,8 @@ def _environment_analytics_payload(include_timeline=True):
  location_id=(request.args.get('location_id') or '').strip() or None
  previous_start=start-(end-start)
  source_ids,location_ids=_environment_alias_scope(source_id,location_id)
- rows=db.environmental_range(utc_iso(start),utc_iso(end),source_id,location_id,source_ids=source_ids,location_ids=location_ids)
- previous=db.environmental_range(utc_iso(previous_start),utc_iso(start),source_id,location_id,source_ids=source_ids,location_ids=location_ids)
+ rows=_eea_rows(db.environmental_range(utc_iso(start),utc_iso(end),source_id,location_id,source_ids=source_ids,location_ids=location_ids))
+ previous=_eea_rows(db.environmental_range(utc_iso(previous_start),utc_iso(start),source_id,location_id,source_ids=source_ids,location_ids=location_ids))
  result=calculate_environmental_analytics(rows,start,end,previous,sampling_minutes,bucket_minutes,minimum_samples=10)
  result['period']['preset']=period
  result['scope']['source_id']=source_id
@@ -357,7 +376,7 @@ def environment_portfolio():
  for source in catalog.get('items',[]):
   if location_id and location_id!=source.get('location_id') and location_id not in (source.get('location_aliases') or []):continue
   aliases=source.get('source_aliases') or [source.get('source_id')]
-  rows=db.environmental_range(utc_iso(start),utc_iso(end),source_ids=aliases)
+  rows=_eea_rows(db.environmental_range(utc_iso(start),utc_iso(end),source_ids=aliases))
   if not rows:continue
   result=calculate_environmental_analytics(rows,start,end,[],sampling_minutes,bucket_minutes,minimum_samples=10)
   current=result.get('current') or {}
@@ -374,8 +393,9 @@ def environment_portfolio():
    'operational_state':current.get('operational_state'),'metric_scores':current.get('metric_scores') or {},
    'applied_ranges':current.get('applied_ranges') or {},'reason_codes':current.get('reason_codes') or [],
   })
- counts={k:sum(1 for x in items if x.get('condition')==k) for k in ('comfortable','attention','uncomfortable','critical')}
- return jsonify({'period':{'start':utc_iso(start),'end':utc_iso(end),'preset':period},'items':items,'counts':counts,'source_count':len(items),'version':VERSION})
+ counts={k:sum(1 for x in items if x.get('analysis_type')!='informational' and x.get('condition')==k) for k in ('comfortable','attention','uncomfortable','critical')}
+ contextual_count=sum(1 for x in items if x.get('analysis_type')=='informational')
+ return jsonify({'period':{'start':utc_iso(start),'end':utc_iso(end),'preset':period},'items':items,'counts':counts,'contextual_count':contextual_count,'source_count':len(items),'version':VERSION})
 
 @app.get('/api/v1/environment/dashboard')
 def environment_dashboard():

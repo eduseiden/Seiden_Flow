@@ -1,3 +1,14 @@
+## 0.24.2 — EEA/TCA Profile Ownership Architecture
+
+- Move a autoridade das faixas ambientais do Seiden Vision para o Seiden Flow.
+- Cria automaticamente `/config/config_eea.json` e `/config/config_tca.json`.
+- Na primeira execução, quando existe `/homeassistant/seiden_vision/environmental_profiles.json`, preserva as faixas implantadas e separa o catálogo por `analysis_type`; o arquivo legado não é apagado nem alterado.
+- EEA passa a aceitar somente perfis do seu catálogo (`human_comfort` e `informational`), incluindo `human_indoor` e `human_outdoor`; perfis de equipamento deixam de aparecer no EEA mesmo quando existem no histórico.
+- TCA passa a carregar exclusivamente `config_tca.json` (`environmental_compliance`), sem depender do catálogo do Vision.
+- Vision/Bridge continuam responsáveis por identificação, origem, profile ID e medições; classificação, score, faixas e ruleset passam a ser aplicados pelo Flow.
+- `human_outdoor` é mantido no EEA como contexto informacional e não contribui para os contadores operacionais Normal/Atenção/Crítico.
+- Mantém SQLite, schema 23, ERA 0.1.1, TCA 0.6.1 e compatibilidade com os dados existentes.
+
 ## 0.24.1 — HAOS Stability Hotfix
 
 - ERA respeita `ita_fleet_enabled` antes de sincronizar o Fleet Receiver.

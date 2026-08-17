@@ -26,7 +26,7 @@ class FlowService:
     def ingest(self,payload:dict[str,Any],transport='api',ha_event_type=None):
         original=dict(payload)
         observation=extract_vision_observation(original) if self.settings.observation_engine_enabled and self.settings.human_experience_enabled else None
-        environmental=extract_environmental_measurement(original,ha_event_type) if self.settings.environmental_storage_enabled else None
+        environmental=extract_environmental_measurement(original,ha_event_type,self.settings.config_dir) if self.settings.environmental_storage_enabled else None
         tca_measurements=extract_tca_measurements(original,ha_event_type)
         lca_events=extract_lca_events(original,ha_event_type,self.settings.lca_topic_prefixes) if self.settings.lca_enabled else []
         ita_snapshot=extract_ita_snapshot(original,ha_event_type) if getattr(self.settings,'ita_enabled',True) else None
