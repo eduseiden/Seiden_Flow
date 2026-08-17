@@ -1,4 +1,12 @@
-# Seiden FLOW 0.24.0 — Documentação técnica
+# Seiden FLOW 0.24.1 — Documentação técnica
+
+## Hotfix 0.24.1
+
+No HAOS, o Fleet Receiver é opcional. A ERA só executa sincronização ITA Fleet quando `ita_fleet_enabled` estiver habilitado. Falhas transitórias de conexão são tratadas como estado operacional e não produzem traceback a cada ciclo. O mesmo warning é repetido, no máximo, após 5 minutos.
+
+A migração legada de domínio agora grava `legacy_domain_migration_v1=done` em `meta` apenas depois de concluir todo o processamento e reconstrução de presença. Isso mantém a migração segura/idempotente e elimina a varredura integral do histórico em reinícios seguintes. Na primeira inicialização da 0.24.1 sobre um banco que ainda não possua o marcador, a migração será executada uma última vez.
+
+---
 
 ## ERA 0.1.1 / TCA 0.6.1
 

@@ -1,4 +1,15 @@
-# Seiden FLOW 0.24.0
+# Seiden FLOW 0.24.1
+
+
+## 0.24.1 — HAOS Stability Hotfix
+
+Hotfix de estabilidade após validação da 0.24.0 em ambiente HAOS real.
+
+- ERA passa a respeitar `ita_fleet_enabled` antes de sincronizar o Fleet Receiver.
+- Indisponibilidade do Fleet Receiver opcional deixa de gerar traceback repetitivo; o estado é registrado como warning operacional com supressão de repetição por 5 minutos.
+- O cliente Fleet deixa erros transitórios de conexão/timeout em nível debug, evitando duplicidade de logs.
+- A migração legada de domínio recebe marcador persistente e passa a executar uma única vez por banco; reinícios posteriores não percorrem novamente todo o histórico.
+- `DATABASE_SCHEMA_VERSION` permanece 23; nenhuma alteração destrutiva de banco.
 
 ## 0.24.0 — HAOS Functional Alignment with Flow Linux
 

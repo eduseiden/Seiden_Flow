@@ -38,6 +38,8 @@ class ERAService:
         self.flow_db = flow_db
         self.stop_event = threading.Event()
         self.thread = None
+        self._ita_warning_last_at = 0.0
+        self._ita_warning_last_code = None
         self.telegram = TelegramConnector(
             settings.era_telegram_enabled,
             settings.era_telegram_bot_token,
@@ -75,8 +77,10 @@ class ERAService:
             started = time.monotonic()
             try:
                 self.sync_ita()
+            except RuntimeError as exc:
+                self._log_ita_operational_warning(str(exc))
             except Exception:
-                LOG.exception("ERA: falha ao sincronizar ITA")
+                LOG.exception("ERA: falha inesperada ao sincronizar ITA")
             try:
                 self.sync_tca()
             except Exception:
@@ -87,6 +91,16 @@ class ERAService:
                 LOG.exception("ERA: falha no dispatcher")
             wait = max(5, int(self.settings.era_poll_seconds) - int(time.monotonic() - started))
             self.stop_event.wait(wait)
+
+    def _log_ita_operational_warning(self, code: str):
+        """Evita traceback/spam quando o Fleet Receiver opcional está indisponível."""
+        now = time.monotonic()
+        # Uma mudança de erro é registrada imediatamente; repetição do mesmo estado,
+        # no máximo a cada 5 minutos.
+        if code != self._ita_warning_last_code or (now - self._ita_warning_last_at) >= 300:
+            LOG.warning("ERA: sincronização ITA temporariamente indisponível (%s)", code)
+            self._ita_warning_last_code = code
+            self._ita_warning_last_at = now
 
     def ingest(self, event: dict[str, Any]):
         result = self.repo.apply_event(
@@ -113,6 +127,8 @@ class ERAService:
         }
 
     def sync_ita(self):
+        if not self.settings.ita_fleet_enabled:
+            return
         if not self.fleet_client or not self.fleet_client.configured:
             return
         fleet = self.fleet_client.fleet("active")

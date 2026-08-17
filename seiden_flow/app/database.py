@@ -155,7 +155,12 @@ class FlowDatabase:
         import re,unicodedata
         s=unicodedata.normalize('NFKD',str(v or '')).encode('ascii','ignore').decode().lower();return re.sub(r'[^a-z0-9]+','_',s).strip('_') or 'unknown'
     def _migrate_legacy(self):
+        marker = "legacy_domain_migration_v1"
         with self._lock,self.connect() as c:
+            done=c.execute("SELECT value FROM meta WHERE key=?",(marker,)).fetchone()
+            if done and str(done['value']).lower() in {"1","true","done"}:
+                LOGGER.debug("[STARTUP] Legacy migration already complete; skipping")
+                return
             LOGGER.info("[STARTUP] Legacy migration: streaming events in batches of 250")
             cursor=c.execute("SELECT * FROM events ORDER BY occurred_at")
             batch_size=250
@@ -171,11 +176,12 @@ class FlowDatabase:
                 processed+=len(rows)
                 if processed%1000==0:
                     LOGGER.info("[STARTUP] Legacy migration: %d events processed",processed)
-            LOGGER.info("[STARTUP] Legacy migration complete: %d events processed",processed)
             # reconstruct current presence from legacy state
             for p in c.execute("SELECT * FROM persons_state").fetchall():
                 pid=self._person_id(p['person_id'],p['person_name']);self._ensure_person(c,pid,p['person_id'],p['person_name'],p['updated_at'])
                 c.execute("INSERT INTO presences(person_id,site_id,presence_status,current_location_id,entered_at,last_event_id,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(person_id,site_id) DO UPDATE SET presence_status=excluded.presence_status,current_location_id=excluded.current_location_id,entered_at=excluded.entered_at,last_event_id=excluded.last_event_id,updated_at=excluded.updated_at",(pid,self.site_id,p['presence_status'],p['current_location_id'],p['entered_at'],p['last_event_id'],p['updated_at']))
+            c.execute("INSERT INTO meta(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",(marker,"done"))
+            LOGGER.info("[STARTUP] Legacy migration complete: %d events processed; marker persisted",processed)
 
     def _reconcile_vision_sources(self):
         """Unifica fontes antigas do Vision com o leitor operacional correspondente."""

@@ -43,10 +43,10 @@ class ITAFleetClient:
             LOGGER.warning("Fleet Receiver HTTP %s em %s: %s", exc.code, path, detail)
             raise RuntimeError(f"receiver_http_{exc.code}") from exc
         except error.URLError as exc:
-            LOGGER.warning("Fleet Receiver indisponível em %s: %s", path, exc.reason)
+            LOGGER.debug("Fleet Receiver indisponível em %s: %s", path, exc.reason)
             raise RuntimeError("receiver_unavailable") from exc
         except TimeoutError as exc:
-            LOGGER.warning("Timeout no Fleet Receiver em %s", path)
+            LOGGER.debug("Timeout no Fleet Receiver em %s", path)
             raise RuntimeError("receiver_timeout") from exc
         except (ValueError, json.JSONDecodeError) as exc:
             LOGGER.warning("Resposta inválida do Fleet Receiver em %s", path)
@@ -79,10 +79,10 @@ class ITAFleetClient:
             LOGGER.warning("Fleet Receiver HTTP %s em %s %s: %s", exc.code, method, path, detail)
             raise RuntimeError(f"receiver_http_{exc.code}") from exc
         except error.URLError as exc:
-            LOGGER.warning("Fleet Receiver indisponível em %s %s: %s", method, path, exc.reason)
+            LOGGER.debug("Fleet Receiver indisponível em %s %s: %s", method, path, exc.reason)
             raise RuntimeError("receiver_unavailable") from exc
         except TimeoutError as exc:
-            LOGGER.warning("Timeout no Fleet Receiver em %s %s", method, path)
+            LOGGER.debug("Timeout no Fleet Receiver em %s %s", method, path)
             raise RuntimeError("receiver_timeout") from exc
         except (ValueError, json.JSONDecodeError) as exc:
             LOGGER.warning("Resposta inválida do Fleet Receiver em %s %s", method, path)

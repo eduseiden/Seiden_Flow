@@ -1,3 +1,11 @@
+## 0.24.1 — HAOS Stability Hotfix
+
+- ERA respeita `ita_fleet_enabled` antes de sincronizar o Fleet Receiver.
+- Receiver indisponível/timeout passa a ser condição operacional sem traceback; warnings iguais são limitados a um registro a cada 5 minutos.
+- Logs transitórios do `ITAFleetClient` passam a debug para evitar duplicidade com o ERA.
+- Migração legada de domínio ganha marcador persistente `legacy_domain_migration_v1`; após conclusão bem-sucedida, reinícios não reprocessam todo o histórico.
+- Mantém `DATABASE_SCHEMA_VERSION = 23`, SQLite, ERA 0.1.1, TCA 0.6.1 e ITA 0.3.1.8.
+
 ## 0.24.0 — HAOS Functional Alignment with Flow Linux
 
 - Porta para HAOS a home comercial Seiden One; operação técnica passa a `/operation`.
